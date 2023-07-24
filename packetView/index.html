@@ -1,0 +1,2553 @@
+<html>
+<head>
+
+<script>
+
+// Field Functions:
+// Each function should take an array of bytes, and return something in the
+// form of a string, int or float.
+// ----------------------------------------------------------------------------
+
+function ipv4Address(bytes) {
+	return bytes.join('.');
+}
+
+function decimalMSBF(bytes) {
+	var result = 0;
+	for (var i=0; i<bytes.length; i++) {
+		result += bytes[i] * (2 ** (8*(bytes.length-i-1)));
+	}
+	return result.toString();
+}
+
+function decimalLSByteF(bytes) {
+	var result = 0;
+	for (var i=0; i<bytes.length; i++) {
+		result += bytes[i] * (2 ** (8*(i)));
+	}
+	return result.toString();
+}
+
+function binary(bytes) {
+	var result = '';
+	for (var i=0; i<bytes.length; i++) {
+		result += ('00000000' + bytes[i].toString(2)).substr(-8)
+	}
+	return result;
+}
+
+function binaryVisual(bytes) {
+	var result = '';
+	for (var i=0; i<bytes.length; i++) {
+		result += ('00000000' + bytes[i].toString(2)).substr(-8)
+	}
+	result = result.replaceAll('0','.').replaceAll('1','X');
+	return result;
+}
+
+function ascii(bytes) {
+	var result = '';
+	for (var i=0; i<bytes.length; i++) {
+		result += String.fromCharCode(bytes[i]);
+	}
+	return result;
+}
+
+function macAddress(bytes) {
+	result = bytes.map( function (e) { return ('0'+e.toString(16)).substr(-2); });
+	return result.join(':');
+}
+
+function hexField(bytes) {
+	result = bytes.map( function (e) { return ('0'+e.toString(16)).substr(-2); });
+	return result.join('');
+}
+
+// Add all of the field functions to the fieldFunctions list.
+// This list is used to populate the UI.
+// ----------------------------------------------------------------------------
+
+fieldFunctions = [];
+fieldFunctions.push(ipv4Address);
+fieldFunctions.push(decimalMSBF);
+fieldFunctions.push(decimalLSByteF);
+fieldFunctions.push(binary);
+fieldFunctions.push(binaryVisual);
+fieldFunctions.push(macAddress);
+fieldFunctions.push(hexField);
+fieldFunctions.push(ascii);
+
+// Templates:
+// Each function should take a byteOffset, the byte to start the template.
+// The template can then call any functions, using the byteOffset to change
+// the starting point.
+// ----------------------------------------------------------------------------
+
+function Ethernet_802_3_template(byteOffset) {
+	addField(0+byteOffset, 6, macAddress, 'MAC Dest', true);
+	addField(6+byteOffset, 6, macAddress, 'MAC Source', true);
+	addField(12+byteOffset, 2, hexField, 'Ethertype', true);
+	updateUI();
+}
+
+function IPv4_template(byteOffset) {
+	addField(0+byteOffset, 1, hexField, 'Ver', true);
+	addField(1+byteOffset, 1, hexField, 'TOS', true);
+	addField(2+byteOffset, 2, decimalMSBF, 'Len', true);
+	addField(4+byteOffset, 2, decimalMSBF, 'Id', true);
+	addField(6+byteOffset, 2, hexField, 'Flags/Frag', true);
+	addField(8+byteOffset, 1, decimalMSBF, 'TTL', true);
+	addField(9+byteOffset, 1, decimalMSBF, 'PID', true);
+	addField(10+byteOffset, 2, hexField, 'Checksum', true);
+	addField(12+byteOffset, 4, ipv4Address, 'Source IP', true);
+	addField(16+byteOffset, 4, ipv4Address, 'Dest IP', true);
+	updateUI();
+}
+
+
+function TCP_template(byteOffset) {
+	addField(0+byteOffset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+byteOffset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+byteOffset, 4, decimalMSBF, 'Sequence Number', true);
+	addField(8+byteOffset, 1, binary, 'Len + 0000', true);
+	addField(9+byteOffset, 1, binary, 'CEUAPRSF', true);
+	addField(10+byteOffset, 2, decimalMSBF, 'Window Size', true);
+	addField(12+byteOffset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+
+function TCP_Ack_template(byteOffset) {
+	addField(0+byteOffset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+byteOffset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+byteOffset, 4, decimalMSBF, 'Sequence Number', true);
+	addField(8+byteOffset, 4, decimalMSBF, 'Ack Number', true);
+	addField(12+byteOffset, 1, binary, 'Len + 0000', true);
+	addField(13+byteOffset, 1, binary, 'CEUAPRSF', true);
+	addField(14+byteOffset, 2, decimalMSBF, 'Window Size', true);
+	addField(16+byteOffset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+
+function TCP_Option_Header_template(byteOffset) {
+	addField(0+byteOffset, 1, hexField, 'Opt Kind', true);
+	addField(1+byteOffset, 1, hexField, 'Opt Len', true);
+	updateUI();
+}
+
+
+function Byte_To_Bits(byteOffset) {
+	newByte(byteOffset+1, byteOffset, 1, "01", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "02", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "04", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "08", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "10", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "20", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "40", "right", true);
+	newByte(byteOffset+1, byteOffset, 1, "80", "right", true);
+	
+	addField(byteOffset+1, 1, decimalMSBF, 'b0', true);
+	addField(byteOffset+2, 1, decimalMSBF, 'b1', true);
+	addField(byteOffset+3, 1, decimalMSBF, 'b2', true);
+	addField(byteOffset+4, 1, decimalMSBF, 'b3', true);
+	addField(byteOffset+5, 1, decimalMSBF, 'b4', true);
+	addField(byteOffset+6, 1, decimalMSBF, 'b5', true);
+	addField(byteOffset+7, 1, decimalMSBF, 'b6', true);
+	addField(byteOffset+8, 1, decimalMSBF, 'b7', true);
+	
+	updateUI();
+}
+
+function Frame_Relay_1_Byte(byteOffset) {
+	newByte(byteOffset, byteOffset, 2, "FCF0", "right", true);
+	dropBytes(byteOffset+2, 2, false, true);
+	addField(byteOffset, 2, decimalMSBF, 'DLCI', true);
+	addField(byteOffset+2, 2, hexField, 'Ethertype', true);
+	updateUI();
+}
+
+// Add all of the template functions to the templates list.
+// This list is used to populate the UI.
+// ----------------------------------------------------------------------------
+var templates = [];
+templates.push(Ethernet_802_3_template);
+templates.push(IPv4_template);
+templates.push(TCP_template);
+templates.push(TCP_Ack_template);
+templates.push(TCP_Option_Header_template);
+templates.push(Byte_To_Bits);
+templates.push(Frame_Relay_1_Byte);
+
+</script>
+
+<title>packetView</title>
+<style>
+
+:root {
+	--backgroundLight: #ffffff;
+    --midgroundLight: #d5d5d5;
+    --borderColorLight: #8d8d8d;
+    --buttonbgLight: #e5e5e5;
+    --entrybgLight: #efefef;
+    --buttonbgHoverLight: #fdffd0;
+    --buttonbgSelectedLight: #fffac6;
+    --textColorLight: #000;
+    --tableHeadColorLight: #001279;
+    --tableHighlightColorLight: #aa0000;
+    --cellColorLight: #e6e6e6;
+    --cellBorderLight: #9e9e9e;
+    --cellBorderStrongLight: #666;
+    --shadowColorLight: #aaa;
+    --tableTopLeftLight: #aaa;
+    
+    --backgroundDark: #303030;
+    --midgroundDark: #111111;
+    --borderColorDark: #4d4d4d;
+    --entrybgDark: #151515;
+    --buttonbgDark: #333333;
+    --buttonbgHoverDark: #a28f75;
+    --buttonbgSelectedDark: #818181;
+    --textColorDark: #fff;
+    --tableHeadColorDark: #ffa400;
+    --tableHighlightColorDark: #ff0000;
+    --cellColorDark: #050505;
+    --cellBorderDark: #606060;
+    --cellBorderStrongDark: #777;
+    --shadowColorDark: #000;
+    --tableTopLeftDark: #484848;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --buttonbg: var(--buttonbgDark);
+    --entrybg: var(--entrybgDark);
+    --buttonbgHover: var(--buttonbgHoverDark);
+    --buttonbgSelected: var(--buttonbgSelectedDark);
+    --textColor: var(--textColorDark);
+    --tableHeadColor: var(--tableHeadColorDark);
+    --tableHighlightColor: var(--tableHighlightColorDark);
+    --cellColor: var(--cellColorDark);
+    --cellBorder: var(--cellBorderDark);
+    --cellBorderStrong: var(--cellBorderStrongDark);
+    --shadowColor: var(--shadowColorDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+}
+
+*::-webkit-scrollbar {
+    -webkit-appearance: none;
+}
+*::-webkit-scrollbar:vertical {
+    width: 1em;
+}
+*::-webkit-scrollbar:horizontal {
+    height: 1em;
+}
+*::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    border: 2px solid var(--midground); /* should match background, can't be transparent */
+    background-Color: var(--borderColor);
+}
+*::-webkit-scrollbar-track { 
+    background-Color: var(--midground); 
+    border-radius: 8px; 
+} 
+
+::-webkit-scrollbar-corner {
+    background-Color: var(--midground); 
+}
+
+#loadingPage {
+    z-index: 100;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #555555cc;
+    color: var(--textColor);
+	visibility: hidden;
+}
+
+#loadingText {
+	text-align: center;
+    width: 100%;
+    top: 50%;
+    position: absolute;
+}
+
+#loadingText2 {
+	text-align: center;
+    width: 100%;
+    top: calc(50% + 1em);
+    position: absolute;
+}
+
+textArea {
+	resize: none;
+    width: calc(100% + 10px);
+    height: 100%;
+    background: var(--midground);
+    Color: var(--textColor);
+    border: none;
+    padding: 0px;
+    outline: none;
+}
+
+#container {
+	width: 100%;
+	height: 100%;
+	font-family: helvetica;
+	font-size: 12pt;
+	Color: var(--textColor);
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	
+}
+
+
+#topMenuContainer {
+	background-Color: var(--midground);
+	width: calc(100% - 22px);
+	height: fit-content;
+	padding: 5px;
+	margin: 5px;
+	margin-bottom: 0px;
+	border-radius: 5px;
+	overflow: hidden;
+	border: 1px var(--borderColor) solid;
+	flex-shrink: 0;
+	flex-grow: 0;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
+	z-index: 1;
+}
+
+#topMenu {
+	width: 100%;
+	z-index: 1;
+}
+
+
+#packetDisplayOuter {
+	background-Color: var(--midground);
+	width: calc(100% - 22px);
+	padding: 5px;
+	margin: 5px;
+	border-radius: 5px;
+	border: 1px var(--borderColor) solid;
+	flex-shrink: 1;
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
+	max-height: 100%;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
+}
+
+#packetDisplayInner {
+	overflow: hidden;
+    height: 1;
+    width: 100%;
+    flex-shrink: 1;
+    flex-grow: 1
+}
+
+
+.container {
+	display: block;
+}
+
+.containerOuter {
+	background-Color: var(--midground);
+    width: -webkit-fill-available;
+    padding: 10px;
+    margin: 0px;
+    height: -webkit-fill-available;
+    overflow: scroll;
+}
+
+
+.closedToolbox {
+	visibility: hidden;
+	width: 100%;
+	height: 0px;
+	max-height: 0px;
+}
+
+.openToolbox {
+	visibility: unset;
+	width 100%;
+	height: auto;
+	margin-top: 5px;
+	padding-top: 5px;
+	max-height: 9001;
+	z-index: 1;
+	border-top: 1px solid var(--borderColor);
+}
+
+html, body {
+	margin: 0; 
+	height: 100%; 
+	overflow: hidden;
+	background-Color: var(--background);
+	Color: var(--textColor);
+	font-family: Monospace;
+}
+
+
+p {
+	margin: 0px;
+}
+
+.stream {
+	margin: 0px;
+	margin-top: -8px;
+    font-size: 23px;
+    Color: var(--borderColor);
+    text-wrap: nowrap;
+    font-family: sans-serif;
+}
+
+.packets {
+  position: relative;
+  Color:  var(--textColor);
+  width: 100%;
+  overflow: scroll;
+  height: 100%;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+table {
+	text-wrap: nowrap;
+	font-size: 12pt;
+	position: relative;
+	border-collapse: collapse;
+	font-family: monospace;
+}
+
+.toolboxCell {
+	border: none;
+    text-align: left
+}
+
+th {
+	background: var(--midground);
+	position: sticky;
+	top: 0;
+	Color: var(--tableHeadColor);
+	border-style: solid;
+    border-Color: var(--borderColor);
+    border-top: none;
+    padding: 10px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    Color: var(--tableHeadColor);
+}
+
+td {
+	padding-top: 0px;
+	padding-bottom: 0px;
+	padding-left: 5px;
+	padding-right: 5px;
+	border-style: solid;
+    border-Color: var(--borderColor);
+    text-align: center;
+    Color: var(--textColor);
+}
+
+.padTop {
+	padding-top: 10px;
+}
+
+.padBot {
+	padding-bottom: 10px;
+}
+
+button, input::file-selector-button, input[type="number"], input[type="text"], select{
+	background-Color: var(--entrybg);
+	border: 1px var(--borderColor) solid;
+	border-radius: 2px;
+	Color: var(--textColor);
+	margin: 2px;
+	font-family: Monospace;
+	outline: none;
+}
+
+button {
+	background-Color: var(--buttonbg);
+}
+
+input[type="number"], input[type="text"], select {
+	width: calc(100% - 4px);
+	font-family: Monospace;
+}
+
+button:hover, input::file-selector-button:hover{
+	background-Color: var(--buttonbgHover);
+}
+
+
+</style>
+</head>
+
+<body>
+
+<canvas width='1' height='1' id="background" style="position: absolute; z-index: 0;"></canvas>
+
+<div id="container">
+
+<div id="topMenuContainer">
+<div id="topMenu">
+<!-- tool box selection buttons -->
+<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);">File</button>
+<button id="viewsButton" onclick="openToolbox(&#39;views&#39;);">Views</button>
+
+<button id="divideButton" onclick="openToolbox(&#39;divide&#39;);">Divide</button>
+<button id="sortButton" onclick="openToolbox(&#39;sort&#39;);">Sort</button>
+<button id="addFieldsButton" onclick="openToolbox(&#39;addFields&#39;);">Add Field</button>
+<button id="applyTemplateButton" onclick="openToolbox(&#39;applyTemplate&#39;);">Apply Template</button>
+<button id="newByteButton" onclick="openToolbox(&#39;newByte&#39;);">New Byte</button>
+<button id="dropBytesButton" onclick="openToolbox(&#39;dropBytes&#39;);">Drop Bytes</button>
+<button id="xorBytesButton" onclick="openToolbox(&#39;xorBytes&#39;);">XOR Bytes</button>
+<button id="reverseBytesButton" onclick="openToolbox(&#39;reverseBytes&#39;);">Reverse Bytes</button>
+<button id="plotViewButton" onclick="openToolbox(&#39;plotView&#39;);">Plot View</button>
+<button id="extractButton" onclick="openToolbox(&#39;extract&#39;);">Extract</button>
+
+
+
+
+</div> <!-- start tool box -->
+
+<div id="inputMenu" class="closedToolbox">
+<table>
+<tr>
+	<td class="toolboxCell">File Open:</td><td class="toolboxCell"><input id="browseOpen" type="file"/></td>
+</tr>
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr>
+	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
+</tr>
+<tr>
+	<td class="toolboxCell">Link Type:</td><td class="toolboxCell"><select style="width: 100%;" id="outputLinkType"></select></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button id="outputGenerateButton" style="width: 100%;" onclick="generateOutput();">Export</button></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
+</tr>
+</table>
+
+</div>
+
+<div id="views" class="closedToolbox">
+	
+	<select style="width: 14em;" id="viewType">
+		<option>Hexadecimal</option>
+		<option>Decimal</option>
+		<option>ASCII</option>
+	</select>
+	
+	<button type="button" onclick="fieldView()">Fields On/Off</button>
+	<button type="button" onclick="toggleHighlightConstants()">Highlight Constants</button>
+	
+	<button id="streamsButton" onclick="openNewWindow('Streams');">Streams Window</button>
+	<button id="fieldsButton" onclick="openNewWindow('Fields');">Fields Window</button>
+	
+	<button id="modeButton" onclick="toggleColorMode();">Light/Dark</button>
+	<button id="plusButton" onclick="increaseTableFontSize();">+</button>
+	<button id="minusButton" onclick="decreaseTableFontSize();">-</button>
+	
+	
+</div>
+
+<div id="addFields" class="closedToolbox">
+	<table>
+	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="fieldStartByte" min="0"></td></tr>
+	<tr><td class="toolboxCell">Length (bytes):</td><td class="toolboxCell"><input type="number" id="fieldLength" min="0"></td></tr>
+	<tr><td class="toolboxCell">Type:</td><td class="toolboxCell"><select id="fieldType"></select></td></tr>
+	<tr><td class="toolboxCell">Label:</td><td class="toolboxCell"><input type="text" id="fieldLabel"></td></tr>
+	<tr><td class="toolboxCell"></td><td class="toolboxCell">
+	<button style="width: calc(100% - 4px);" onclick="addFieldUser();">Add</button>
+	</td></tr>
+	</table>
+</div>
+
+<div id="applyTemplate" class="closedToolbox">
+	<table>
+	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="templateStartByte" min="0"></td></tr>
+	<tr><td class="toolboxCell">Template:</td><td class="toolboxCell"><select id="templateId"></select></td></tr>
+	<tr><td class="toolboxCell"></td><td class="toolboxCell">
+	<button style="width: calc(100% - 4px);" onclick="applyTemplate();">Apply</button>
+	</td></tr>
+	</table>
+</div>
+
+<div id="divide" class="closedToolbox">
+	<table>
+	<tr>
+	<td class="toolboxCell">Divide on byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="divideField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (only on bytes):</td>
+	<td class="toolboxCell"><input type="text" id="divideMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnField();">Divide</button></td>
+	</tr>
+	
+	<tr><td class="toolboxCell">&nbsp;</td></tr>
+	
+	<tr>
+	<td class="toolboxCell">Divide on Length:</td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnLength();">Divide on Length</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="sort" class="closedToolbox">
+	<table>
+	<tr>
+	<td class="toolboxCell">Sort on byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="sortField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (only on bytes):</td>
+	<td class="toolboxCell"><input type="text" id="sortMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(1);">Sort Ascending</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(-1);">Sort Descending</button></td>
+	</tr>
+	
+	<tr><td class="toolboxCell">&nbsp;</td></tr>
+	
+	<tr>
+	<td class="toolboxCell">Sort on length:</td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(1);">Sort on Length Asc</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(-1);">Sort on Length Desc</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+<div id="newByte" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Insert at byte/field location:</td>
+	<td class="toolboxCell"><input type="number" id="newByteAt" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Derived from bytes start:</td>
+	<td class="toolboxCell"><input type="number" id="newByteFromStart" min=-1></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Derived from bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="newByteFromLength" min=1></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (must match length):</td>
+	<td class="toolboxCell"><input type="text" id="newByteMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Align bits:</td>
+	<td class="toolboxCell"><select id="newByteAlign"><option>none</option><option>left</option><option>right</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="newByteOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="newByteUser();">Create</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="dropBytes" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Drop bytes/fields starting at:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Drop bytes/fields length:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Drop from packet:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesPacketNumber" min=-1 value=-1></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="dropBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="dropBytesUser();">Drop bytes</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="xorBytes" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">XOR bytes starting at:</td>
+	<td class="toolboxCell"><input type="number" id="xorBytesStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">XOR bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="xorBytesLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">XOR value (will repeat to cover bytes):</td>
+	<td class="toolboxCell"><input type="text" id="xorBytesValue" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="xorBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="xorBytesUser();">XOR bytes</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="reverseBytes" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Reverse bytes starting at:</td>
+	<td class="toolboxCell"><input type="number" id="reverseBytesStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Reverse bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="reverseBytesLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Reverse type:</td>
+	<td class="toolboxCell"><select id="reverseBytesType"><option>each byte</option><option>order of bytes</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="reverseBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="reverseBytesUser();">Reverse bytes</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="extract" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Extract start byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="extractStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Extract length bytes/fields:</td>
+	<td class="toolboxCell"><input type="number" id="extractLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractASCII();">Extract as ASCII</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractHex();">Extract as hex</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+<div id="plotView" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Plot byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="plotField" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Plot byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="plotFormat" min=2 value=10></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="plotField();">Plot</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+</div> <!-- end toolbox -->
+
+<div id="packetDisplayOuter">
+	<div id="packetDisplayInner">
+	</div>
+</div>
+
+<div id='loadingPage'>
+<p id='loadingText'>Loading...</p>
+<p id='loadingText2'></p>
+</div>
+
+<script>
+
+class megaTable {
+
+	constructor() {
+		this.running = false;
+		this.container = null;
+		this.tableSpacer = null;
+		this.canvas = null;
+		
+		this.tableFontFace = "Monospace";
+		this.tableFont = "";
+		this.tableScaleY = 18;
+		this.tableScaleX = 11;
+		this.tablePadding = 5;
+		this.tableBorder = 2;
+		this.tableDataFontColor = '#FFF'
+		this.tableHeaderFontColor = '#ffa400';
+		this.tableCellColor = '#050505';
+		this.tableBorderColor = '#131313';
+		this.tableBorderColorStrong = '#202020';
+		this.tableTopLeftColor = '#131313';
+		
+		this.table = [];
+		this.columnHeaders = [];
+		this.rowHeaders = [];
+		this.columnWidths = [];
+		this.colorMask = [];
+		
+		this.rowHeaderWidth = 0;
+		this.tableWidth = 0;
+		this.tableHeight = 0;
+		this.mouseX = 0;
+		this.mouseY = 0;
+
+		this.id = Math.floor(Math.random() * 1990 ).toString(16)
+	}
+	
+	calculate() {
+		this.container.style = 'overflow: scroll;'
+		var HTML = '<div id="tableSpacer' + this.id + '">';
+		HTML += '<canvas width="1" height="1" id="tableView' + this.id + '" style="position: absolute; z-index: 0; filter: contrast(2)">';
+		HTML += '</canvas></div>';
+		
+		this.container.innerHTML = HTML;
+		this.tableFont = this.tableScaleY + 'px ' +  this.tableFontFace;
+		this.canvas = document.getElementById('tableView' + this.id);
+		this.tableSpacer = document.getElementById('tableSpacer' + this.id);
+		this.columnWidths = this.getColumnWidths();
+		this.rowHeaderWidth = this.getRowHeaderWidth();
+		this.tableWidth = this.getTableWidth() + this.getRowHeaderWidthPx();
+		this.tableHeight = this.getTableHeight() + this.getColumnHeaderHeightPx();
+		this.tableSpacer.style.width = this.tableWidth; 
+		this.tableSpacer.style.height = this.tableHeight;
+	}
+
+	getRowHeaderWidth() {
+		var rowHeaderWidth = 0;
+		for (var y=0; y<this.rowHeaders.length; y++) {
+			var width = this.rowHeaders[y].join(' ').length;
+			if (width > rowHeaderWidth) {rowHeaderWidth = width;}
+		}
+		return rowHeaderWidth;
+	}
+
+	getRowHeaderWidthPx() {
+		return (this.tablePadding*4) + (this.rowHeaderWidth * this.tableScaleX)
+	}
+
+	getColumnHeaderHeightPx() {
+		return (this.tablePadding*2) + (this.tableScaleY*2) + this.tableBorder;
+	}
+	
+	getColumnWidths() {
+		var columnWidths = [];
+
+		for (var x=0; x<this.columnHeaders.length; x++) {
+			if (this.columnHeaders[x][0].length > this.columnHeaders[x][1].length) {
+				columnWidths[x] = this.columnHeaders[x][0].length * this.tableScaleX;
+			} else {
+				columnWidths[x] = this.columnHeaders[x][1].length * this.tableScaleX;
+			}
+		}
+
+
+		for (var y=0; y<this.table.length; y++) {
+			for (var x=0; x<this.table[y].length; x++) {
+				if (this.table[y][x].length * this.tableScaleX > columnWidths[x] ) { columnWidths[x] = this.table[y][x].length * this.tableScaleX; }
+			}
+		}
+		return columnWidths;
+	}
+
+	drawTableRow(row, xOffset, yOffset, colorMaskRow) {
+
+		var ctx = this.canvas.getContext("2d");
+		ctx.font = this.tableFont;
+		ctx.textAlign = "center";
+
+		// draw cells
+		var xL = 0 + xOffset + this.tableBorder;
+		var yT = 0 + yOffset + this.tableBorder;
+		var xWidth = (this.tablePadding*2) + (this.rowHeaderWidth * this.tableScaleX);
+		var yHeight = this.tableScaleY + (this.tablePadding * 2);
+		ctx.fillStyle = this.tableCellColor;
+
+		for (var i=0; i<row.length; i++) {
+			xWidth = (this.columnWidths[i]) + (this.tablePadding * 2);
+			ctx.fillRect(xL, yT, xWidth, yHeight);
+			xL += (this.columnWidths[i]) + (this.tablePadding * 2) + this.tableBorder;
+		}
+
+		// draw text
+		var x = xOffset + 0 + this.tableBorder;
+		var y = yOffset + this.tablePadding + this.tableBorder;
+		y += this.tablePadding;
+		y += this.tableScaleY * 0.5;
+
+		for (var i=0; i<row.length; i++) {
+			x += this.tablePadding;
+			x += this.columnWidths[i] * 0.5;
+
+			if (colorMaskRow[i]) {
+				ctx.fillStyle = colorMaskRow[i];
+			} else {
+				ctx.fillStyle = this.tableDataFontColor;
+			}
+
+			ctx.fillText(row[i], x, y);
+			x += this.columnWidths[i] * 0.5;
+			x += this.tablePadding + this.tableBorder;
+			if (x > this.canvas.width) {break}
+		}
+		return yHeight + yOffset + this.tableBorder;
+	}
+
+	drawTableData(xOffset, yOffset, startRow, startColumn) {
+		yOffset = yOffset + ((this.tableScaleY + (this.tablePadding * 2) + this.tableBorder) * startRow);
+		for (var i=startRow; i<this.table.length; i++) {
+			yOffset = this.drawTableRow(this.table[i], xOffset, yOffset, this.colorMask[i]);
+			if (yOffset > this.canvas.height) {break}
+		}
+		return yOffset + this.tableBorder;
+	}
+
+	drawRowHeader(xOffset, yOffset, startRow) {
+		yOffset = yOffset + ((this.tableScaleY + (this.tablePadding * 2) + this.tableBorder) * startRow);
+		var ctx = this.canvas.getContext("2d");
+		ctx.font = this.tableFont;
+
+		// draw cells
+
+		var xL = 0 + xOffset;
+		var yT = 0 + yOffset + this.tableBorder;
+		var xWidth = (this.tablePadding*4) + (this.rowHeaderWidth * this.tableScaleX);
+		var yHeight = this.tableScaleY + (this.tablePadding * 2);
+		ctx.fillStyle = this.tableCellColor;
+
+		for (var i=startRow; i<this.rowHeaders.length; i++) {
+			ctx.fillRect(xL, yT, xWidth, yHeight);
+			yT += (this.tableScaleY) + (this.tablePadding * 2) + this.tableBorder;
+		}
+
+		// draw text
+
+		var y = yOffset + this.tablePadding + this.tableBorder;
+		var x0 = xOffset + this.tablePadding + this.tableBorder;
+		var x1 = xOffset + xWidth - this.tablePadding;
+		ctx.fillStyle = this.tableHeaderFontColor;
+
+		for (var i=startRow; i<this.rowHeaders.length; i++) {
+			y += this.tablePadding;
+			y += this.tableScaleY * 0.5;
+			ctx.textAlign = "left";
+			ctx.fillText(this.rowHeaders[i][0], x0, y);
+			ctx.textAlign = "right";
+			ctx.fillText(this.rowHeaders[i][1], x1, y);
+			y += this.tableScaleY * 0.5;
+			y += this.tablePadding + this.tableBorder;
+			if (y > this.canvas.height) {break}
+		}
+	}
+
+	drawColumnHeader(xOffset, yOffset) {
+		var ctx = this.canvas.getContext("2d");
+		ctx.font = this.tableFont;
+		ctx.textAlign = "center";
+		
+		// draw cells
+
+		var xL = xOffset + 0 + this.tableBorder;
+		var yT = yOffset + 0;
+		var xWidth = 0;
+		var yHeight = (this.tablePadding*2) + (this.tableScaleY*2);
+		ctx.fillStyle = this.tableCellColor;
+
+		for (var i=0; i<this.columnHeaders.length; i++) {
+			xWidth = (this.columnWidths[i]) + (this.tablePadding * 2);
+			ctx.fillRect(xL, yT, xWidth, yHeight);
+			xL += (this.columnWidths[i]) + (this.tablePadding * 2) + this.tableBorder;
+		}
+
+		// draw text
+
+		var x = xOffset + 0 + this.tableBorder;
+		var y0 = yOffset + (this.tablePadding * 2) + this.tableBorder + (this.tableScaleY/2);
+		var y1 = y0 + this.tableScaleY;
+		ctx.fillStyle = this.tableHeaderFontColor;
+
+		for (var i=0; i<this.columnHeaders.length; i++) {
+			x += this.tablePadding;
+			x += this.columnWidths[i] * 0.5;
+			ctx.fillText(this.columnHeaders[i][0], x, y0);
+			ctx.fillText(this.columnHeaders[i][1], x, y1);
+			x += this.columnWidths[i] * 0.5;
+			x += this.tablePadding + this.tableBorder;
+			if (x > this.canvas.width) {break}
+		}
+	}
+
+	getTableWidth() {
+		var width = 0;
+		for (var i=0; i<this.columnWidths.length; i++) {
+			width += (this.columnWidths[i]) + (this.tablePadding * 2) + this.tableBorder;
+		}
+		width += this.tableBorder;
+		return width;
+	}
+
+	getTableHeight() {
+		var height = 0;
+		height += this.tablePadding;
+		height += this.tableScaleY;
+		height += this.tablePadding + this.tableBorder;
+		height = height * this.rowHeaders.length
+		return height;
+	}
+	
+	drawTable() {
+		var maxWidth = this.container.clientWidth;
+		var maxHeight = this.container.clientHeight;
+		this.canvas.width = maxWidth;
+		this.canvas.height = maxHeight;
+		this.canvas.top = this.container.getBoundingClientRect()['y'];
+		this.canvas.left = this.container.getBoundingClientRect()['x'];
+
+		var ctx = this.canvas.getContext("2d");
+
+		var xOffset = (this.rowHeaderWidth * this.tableScaleX) + (this.tablePadding * 4);
+		var yOffset = (this.tablePadding*2) + (this.tableScaleY*2);
+
+		var blockTLwidth = xOffset + 0;
+		var blockTLheight = yOffset + 0;
+
+
+		var dataXoffset = xOffset - parseInt(this.container.scrollLeft);
+		var dataYoffset = yOffset - parseInt(this.container.scrollTop);
+
+		var startRow = -1 * parseInt((dataYoffset / this.tableHeight) * this.table.length) - 5;
+		var startColumn = -1 * parseInt(dataXoffset / this.tableWidth) - 5;
+
+		if (startRow < 0) {startRow = 0;}
+		if (startColumn < 0) {startColumn = 0;}
+
+		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		ctx.fillStyle = this.tableBorderColor;
+		ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		yOffset = this.drawTableData(dataXoffset, dataYoffset, startRow, startColumn);
+
+		this.drawColumnHeader(dataXoffset, 0);
+		this.drawRowHeader(0, dataYoffset, startRow);
+
+		ctx.fillStyle = this.tableTopLeftColor;
+
+		ctx.fillRect(0,0, blockTLwidth, blockTLheight);
+		ctx.fillRect(0, yOffset, this.canvas.width, this.canvas.height);
+		
+		ctx.fillStyle = this.tableBorderColorStrong;
+		ctx.fillRect(blockTLwidth, 0, this.tableBorder, this.canvas.height) 
+		
+		ctx.fillStyle = this.tableBorderColorStrong;
+		ctx.fillRect(0, blockTLheight, this.canvas.width, this.tableBorder)
+		this.running = true;
+	}
+}
+
+var packetTable = false;
+var fields = [];
+var currentStream = 0;
+var streamIndex = ['0_$_Input_$_Packets'];
+var streamChildren = [[]];
+var formattedPackets = [];
+var formattedPacketsRaw = [];
+var packets = [[]];
+var asciiOn = false;
+var decimalOn = false;
+var fieldOn = false;
+var highlightConst = true;
+
+var windows = {};
+windows['Streams'] = false;
+windows['Fields'] = false;
+windows['ASCII'] = false;
+windows['Hex'] = false;
+windows['PlotView'] = false;
+windows['StreamsContainer'] = false;
+windows['FieldsContainer'] = false;
+windows['ASCIIContainer'] = false;
+windows['HexContainer'] = false;
+windows['PlotViewContainer'] = false;
+windowNames = ['Streams', 'Fields', 'ASCII', 'Hex', 'PlotView'];
+
+linkTypes = ["NULL","ETHERNET","EXP_ETHERNET","AX25","PRONET","CHAOS","IEEE802_5","ARCNET_BSD","SLIP","PPP","FDDI","PPP_HDLC","PPP_ETHER","SYMANTEC_FIREWALL","ATM_RFC1483","RAW","C_HDLC","IEEE802_11","ATM_CLIP","FRELAY","LOOP","ENC","NETBSD_HDLC","LINUX_SLL","LTALK","PFLOG","IEEE802_11_PRISM","IP_OVER_FC","SUNATM","IEEE802_11_RADIOTAP","TZSP","ARCNET_LINUX","JUNIPER_MLPPP","JUNIPER_MLFR","JUNIPER_ES","JUNIPER_GGSN","JUNIPER_MFR","JUNIPER_ATM2","JUNIPER_SERVICES","JUNIPER_ATM1","APPLE_IP_OVER_IEEE1394","MTP2_WITH_PHDR","MTP2","MTP3","SCCP","DOCSIS","LINUX_IRDA","IBM_SP","IBM_SN","USER0","USER1","USER2","USER3","USER4","USER5","USER6","USER7","USER8","USER9","USER10","USER11","USER12","USER13","USER14","USER15","IEEE802_11_AVS","JUNIPER_MONITOR","BACNET_MS_TP","PPP_PPPD","JUNIPER_PPPOE","JUNIPER_PPPOE_ATM","GPRS_LLC","GPF_T","GPF_F","GCOM_T1E1","GCOM_SERIAL","JUNIPER_PIC_PEER","ERF_ETH","ERF_POS","LINUX_LAPD","JUNIPER_ETHER","JUNIPER_PPP","JUNIPER_FRELAY","JUNIPER_CHDLC","MFR","JUNIPER_VP","A429","A653_ICM","USB_FREEBSD","BLUETOOTH_HCI_H4","IEEE802_16_MAC_CPS","USB_LINUX","CAN20B","IEEE802_15_4_LINUX","PPI","IEEE802_16_MAC_CPS_RADIO","JUNIPER_ISM","IEEE802_15_4_WITHFCS","SITA","ERF","RAIF1","IPMB_KONTRON","JUNIPER_ST","BLUETOOTH_HCI_H4_WITH_PHDR","AX25_KISS","LAPD","PPP_WITH_DIR","C_HDLC_WITH_DIR","FRELAY_WITH_DIR","LAPB_WITH_DIR","IPMB_LINUX","FLEXRAY","MOST","LIN","X2E_SERIAL","X2E_XORAYA","IEEE802_15_4_NONASK_PHY","LINUX_EVDEV","GSMTAP_UM","GSMTAP_ABIS","MPLS","USB_LINUX_MMAPPED","DECT","AOS","WIHART","FC_2","FC_2_WITH_FRAME_DELIMS","IPNET","CAN_SOCKETCAN","IPV4","IPV6","IEEE802_15_4_NOFCS","DBUS","JUNIPER_VS","JUNIPER_SRX_E2E","JUNIPER_FIBRECHANNEL","DVB_CI","MUX27010","STANAG_5066_D_PDU","JUNIPER_ATM_CEMIC","NFLOG","NETANALYZER","NETANALYZER_TRANSPARENT","IPOIB","MPEG_2_TS","NG40","NFC_LLCP","PFSYNC","INFINIBAND","SCTP","USBPCAP","RTAC_SERIAL","BLUETOOTH_LE_LL","WIRESHARK_UPPER_PDU","NETLINK","BLUETOOTH_LINUX_MONITOR","BLUETOOTH_BREDR_BB","BLUETOOTH_LE_LL_WITH_PHDR","PROFIBUS_DL","PKTAP","EPON","IPMI_HPM_2","ZWAVE_R1_R2","ZWAVE_R3","WATTSTOPPER_DLM","ISO_14443","RDS","USB_DARWIN","OPENFLOW","SDLC","TI_LLN_SNIFFER","LORATAP","VSOCK","NORDIC_BLE","DOCSIS31_XRA31","ETHERNET_MPACKET","DISPLAYPORT_AUX","LINUX_SLL2","SERCOS_MONITOR","OPENVIZSLA","EBHSCR","VPP_DISPATCH","DSA_TAG_BRCM","DSA_TAG_BRCM_PREPEND","IEEE802_15_4_TAP","DSA_TAG_DSA","DSA_TAG_EDSA","ELEE","Z_WAVE_SERIAL","USB_2_0","ATSC_ALP","ETW","NETANALYZER_NG","ZBOSS_NCP","USB_2_0_LOW_SPEED","USB_2_0_FULL_SPEED","USB_2_0_HIGH_SPEED","AUERSWALD_LOG","ZWAVE_TAP","SILABS_DEBUG_CHANNEL","FIRA_UCI"]
+linkTypeNumbers = [0,1,2,3,4,5,6,7,8,9,10,50,51,99,100,101,104,105,106,107,108,109,112,113,114,117,119,122,123,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299]
+
+// User functions - takes input from the UI and passes them to other functions.
+// ------------------------------------------------------------------------------------------------
+
+function reverseBytesUser() {
+	var start = parseInt(document.getElementById('reverseBytesStart').value);
+	var length = parseInt(document.getElementById('reverseBytesLength').value);
+	var type = document.getElementById('reverseBytesType').value;
+	var overwriteStream = eval(document.getElementById('reverseBytesOverwrite').value);
+	reverseBytes(start, length, type, overwriteStream);
+}
+
+function xorBytesUser() {
+	var start = parseInt(document.getElementById('xorBytesStart').value);
+	var length = parseInt(document.getElementById('xorBytesLength').value);
+	var value = document.getElementById('xorBytesValue').value;
+	var overwriteStream = eval(document.getElementById('xorBytesOverwrite').value);
+	xorBytes(start, length, value, overwriteStream);
+}
+
+function dropBytesUser() {
+	var start = parseInt(document.getElementById('dropBytesStart').value);
+	var length = parseInt(document.getElementById('dropBytesLength').value);
+	var overwriteStream = eval(document.getElementById('dropBytesOverwrite').value);
+	var packetNumber = parseInt(document.getElementById('dropBytesPacketNumber').value);
+
+	if (packetNumber == -1) {
+		packetNumber = false;
+	}
+	
+	dropBytes(start, length, packetNumber, overwriteStream);
+}
+
+function newByteUser() {
+	var at = parseInt(document.getElementById('newByteAt').value);
+	var start = parseInt(document.getElementById('newByteFromStart').value);
+	var length = parseInt(document.getElementById('newByteFromLength').value);
+	var mask = document.getElementById('newByteMask').value;
+	var align = document.getElementById('newByteAlign').value;
+	var overwriteStream = eval(document.getElementById('newByteOverwrite').value);
+	mask = mask.split('0x').join('');
+	newByte(at, start, length, mask, align, overwriteStream);
+}
+
+function addFieldUser() {
+	var start = parseInt(document.getElementById('fieldStartByte').value);
+	var length = parseInt(document.getElementById('fieldLength').value);
+	var type = eval(document.getElementById('fieldType').value);
+	var label = document.getElementById('fieldLabel').value;
+	addField(start, length, type, label);
+}
+
+function applyTemplate () {
+	var template = eval(document.getElementById('templateId').value);
+	var byteOffset = parseInt(document.getElementById('templateStartByte').value);
+	template(byteOffset);
+}
+
+function sortOnField(direction) {
+	var field = parseInt(document.getElementById('sortField').value);
+	var mask = document.getElementById('sortMask').value
+	sortField(field, mask, direction);
+}
+
+function changeView() {
+	var view = document.getElementById('viewType').value
+	if (view == 'Hexadecimal') { hexView(); }
+	else if (view == 'Decimal') { decimalView(); }
+	else if (view == 'ASCII') { asciiView(); }
+}
+
+function hexView(){
+	asciiOn = false;
+	decimalOn = false;
+	processFields();
+	populatePacketView();
+}
+
+function decimalView() {
+	asciiOn = false;
+	decimalOn = true;
+	processFields();
+	populatePacketView();
+}
+
+function asciiView() {
+	decimalOn = false;
+	asciiOn = true;
+	processFields();
+	populatePacketView();
+}
+
+function fieldView() {
+	if (fieldOn) { fieldOn = false;} else {fieldOn = true;}
+	processFields();
+	populatePacketView();	
+}
+
+function toggleHighlightConstants() {
+	if (highlightConst) { highlightConst = false; } else { highlightConst = true; }
+	populatePacketView();
+}
+
+var colorMode = 'dark';
+var styleDocs = [];
+function toggleColorMode() {
+
+	styleDocs = [document.documentElement.style];
+	
+	windowNames.forEach( function(e) {
+		if (windows[e]) {
+			try {
+				styleDocs.push(windows[e].document.documentElement.style);
+			} catch {
+			
+			}
+		} 
+	});
+
+	if (colorMode == 'dark') { lightMode(); return null; }
+	if (colorMode == 'light') { darkMode(); return null; }
+}
+
+function lightMode () {
+	colorMode = 'light'
+	styleDocs.forEach( function(style) {
+	style.setProperty('--background', 'var(--backgroundLight)');
+	style.setProperty('--midground', 'var(--midgroundLight)');
+	style.setProperty('--borderColor', 'var(--borderColorLight)');
+	style.setProperty('--buttonbg', 'var(--buttonbgLight)');
+	style.setProperty('--entrybg', 'var(--entrybgLight)');
+	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverLight)');
+	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedLight)');
+	style.setProperty('--textColor', 'var(--textColorLight)');
+	style.setProperty('--tableHeadColor', 'var(--tableHeadColorLight)');
+	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorLight)');
+	style.setProperty('--cellColor', 'var(--cellColorLight)');
+	style.setProperty('--cellBorder', 'var(--cellBorderLight)');
+	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongLight)');
+	style.setProperty('--shadowColor', 'var(--shadowColorLight)');
+	style.setProperty('--tableTopLeft', 'var(--tableTopLeftLight)');
+	});
+	if (packetTable.running) {colorTable();}
+	if (windows['PlotViewContainer']) {try {drawPlot();} catch {}}
+}
+
+function darkMode () {
+	colorMode = 'dark';
+	styleDocs.forEach( function(style) {
+	style.setProperty('--background', 'var(--backgroundDark)');
+	style.setProperty('--midground', 'var(--midgroundDark)');
+	style.setProperty('--borderColor', 'var(--borderColorDark)');
+	style.setProperty('--buttonbg', 'var(--buttonbgDark)');
+	style.setProperty('--entrybg', 'var(--entrybgDark)');
+	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverDark)');
+	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedDark)');
+	style.setProperty('--textColor', 'var(--textColorDark)');
+	style.setProperty('--tableHeadColor', 'var(--tableHeadColorDark)');
+	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorDark)');
+	style.setProperty('--cellColor', 'var(--cellColorDark)');
+	style.setProperty('--cellBorder', 'var(--cellBorderDark)');
+	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongDark)');
+	style.setProperty('--shadowColor', 'var(--shadowColorDark)');
+	style.setProperty('--tableTopLeft', 'var(--tableTopLeftDark)');
+	});
+	if (packetTable.running) {colorTable();}
+	if (windows['PlotViewContainer']) { try {drawPlot();} catch {}}
+}
+
+// Toolbox handlers
+// ------------------------------------------------------------------------------------------------
+
+var openBox = "none";
+
+function closeToolbox(item) {
+	document.getElementById(item+"Button").style.backgroundColor = "";
+	document.getElementById(item).className = "closedToolbox";
+	openBox = "none";
+}
+
+
+function openToolbox(item) {
+	if (openBox == item) {
+		closeToolbox(openBox);
+	} else {
+		if (openBox != "none") {closeToolbox(openBox);}
+		openBox = item;
+		document.getElementById(item+"Button").style.backgroundColor = "var(--buttonbgSelected)";
+		document.getElementById(item).className = "openToolbox";
+	}
+	packetTable.drawTable();
+}
+
+// Helper functions
+// ------------------------------------------------------------------------------------------------
+
+
+function hex2bin(data) {
+	return ('0'.repeat(data.length*4) + parseInt(data, 16).toString(2)).substr(data.length*-4);
+}
+
+function bin2hex(data) {
+	while (data.length % 4 != 0) {
+		data = '0' + data;
+	}
+	return ('0'.repeat(data.length/4) + parseInt(data, 2).toString(16)).substr(data.length/-4);
+}
+
+function hex2asciiRAW(packet) {
+    var ascii = [];
+    for (var i = 0; i < packet.length; i++) {
+        ascii.push( (String.fromCharCode(parseInt(packet[i], 16))) );
+	}
+    return ascii;
+}
+
+function bitwiseAND(b1, b2) {
+	return ('0'.repeat(b1.length) + (parseInt(b1, 16) & parseInt(b2, 16)).toString(16)).substr(b1.length * -1);
+}
+
+function pad4(num) {
+    var s = "0000" + num;
+    return s.substr(-4);
+}
+
+function xorHex(a, b) {
+	// a and b need to be 1 byte
+	a = parseInt(a, 16);
+	b = parseInt(b, 16);
+	result = a ^ b;
+	return ('00' + result.toString(16)).substr(-2)
+}
+
+function reverse(hexByte) {
+	binary = hex2bin(hexByte)
+	binary = binary.split('').reverse().join('')
+	return bin2hex(binary);
+}
+
+function buildPacketViews(intArray) {
+	var ascii = [];
+	var integer = [];
+	
+	for (var i=0; i<intArray.length; i++) {
+		 integer.push( intArray[i] );
+		 ascii.push( (String.fromCharCode(integer[i]).replace(/[^\w]/g, "") + " ").slice(0,1) );
+	}
+	
+	return [ascii, integer];
+}
+
+function buildPacketViewsFromHex(hexArray) {
+	var ascii = [];
+	var integer = [];
+	
+	for (var i=0; i<hexArray.length; i++) {
+		 integer.push( parseInt(hexArray[i], 16) );
+		 ascii.push( (String.fromCharCode(integer[i]).replace(/[^\w]/g, "") + " ").slice(0,1) );
+	}
+	
+	return [ascii, integer];
+}
+
+// ------------------------------------------------------------------------------------------------
+
+function reverseBytes(start, length, type, overwrite) {
+	if (!overwrite) {
+		var streamName = currentStream + '_$_Reverse_$_' + start + '-' + (start + length);
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+	for (var i=0; i<packets[currentStream].length; i++) {
+		newBytes = packets[currentStream][i][0].slice(start, start+length);
+
+		if (type == 'each byte') {
+			for (var x=0; x<newBytes.length; x++) {
+				newBytes[x] = reverse(newBytes[x]);
+			}
+		} else {
+			newBytes = newBytes.reverse();
+		}
+
+		packet = packets[currentStream][i][0].slice(0, start);
+		packet.push(...newBytes);
+		packet.push(...packets[currentStream][i][0].slice(start+length,));
+		[ascii, integer] = buildPacketViewsFromHex(packet);
+		newPackets.push([packet, ascii, integer, packets[currentStream][i][3]]);
+	}
+
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function xorBytes(start, length, value, overwrite) {
+	if (!overwrite) {
+		var streamName = currentStream + '_$_XOR_$_' + value;
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+
+	for (var i=0; i<packets[currentStream].length; i++) {
+		newBytes = packets[currentStream][i][0].slice(start, start+length);
+
+		for (var x=0; x<newBytes.length; x++) {
+			newBytes[x] = xorHex(newBytes[x], value);
+		}
+
+		packet = packets[currentStream][i][0].slice(0, start);
+		packet.push(...newBytes);
+		packet.push(...packets[currentStream][i][0].slice(start+length,));
+		
+		[ascii, integer] = buildPacketViewsFromHex(packet);
+		newPackets.push([packet, ascii, integer, packets[currentStream][i][3]]);
+	}
+	
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function specialMask(mask, data, align) {
+	if (align == 'none') {
+		return bitwiseAND(mask, data);
+	}
+
+	binaryMask = hex2bin(mask);
+	binaryData = hex2bin(data);
+	result = '';
+
+	for (var x=0; x<binaryMask.length; x++) {
+		if (binaryMask.substr(x,1) == 1) {
+			result += binaryData.substr(x,1);
+		}
+	}
+
+	if (align == 'left') {
+		result = (result + '0'.repeat(binaryMask.length)).substr(binaryMask.length*-1)
+	}
+
+	if (align == 'right') {
+		result = ('0'.repeat(binaryMask.length) + result).substr(binaryMask.length*-1)
+	}
+
+	return bin2hex(result);
+}
+
+
+function dropBytes(start, length, packetNumber, overwriteStream) {
+	if (!overwriteStream) {
+		var streamName = currentStream + '_$_Drop Bytes_$_' + start + '-' + (start+length);
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+	for (var i=0; i<packets[currentStream].length; i++) {
+		if (packetNumber === false || packetNumber == packets[currentStream][i][3]) {
+			packet = packets[currentStream][i][0].slice(0, start);
+			packet.push(...packets[currentStream][i][0].slice(start+length,));
+			
+			ascii = packets[currentStream][i][1].slice(0, start);
+			ascii.push(...packets[currentStream][i][1].slice(start+length,));
+			
+			integer = packets[currentStream][i][2].slice(0, start);
+			integer.push(...packets[currentStream][i][2].slice(start+length,));
+			
+			number = packets[currentStream][i][3] + 0;
+			
+			newPackets.push([packet, ascii, integer, number]);
+		} else {
+			newPackets.push(packets[currentStream][i]);
+		}
+	}
+
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function newByte(at, start, length, mask, align, overwriteStream) {
+	if (!overwriteStream) {
+		var streamName = currentStream + '_$_New Byte_$_' + at;
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+
+	for (var i=0; i<packets[currentStream].length; i++) {
+		if (start > -1) {
+			newBytes = packets[currentStream][i][0].slice(start, start+length).join('');
+		} else {
+			newBytes = Array(length).fill('ff');
+		}
+		newBytes = specialMask(mask, newBytes, align);
+		newBytesArray = [];
+
+		for (var x=0; x<newBytes.length; x+=2) {
+			newBytesArray.push(newBytes.substr(x,x+2));
+		}
+
+		packet = packets[currentStream][i][0].slice(0, at);
+		packet.push(...newBytesArray);
+		packet.push(...packets[currentStream][i][0].slice(at,));
+		
+		[ascii, integer] = buildPacketViewsFromHex(packet);
+		newPackets.push([packet, ascii, integer, packets[currentStream][i][3]]);
+	}
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function extractASCII() {
+	var start = parseInt(document.getElementById('extractStart').value);
+	var length = parseInt(document.getElementById('extractLength').value);
+	var output = [];
+
+	for (var i=0; i < packets[currentStream].length; i++) {
+		output.push(...hex2asciiRAW(packets[currentStream][i][0].slice(start, start+length)));
+	}
+
+	output = output.join('');
+	output = '<textarea readonly>' + output + '</textarea>'
+	openNewWindow('ASCII');
+	windows['ASCIIContainer'].innerHTML = output;
+}
+
+
+function extractHex() {
+	var start = parseInt(document.getElementById('extractStart').value);
+	var length = parseInt(document.getElementById('extractLength').value);
+	var output = [];
+
+	for (var i=0; i < packets[currentStream].length; i++) {
+		output.push(...packets[currentStream][i][0].slice(start, start+length));
+	}
+
+	output = output.join(' ');
+	output = '<textarea readonly>' + output + '</textarea>'
+	openNewWindow('Hex');
+	windows['HexContainer'].innerHTML = output;
+}
+
+
+function populateFieldTypes() {
+	while (document.getElementById('fieldType').options.length > 0) {
+		document.getElementById('fieldType').options.remove(0);
+	}
+
+	fieldFunctions.forEach( function (e) {
+	document.getElementById('fieldType').options.add(new Option(e.name))
+	});
+}
+
+
+function populateTemplates() {
+	while (document.getElementById('templateId').options.length > 0) {
+		document.getElementById('templateId').options.remove(0);
+	}
+
+	templates.forEach( function (e) {
+	document.getElementById('templateId').options.add(new Option(e.name))
+	});
+}
+
+function populateLinkTypes() {
+	while (document.getElementById('outputLinkType').options.length > 0) {
+		document.getElementById('outputLinkType').options.remove(0);
+	}
+
+	linkTypes.forEach( function (e) {
+	document.getElementById('outputLinkType').options.add(new Option(e))
+	});
+}
+
+function populateASCIIView() {
+	// Do nothing, just to keep the openNewWindow function happy.
+}
+
+
+function populateHexView() {
+	// Do nothing, just to keep the openNewWindow function happy.
+}
+
+function populatePlotViewView() {
+	// Do nothing, just to keep the openNewWindow function happy.
+}
+
+
+function populateStreamsView() {
+	var streamTable = streamRow(0, 0);
+	windows['StreamsContainer'].innerHTML = streamTable;
+}
+
+
+function drawPlot() {
+	canvas = windows['PlotViewContainer'].children[0]
+	canvas.width = windows['PlotViewContainer'].parentElement.clientWidth - 15;
+	canvas.height = windows['PlotViewContainer'].parentElement.clientHeight - 40;
+	
+	minY = plotDataMin;
+	maxY = plotDataMax;
+	
+	scaleX = canvas.width / plotData.length;
+	scaleY = canvas.height / (maxY - minY);
+	offsetY = scaleY * minY
+	
+	var style = getComputedStyle(document.body);
+	
+	background = style.getPropertyValue('--background');
+	line = style.getPropertyValue('--textColor');
+	text = style.getPropertyValue('--textColor');
+	
+	ctx = canvas.getContext('2d');
+	ctx.clearRect(0,0,canvas.width, canvas.height);
+	ctx.fillStyle = background;
+	ctx.fillRect(0,0,canvas.width, canvas.height);
+	ctx.strokeStyle = line;
+	
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	for (var x=0; x<plotData.length; x++) {
+		ctx.lineTo(x*scaleX, offsetY+canvas.height-(plotData[x]*scaleY));
+	}
+	ctx.stroke();
+}
+
+plotData = null;
+plotDataMax = 0;
+plotDataMin = 9999999999999999;
+function plotField() {
+	plotDataMax = 0;
+	plotDataMin = 9999999999999999;
+	var field = parseInt(document.getElementById('plotField').value);
+	var format = parseInt(document.getElementById('plotFormat').value);
+	
+	openNewWindow('PlotView');
+	var plot = '<canvas id="plotCanvas">'
+
+	windows['PlotViewContainer'].innerHTML = plot;
+	
+	plotData = [];
+	if (fieldOn && fields[currentStream] && fields[currentStream][field]) {
+		packets[currentStream].forEach( function(packet) {
+			start = fields[currentStream][field][0];
+			end = fields[currentStream][field][0] + fields[currentStream][field][1];
+			type = fields[currentStream][field][2];
+			length = fields[currentStream][field][1];
+			fieldData = type(packet[2].slice(start, end));
+			value = parseInt(fieldData, format);
+			plotData.push( value );
+			if (value > plotDataMax) { plotDataMax = value; }
+			if (value < plotDataMin) { plotDataMin = value; }
+		});
+	} else {
+		packets[currentStream].forEach( function(packet) {
+			plotData.push( packet[2][field] );
+			if (packet[2][field] > plotDataMax) { plotDataMax = packet[2][field]; }
+			if (packet[2][field] < plotDataMin) { plotDataMin = packet[2][field]; }
+		});
+	}
+	windows['PlotView'].addEventListener('resize', function(event) { drawPlot(); }, true);
+	
+	var textArea = '<p id="plotText">';
+	textArea += 'X-Min: 0 | ';
+	textArea += 'X-Max: ' + plotData.length + ' | ';
+	textArea += 'Y-Min: ' + plotDataMin + ' | ';
+	textArea += 'Y-Max: ' + plotDataMax + ' | ';
+	textArea += '</p>'
+	
+	windows['PlotViewContainer'].innerHTML += textArea;
+	drawPlot();
+	
+}
+
+
+function populateFieldsView() {
+	var button = '';
+	var text = '<table><tr><th>Field</th><th>Length</th><th>Type</th><th>Label</th><th>Delete</th></tr>';
+
+	if (fields[currentStream]) {
+		for (var i=0; i < fields[currentStream].length; i++) {
+			if (fields[currentStream][i]) {
+				text += '<tr>'
+				text += '<td>' + fields[currentStream][i][0] + '</td>';
+				text += '<td>' + fields[currentStream][i][1] + '</td>';
+				text += '<td>' + fields[currentStream][i][2].name + '</td>';
+				text += '<td>' + fields[currentStream][i][3] + '</td>';
+				text += '<td><button onclick="localStorage.setItem(\'deleteField\',\'' + i + '\');">Delete</button></td>';
+				text += '</tr>';
+			}
+		}
+	}
+	text += '</table>';
+	windows['FieldsContainer'].innerHTML = text;
+}
+
+
+function updateUI() {
+	processFields();
+	fieldOn = true;
+	populatePacketView();
+	populateFieldsView();
+}
+
+
+function addField(start, length, type, title, noUpdateUI) {
+	if (fields[currentStream]) {
+		fields[currentStream][start] = [start, length, type, title];
+	} else {
+		fields[currentStream] = [];
+		fields[currentStream][start] = [start, length, type, title];
+	}
+	if (noUpdateUI) { return null; }
+	updateUI();
+}
+
+
+function deleteField(index) {
+	delete fields[currentStream][index];
+	processFields();
+	fieldOn = true;
+	populatePacketView();
+	populateFieldsView();
+	localStorage.clear();
+}
+
+
+function switchStream(stream) {
+	currentStream = streamIndex.indexOf(stream);
+	processFields();
+	populatePacketView();
+	populateFieldsView();
+	populateStreamsView();
+}
+
+
+window.addEventListener('storage', storageUpdate);
+function storageUpdate(update) {
+	// update.key is the item updated
+	// update.newValue is the items new value
+	eval(update.key + '("' + update.newValue + '");');
+}
+
+
+function deleteStream(streamName) {
+	deleteStreamChildren(streamName);
+
+	if (streamIndex.indexOf(streamName) == 0) {return null;}
+	if (streamIndex.indexOf(streamName) == currentStream) { switchStream('0_$_Input_$_Packets'); }
+	var streamNumber = streamIndex.indexOf(streamName)
+
+	delete packets[streamNumber];
+	delete streamIndex[streamNumber];
+
+	for (var i=0; i<streamChildren.length; i++) {
+		streamChildren[i] = streamChildren[i].filter(e => e !== streamName);
+	}
+	populateStreamsView();
+	localStorage.clear();
+}
+
+function deleteStreamChildren(streamName) {
+	var streamNumber = streamIndex.indexOf(streamName)
+	streamChildren[streamNumber].forEach(deleteStream);
+	localStorage.clear();
+}
+
+
+function mergeIntoStream(mergeStream) {
+	var streamNumber = streamIndex.indexOf(mergeStream);	
+	localStorage.clear();
+	
+	var parentStream = streamChildren[currentStream];
+	var streamName = currentStream + "_$_Merge_$_" + mergeStream.split('_$_').join('-');
+	
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+
+	var mergedPackets = [];
+	mergedPackets.push(...packets[currentStream]);
+	mergedPackets.push(...packets[streamNumber]);
+	
+	mergedPackets = mergedPackets.sort( function(a, b) { if (a[3] > b[3]) {return 1;} else {return -1;} })
+	
+	packets[streamIndex.indexOf(streamName)] = mergedPackets;
+
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function streamRow(i, depth) {
+	if (!streamIndex[i]) {return '';}
+
+	var text = streamIndex[i].split('_$_').slice(1,).join(': ') + ' (' + packets[i].length + ')';
+	var button = '<button id="stream' + i + '" onclick="localStorage.setItem(\'switchStream\',\'' + streamIndex[i] + '\');">' + text + '</button>';
+	var selectedButton = '<button style="background: var(--buttonbgSelected);" id="stream' + i + '" onclick="localStorage.setItem(\'switchStream\',\'' + streamIndex[i] + '\');">' + text + '</button>';
+	var deleteButton = '<button id="streamDel' + i + '" onclick="localStorage.setItem(\'deleteStream\',\'' + streamIndex[i] + '\');">X</button>';
+	var deleteChildrenButton = '<button id="streamDelChildren' + i + '" onclick="localStorage.setItem(\'deleteStreamChildren\',\'' + streamIndex[i] + '\');">X&#x2193;</button>';
+	var mergeButton = '<button id="streamMerge' + i + '" onclick="localStorage.setItem(\'mergeIntoStream\',\'' + streamIndex[i] + '\');">Y</button>';
+	var row = '<p class="stream">'
+	row += '&nbsp;&nbsp;|'.repeat(depth);
+	row += '__';
+
+	if (i == currentStream) {
+		row += selectedButton;
+	} else {
+		row += button;
+	}
+
+	row += deleteButton;
+	row += deleteChildrenButton;
+	row += mergeButton;
+	row += '</p>';
+	var sortedChildren = streamChildren[i].sort();	
+	for (var x=0; x < sortedChildren.length; x++) {
+		row += streamRow(streamIndex.indexOf(sortedChildren[x]), depth+1);
+	}
+	return row;
+}
+
+
+function sortOnLength(direction) {
+	var parentStream = streamChildren[currentStream]
+	var streamName = currentStream + "_$_Sort_$_Length";
+
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+
+	var sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  		if (a[0].length < b[0].length) return -1 * direction;
+   		if (a[0].length > b[0].length) return 1 * direction;
+   		return 0;
+	});
+
+	packets[streamIndex.indexOf(streamName)] = sortedPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function sortField(field, mask, direction) {
+	var parentStream = streamChildren[currentStream];
+	var streamName = currentStream + "_$_Sort_$_" + field;
+	var mask = mask.split('0x').join('');
+	var sortedPackets = [];
+	
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+	
+	if (fieldOn) {
+		var numberedFormattedPackets = [...formattedPacketsRaw];
+		var i = 0;
+		numberedFormattedPackets.forEach( function(a) { a.push(i); i++; } );
+		sortedFormattedPackets = [...numberedFormattedPackets].sort(function(a, b) {
+  			if (a[field] < b[field]) return -1 * direction;
+   			if (a[field] > b[field]) return 1 * direction;
+   			return 0;
+		});
+		var x = 0;
+		sortedFormattedPackets.forEach( function(a) {
+			sortedPackets.push(packets[currentStream][a.at(-1)]);
+		});
+	} else {
+		if (mask == 'ff') {
+			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  				if (a[0][field] < b[0][field]) return -1 * direction;
+   				if (a[0][field] > b[0][field]) return 1 * direction;
+   				return 0;
+   			});
+   		} else {
+			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  				if (bitwiseAND(a[0][field], mask) < bitwiseAND(b[0][field], mask)) return -1 * direction;
+   				if (bitwiseAND(a[0][field], mask) > bitwiseAND(b[0][field], mask)) return 1 * direction;
+   				return 0;
+   			});
+   		}
+	}
+
+	packets[streamIndex.indexOf(streamName)] = sortedPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function divideOnField() {
+	var field = parseInt(document.getElementById('divideField').value);
+	var mask = document.getElementById('divideMask').value
+	divideField(field, mask);
+}
+
+
+function divideOnLength() {
+	var lastStream = '';
+	var streamName = '';
+	var type = '';
+	var length = '';
+	var parentStream = streamChildren[currentStream];
+	var x = packets[currentStream].length + 0;
+
+	for (var i=0; i<x; i++) {
+
+		streamName = packets[currentStream][i][0].length;
+		streamName = currentStream + "_$_Length_$_" + streamName;
+
+		if (streamIndex.includes(streamName)) {
+			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i])
+			lastStream = streamName;
+		} else {
+			streamIndex.push(streamName);
+			streamChildren.push([]);
+			parentStream.push(streamName);
+			packets[streamIndex.indexOf(streamName)] = [];
+			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i]);
+			if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]]; }
+			lastStream = streamName;
+		}
+	}
+	populateStreamsView();
+	switchStream(lastStream);
+	return null;
+}
+
+
+function divideField(field, mask) {
+	var lastStream = '';
+	var fieldData = '';
+	var end = 0;
+	var start = 0;
+	var type = '';
+	var length = '';
+	var parentStream = streamChildren[currentStream];
+	var mask = mask.split('0x').join('');
+	
+	if (fieldOn) {
+		if (fields[currentStream] && fields[currentStream][field]) {
+			var fieldName = fields[currentStream][field][3]
+			for (var i = 0; i < packets[currentStream].length; i++) {
+				start = fields[currentStream][field][0];
+				end = fields[currentStream][field][0] + fields[currentStream][field][1];
+				type = fields[currentStream][field][2];
+				length = fields[currentStream][field][1];
+				fieldData = type(packets[currentStream][i][2].slice(start, end));
+				fieldData = currentStream + "_$_" + fieldName + "_$_" + fieldData;
+				if (streamIndex.includes(fieldData)) {
+					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
+					lastStream = fieldData;
+				} else {
+					streamIndex.push(fieldData);
+					streamChildren.push([]);
+					parentStream.push(fieldData);
+					packets[streamIndex.indexOf(fieldData)] = [];
+					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
+					fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]];
+					lastStream = fieldData;
+				}
+			}
+			populateStreamsView();
+			switchStream(lastStream);
+			return null;
+		}
+	}
+
+	var x = packets[currentStream].length + 0;
+
+	for (var i=0; i<x; i++) {
+		fieldData = bitwiseAND( packets[currentStream][i][0][field], mask );
+		fieldData = currentStream + "_$_" + field + "_$_" + fieldData;
+
+		if (streamIndex.includes(fieldData)) {
+			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
+			lastStream = fieldData;
+		} else {
+			streamIndex.push(fieldData);
+			streamChildren.push([]);
+			parentStream.push(fieldData);
+			packets[streamIndex.indexOf(fieldData)] = [];
+			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
+			if (fields[currentStream]) { fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]]; }
+			lastStream = fieldData;
+		}
+	}
+	populateStreamsView();
+	switchStream(lastStream);
+	return null;
+}
+
+
+function processFields() {
+	formattedPackets = [];
+	formattedPacketsRaw = [];
+	var formmatedPacket = [];
+	var end = 0;
+	var start = 0;
+	var type = '';
+	var length = '';
+	var index = 0;
+	if (asciiOn) {index = 1;}
+	if (decimalOn) {index = 2;}
+
+	for (var i=0; i<packets[currentStream].length; i++) {
+		formattedPacket = [];
+		formattedPacketRaw = [];
+
+		for (var f=0; f<packets[currentStream][i][0].length; f++) {
+
+			if (fields[currentStream] && fields[currentStream][f]) {
+				start = fields[currentStream][f][0];
+				end = fields[currentStream][f][0] + fields[currentStream][f][1];
+				type = fields[currentStream][f][2];
+				length = fields[currentStream][f][1];
+				fieldData = type(packets[currentStream][i][2].slice(start, end));
+				formattedPacketRaw[f] = fieldData.valueOf();
+				formattedPacket.push(fieldData);
+				f += fields[currentStream][f][1]-1;
+			} else {
+				formattedPacket.push(packets[currentStream][i][index][f]);
+				formattedPacketRaw[f] = packets[currentStream][i][2][f];
+			}
+		}
+
+		formattedPackets.push(formattedPacket);
+		formattedPacketsRaw.push(formattedPacketRaw);
+	}
+}
+
+
+function reverseNibbles(hexByte) {
+	return hexByte[1] + hexByte[0];
+}
+
+// Input / Output Processing
+// ---------------------------------------------------------------------------------------
+
+function readLSBFLength(intArray) {
+	return (intArray[0] * 1) + 
+		   (intArray[1] * 256) + 
+		   (intArray[2] * 65536) + 
+		   (intArray[3] * 16777216);
+}
+
+HEX = [];
+
+for (var i=0; i<256; i++) {
+	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
+}
+
+function intArray2hexString(intArray) {
+	result = '';
+	intArray.forEach( function(b) { result += HEX[b]; } );
+	return result;
+}
+
+function intArray2hexArray(intArray) {
+	return intArray.map( function (e) { return HEX[e]; } );
+}
+
+function intArray2asciiArray(intArray) {
+	return intArray.map( function (e) { return String.fromCharCode(e); } );
+}
+
+function number2LSFBArray(number, length) {
+	result = []
+	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
+	for (var i=0; i<number.length; i+=2) {
+		result.push( parseInt(number.substr(i,2), 16) );
+	}
+	return result.reverse();
+}
+
+function hexString2IntArray(hexString) {
+	var intArray = []
+	for (var i=0; i<hexString.length; i+=2) {
+		intArray.push( parseInt(hexString.substr(i,2), 16) );
+	}
+	return intArray;
+}
+
+function processInput(inputData) {
+	packets = [[]];
+
+	if (intArray2hexString(inputData.slice(0,4)) == 'd4c3b2a1') {
+		processInput_CAP(inputData);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+	
+	if (intArray2hexString(inputData.slice(0,4)) == '0a0d0d0a') {
+		processInput_NextGen(inputData);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+	
+}
+
+// Next Gen PCAP File Parser
+// ---------------------------------------------------------------------------------------
+
+function processInput_NextGen(inputData) {
+	var s = 0;
+	var n = 0;
+	var maxPackets = 1000000;
+	while (s >= 0 && n < maxPackets) {
+		[s, packet] = processNextGenBlock(s, inputData);
+		if (packet) {
+			hex = intArray2hexArray(packet);
+			ascii = intArray2asciiArray(packet);
+			packets[currentStream].push([hex, ascii, packet, n]);
+			n++;
+		}
+	}
+}
+
+function processNextGenEnhancedPacket(s, inputData) {
+	var capLen = readLSBFLength(inputData.slice(s+20,s+24));
+	return Array.from(inputData.slice(s+28,s+28+capLen));
+}
+
+function processNextGenSimplePacket(s, inputData) {
+	var capLen = readLSBFLength(inputData.slice(s+8,s+12));
+	return Array.from(inputData.slice(s+12,s+12+capLen));
+}
+
+function processNextGenBlock(s, inputData) {
+	var blockType = intArray2hexString(inputData.slice(s+0,s+4));
+	var blockLength = readLSBFLength(inputData.slice(s+4,s+8));
+	var packet = false;
+	
+	if ( blockType == '06000000' ) { packet = processNextGenEnhancedPacket(s, inputData); }
+	if ( blockType == '03000000' ) { packet = processNextGenSimplePacket(s, inputData); }
+	
+	if ( s+blockLength == inputData.length ) { s = -1; } 
+	else { s += blockLength }
+	
+	return [s, packet];
+}
+
+
+// CAP File Parser
+// ---------------------------------------------------------------------------------------
+
+function processCapBlock(inputData, s) {
+	packetLength = readLSBFLength(inputData.slice(s+8, s+12));
+	packet = Array.from(inputData.slice(s+16, s+16+packetLength));
+	if ( s+packetLength+16 == inputData.length ) { s = -1; }
+	else { s = s+packetLength+16 }
+	
+	return [s, packet]
+}
+
+function processInput_CAP(inputData) {
+	var maxPackets = 1000000;
+	var n = 0;
+	var s = 24;
+	while (s >= 0 && n < maxPackets) {
+		[s, packet] = processCapBlock(inputData, s);
+		hex = intArray2hexArray(packet);
+		ascii = intArray2asciiArray(packet);
+		packets[currentStream].push([hex, ascii, packet, n]);
+		n++;
+	}
+}
+
+// CAP File Writer
+// ---------------------------------------------------------------------------------------
+
+function generateOutputBytes(linkType) {
+	linkNumber = linkTypes.indexOf(linkType);
+	linkNumber = linkTypeNumbers[linkNumber];
+	output = [];
+	output.push( ...[212, 195, 178, 161] );
+	output.push( ...[2, 0, 4, 0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...number2LSFBArray(linkNumber, 4) );
+	packets[currentStream].forEach( function (packet) {
+		output.push( ...[0,0,0,0] );
+		output.push( ...[0,0,0,0] );
+		output.push( ...number2LSFBArray(packet[2].length, 4) );
+		output.push( ...number2LSFBArray(packet[2].length, 4) );
+		output.push( ...packet[2] );
+	});
+	return new Uint8Array(output);
+}
+
+function generateOutput() {
+	list = document.getElementById("outputList");
+	linkType = document.getElementById("outputLinkType").value;
+
+	while (list.hasChildNodes()) {
+		list.removeChild(list.firstChild);
+	}
+
+	var d = new Date();
+	let time = d.getTime();
+
+	let link = document.createElement('a');
+	link.innerHTML = time + '_export.cap';
+	link.download = time + '_export.cap';
+	link.style = 'color: white;'
+	let bytes = generateOutputBytes(linkType);
+	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
+	link.href = URL.createObjectURL(blob);
+	list.appendChild(link);
+}
+
+// ---------------------------------------------------------------------------------------
+
+
+
+function findConstants() {
+	var constantValues = [];
+	var constantFields = [];
+
+	if (fieldOn) {
+		constantValues = [...formattedPackets[0]];
+		constantFields = [...Array(formattedPackets[0].length).keys()];
+		for (var i=1; i<formattedPackets.length; i++) {
+			for (var x=0; x<constantValues.length; x++) {
+				if (formattedPackets[i][x] != constantValues[x]) {
+					delete constantValues[x];
+					delete constantFields[x];
+		}}}
+		return constantFields;
+	}
+
+	constantValues = [...packets[currentStream][0][0]]
+	constantFields = [...Array(packets[currentStream][0][0].length).keys()];
+	for (var i=1; i<packets[currentStream].length; i++) {
+		for (var x=0; x<constantValues.length; x++) {
+			if (packets[currentStream][i][0][x] != constantValues[x]) {
+				constantValues[x] = null;
+				constantFields[x] = null;
+	}}}
+	return constantFields;
+}
+
+
+function populatePacketView() {
+
+	var dataTable = [];
+	var rowHeaders = [];
+	var longestPacket = 0;
+	var colorMask = [];
+
+	for (var i = 0; i < packets[currentStream].length; i++) {
+	
+		colorMask.push([]);
+
+		if (packets[currentStream][i][0].length > longestPacket) {
+			longestPacket = packets[currentStream][i][0].length;
+		}
+
+		rowHeaders.push([packets[currentStream][i][3], packets[currentStream][i][0].length]);
+
+		if (fieldOn) {
+			dataTable.push(formattedPackets[i]);
+		} else if (asciiOn) {
+			dataTable.push(packets[currentStream][i][1]);
+		} else if (decimalOn) {
+			dataTable.push(packets[currentStream][i][2]);
+		} else {
+			dataTable.push(packets[currentStream][i][0]);
+		}
+	}
+
+	if (highlightConst) {
+		var highlightColor = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor');
+		var constants = findConstants();
+		for (var i=0; i<packets[currentStream].length; i++) {
+			constants.forEach( function (e) { 
+				colorMask[i][e] = highlightColor;
+			});			
+		}
+	}
+
+	columnHeaders = [];
+
+	if (fieldOn) {
+		var x = 0;
+		for (var x=0; x < longestPacket; x++) {
+			if (fields[currentStream] && fields[currentStream][x]) {
+				columnHeaders.push([x.toString(), fields[currentStream][x][3]]);
+				x += fields[currentStream][x][1]-1;
+			} else {
+				text = pad4(x);
+				columnHeaders.push([text.substring(0,2), text.substring(2,)]);
+			}
+		}
+	} else {
+		for (var x=0; x < longestPacket; x++) {
+			text = pad4(x);
+			columnHeaders.push([text.substring(0,2), text.substring(2,)]);
+		}
+	}
+
+	packetTable.table = dataTable;
+	packetTable.columnHeaders = columnHeaders;
+	packetTable.rowHeaders = rowHeaders;
+	packetTable.colorMask = colorMask;
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;
+	packetTable.calculate();
+	colorTable();
+}
+
+tableFontHeight = 18;
+tableFontSpread = 11;
+function increaseTableFontSize() {
+	tableFontHeight++;
+	tableFontSpread = tableFontHeight * (11/18);
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;
+	packetTable.calculate();
+	colorTable();
+}
+
+function decreaseTableFontSize() {
+	tableFontHeight--;
+	tableFontSpread = tableFontHeight * (11/18);
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;
+	packetTable.calculate();
+	colorTable();
+}
+
+function colorTable() {
+	var style = getComputedStyle(document.body) 
+	packetTable.tableDataFontColor = style.getPropertyValue('--textColor');
+	packetTable.tableHeaderFontColor = style.getPropertyValue('--tableHeadColor');
+	packetTable.tableCellColor = style.getPropertyValue('--cellColor');
+	packetTable.tableBorderColor = style.getPropertyValue('--cellBorder');
+	packetTable.tableBorderColorStrong = style.getPropertyValue('--cellBorderStrong');
+	packetTable.tableTopLeftColor = style.getPropertyValue('--tableTopLeft');
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;	
+	
+	newMask = [];
+	
+	var highlightColor = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor');
+	packetTable.colorMask.forEach( function (y) {
+		newRow = []
+		for (var x=0; x<y.length; x++) {
+			if(y[x]) { newRow[x] = highlightColor };
+		}
+		newMask.push(newRow);
+	});
+	packetTable.colorMask = newMask;
+    packetTable.drawTable();	
+}
+
+var data = null
+function readInputTest() {
+	loadingPage.style.visibility = 'unset';
+	var fr = new FileReader();
+    fr.onloadend = function () {
+    	var result = this.result;
+   	 	data = new Uint8Array(result);
+   	 	processInput(data);
+    };
+    fr.readAsArrayBuffer(this.files[0]);
+}
+
+
+
+function openNewWindow(name) {
+	if (!windows[name]) {
+		try {
+			windows[name] = window.open("_blank", name + "Window", "width=400,height=400");
+			windows[name].name = name + "Window"
+		} catch (error) {
+			windows[name].close();
+			windows[name] = false;
+			openNewWindow(name);
+			return null;
+		}
+		
+		windows[name].document.write("<div id='" + name +"ContainerOuter' class='containerOuter'>");
+		windows[name].document.write("<div id='" + name +"Container' class='container'></div></div>");
+		windows[name + 'Container'] = windows[name].document.getElementById(name + "Container");
+		document.head.querySelectorAll('link, style').forEach(htmlElement => {
+  		  	windows[name].document.head.appendChild(htmlElement.cloneNode(true));
+		});
+		
+		windows[name].document.title = name + " Window";
+		if (colorMode == 'light') { colorMode = 'dark'; toggleColorMode();}
+		if (colorMode == 'dark') { colorMode = 'light'; toggleColorMode();}
+		eval('populate' + name + 'View();');
+
+	} else {
+		//fields window is already open
+		if (windows[name].closed) {
+			windows[name] = false;
+			openNewWindow(name);
+		} else {
+			windows[name].focus();
+		}
+	}
+}
+
+var loadingPage = null;
+var loadingText = null;
+function onLoad() {
+	localStorage.clear();
+	populateFieldTypes();
+	populateTemplates();
+	populateLinkTypes();
+	document.getElementById("browseOpen").onchange = readInputTest;
+	document.getElementById("viewType").onchange = changeView;
+	
+	loadingPage = document.getElementById('loadingPage');
+	loadingText = document.getElementById('loadingText2');
+	
+	container = document.getElementById("packetDisplayInner");
+	packetTable = new megaTable();
+	packetTable.container = container;
+	packetTable.calculate();
+	
+	container.onscroll = function (e) { packetTable.drawTable(); };
+	window.addEventListener('resize', function(event) { packetTable.drawTable(); }, true);
+		
+	document.onmousemove = function(event) {
+		packetTable.mouseX = event.pageX;
+		packetTable.mouseY = event.pageY;
+	};
+
+	document.addEventListener("wheel", function(e) {
+		var bounds = packetTable.canvas.getBoundingClientRect()
+			if (packetTable.mouseY > bounds['top'] && packetTable.mouseY < bounds['bottom'] && packetTable.mouseX > bounds['left'] && packetTable.mouseX < bounds['right']) {
+				if (event.shiftKey) {
+					container.scrollBy(e.deltaY, 0);
+				} else {
+					container.scrollBy(0, e.deltaY);
+				}
+			}
+	});
+}
+
+document.onload = onLoad();
+
+</script>
