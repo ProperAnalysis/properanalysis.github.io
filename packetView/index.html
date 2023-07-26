@@ -1,15 +1,17 @@
 <html>
 <head>
-
 <script>
 
 // Field Functions:
-// Each function should take an array of bytes, and return something in the
-// form of a string, int or float.
+// Each function should take an array of bytes, and return array:
+// [display, raw]
+// display is the value to display on the screen.
+// raw is the value of the item for sorting purposes, an int if possible.
 // ----------------------------------------------------------------------------
 
-function ipv4Address(bytes) {
-	return bytes.join('.');
+function ipv4Address(bytes) {	
+	result = bytes.join('.')
+	return [result, result];
 }
 
 function decimalMSBF(bytes) {
@@ -17,7 +19,7 @@ function decimalMSBF(bytes) {
 	for (var i=0; i<bytes.length; i++) {
 		result += bytes[i] * (2 ** (8*(bytes.length-i-1)));
 	}
-	return result.toString();
+	return [result.toString(), result];
 }
 
 function decimalLSByteF(bytes) {
@@ -25,7 +27,7 @@ function decimalLSByteF(bytes) {
 	for (var i=0; i<bytes.length; i++) {
 		result += bytes[i] * (2 ** (8*(i)));
 	}
-	return result.toString();
+	return [result.toString(), result];
 }
 
 function binary(bytes) {
@@ -33,16 +35,16 @@ function binary(bytes) {
 	for (var i=0; i<bytes.length; i++) {
 		result += ('00000000' + bytes[i].toString(2)).substr(-8)
 	}
-	return result;
+	return [result, result];
 }
 
 function binaryVisual(bytes) {
-	var result = '';
+	var binary = '';
 	for (var i=0; i<bytes.length; i++) {
-		result += ('00000000' + bytes[i].toString(2)).substr(-8)
+		binary += ('00000000' + bytes[i].toString(2)).substr(-8)
 	}
-	result = result.replaceAll('0','.').replaceAll('1','X');
-	return result;
+	result = binary.replaceAll('0','.').replaceAll('1','X');
+	return [result, binary];
 }
 
 function ascii(bytes) {
@@ -50,17 +52,19 @@ function ascii(bytes) {
 	for (var i=0; i<bytes.length; i++) {
 		result += String.fromCharCode(bytes[i]);
 	}
-	return result;
+	return [result, result];
 }
 
 function macAddress(bytes) {
 	result = bytes.map( function (e) { return ('0'+e.toString(16)).substr(-2); });
-	return result.join(':');
+	result = result.join(':')
+	return [result, result];
 }
 
 function hexField(bytes) {
 	result = bytes.map( function (e) { return ('0'+e.toString(16)).substr(-2); });
-	return result.join('');
+	result = result.join('');
+	return [result, result];
 }
 
 // Add all of the field functions to the fieldFunctions list.
@@ -159,7 +163,7 @@ function Byte_To_Bits(byteOffset) {
 	updateUI();
 }
 
-function Frame_Relay_1_Byte(byteOffset) {
+function Frame_Relay_2_Byte(byteOffset) {
 	newByte(byteOffset, byteOffset, 2, "FCF0", "right", true);
 	dropBytes(byteOffset+2, 2, false, true);
 	addField(byteOffset, 2, decimalMSBF, 'DLCI', true);
@@ -177,684 +181,20 @@ templates.push(TCP_template);
 templates.push(TCP_Ack_template);
 templates.push(TCP_Option_Header_template);
 templates.push(Byte_To_Bits);
-templates.push(Frame_Relay_1_Byte);
+templates.push(Frame_Relay_2_Byte);
 
-</script>
+// Help functions
+// Displays a message for the user depending on the help button pressed. 
+// ----------------------------------------------------------------------------
 
-<title>packetView</title>
-<style>
+messages = {}
+messages['find'] = 'Will find and highlight all values within the packet view table which match the value to be found. Note that spaces are interpreted as byte/field boundaries. For example: 08 00 45 will find three byte sequences matching those values.'
 
-:root {
-	--backgroundLight: #ffffff;
-    --midgroundLight: #d5d5d5;
-    --borderColorLight: #8d8d8d;
-    --buttonbgLight: #e5e5e5;
-    --entrybgLight: #efefef;
-    --buttonbgHoverLight: #fdffd0;
-    --buttonbgSelectedLight: #fffac6;
-    --textColorLight: #000;
-    --tableHeadColorLight: #001279;
-    --tableHighlightColorLight: #aa0000;
-    --cellColorLight: #e6e6e6;
-    --cellBorderLight: #9e9e9e;
-    --cellBorderStrongLight: #666;
-    --shadowColorLight: #aaa;
-    --tableTopLeftLight: #aaa;
-    
-    --backgroundDark: #303030;
-    --midgroundDark: #111111;
-    --borderColorDark: #4d4d4d;
-    --entrybgDark: #151515;
-    --buttonbgDark: #333333;
-    --buttonbgHoverDark: #a28f75;
-    --buttonbgSelectedDark: #818181;
-    --textColorDark: #fff;
-    --tableHeadColorDark: #ffa400;
-    --tableHighlightColorDark: #ff0000;
-    --cellColorDark: #050505;
-    --cellBorderDark: #606060;
-    --cellBorderStrongDark: #777;
-    --shadowColorDark: #000;
-    --tableTopLeftDark: #484848;
-    
-    --background: var(--backgroundDark);
-    --midground: var(--midgroundDark);
-    --borderColor: var(--borderColorDark);
-    --buttonbg: var(--buttonbgDark);
-    --entrybg: var(--entrybgDark);
-    --buttonbgHover: var(--buttonbgHoverDark);
-    --buttonbgSelected: var(--buttonbgSelectedDark);
-    --textColor: var(--textColorDark);
-    --tableHeadColor: var(--tableHeadColorDark);
-    --tableHighlightColor: var(--tableHighlightColorDark);
-    --cellColor: var(--cellColorDark);
-    --cellBorder: var(--cellBorderDark);
-    --cellBorderStrong: var(--cellBorderStrongDark);
-    --shadowColor: var(--shadowColorDark);
-    --tableTopLeft: var(--tableTopLeftDark);
+function help(type) {
+	alert(messages[type]);
 }
 
-*::-webkit-scrollbar {
-    -webkit-appearance: none;
-}
-*::-webkit-scrollbar:vertical {
-    width: 1em;
-}
-*::-webkit-scrollbar:horizontal {
-    height: 1em;
-}
-*::-webkit-scrollbar-thumb {
-    border-radius: 8px;
-    border: 2px solid var(--midground); /* should match background, can't be transparent */
-    background-Color: var(--borderColor);
-}
-*::-webkit-scrollbar-track { 
-    background-Color: var(--midground); 
-    border-radius: 8px; 
-} 
-
-::-webkit-scrollbar-corner {
-    background-Color: var(--midground); 
-}
-
-#loadingPage {
-    z-index: 100;
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: #555555cc;
-    color: var(--textColor);
-	visibility: hidden;
-}
-
-#loadingText {
-	text-align: center;
-    width: 100%;
-    top: 50%;
-    position: absolute;
-}
-
-#loadingText2 {
-	text-align: center;
-    width: 100%;
-    top: calc(50% + 1em);
-    position: absolute;
-}
-
-textArea {
-	resize: none;
-    width: calc(100% + 10px);
-    height: 100%;
-    background: var(--midground);
-    Color: var(--textColor);
-    border: none;
-    padding: 0px;
-    outline: none;
-}
-
-#container {
-	width: 100%;
-	height: 100%;
-	font-family: helvetica;
-	font-size: 12pt;
-	Color: var(--textColor);
-	position: absolute;
-	display: flex;
-	flex-direction: column;
-	
-}
-
-
-#topMenuContainer {
-	background-Color: var(--midground);
-	width: calc(100% - 22px);
-	height: fit-content;
-	padding: 5px;
-	margin: 5px;
-	margin-bottom: 0px;
-	border-radius: 5px;
-	overflow: hidden;
-	border: 1px var(--borderColor) solid;
-	flex-shrink: 0;
-	flex-grow: 0;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
-	z-index: 1;
-}
-
-#topMenu {
-	width: 100%;
-	z-index: 1;
-}
-
-
-#packetDisplayOuter {
-	background-Color: var(--midground);
-	width: calc(100% - 22px);
-	padding: 5px;
-	margin: 5px;
-	border-radius: 5px;
-	border: 1px var(--borderColor) solid;
-	flex-shrink: 1;
-	flex-grow: 1;
-	display: flex;
-	flex-direction: column;
-	max-height: 100%;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
-}
-
-#packetDisplayInner {
-	overflow: hidden;
-    height: 1;
-    width: 100%;
-    flex-shrink: 1;
-    flex-grow: 1
-}
-
-
-.container {
-	display: block;
-}
-
-.containerOuter {
-	background-Color: var(--midground);
-    width: -webkit-fill-available;
-    padding: 10px;
-    margin: 0px;
-    height: -webkit-fill-available;
-    overflow: scroll;
-}
-
-
-.closedToolbox {
-	visibility: hidden;
-	width: 100%;
-	height: 0px;
-	max-height: 0px;
-}
-
-.openToolbox {
-	visibility: unset;
-	width 100%;
-	height: auto;
-	margin-top: 5px;
-	padding-top: 5px;
-	max-height: 9001;
-	z-index: 1;
-	border-top: 1px solid var(--borderColor);
-}
-
-html, body {
-	margin: 0; 
-	height: 100%; 
-	overflow: hidden;
-	background-Color: var(--background);
-	Color: var(--textColor);
-	font-family: Monospace;
-}
-
-
-p {
-	margin: 0px;
-}
-
-.stream {
-	margin: 0px;
-	margin-top: -8px;
-    font-size: 23px;
-    Color: var(--borderColor);
-    text-wrap: nowrap;
-    font-family: sans-serif;
-}
-
-.packets {
-  position: relative;
-  Color:  var(--textColor);
-  width: 100%;
-  overflow: scroll;
-  height: 100%;
-  font-family: monospace;
-  white-space: nowrap;
-}
-
-table {
-	text-wrap: nowrap;
-	font-size: 12pt;
-	position: relative;
-	border-collapse: collapse;
-	font-family: monospace;
-}
-
-.toolboxCell {
-	border: none;
-    text-align: left
-}
-
-th {
-	background: var(--midground);
-	position: sticky;
-	top: 0;
-	Color: var(--tableHeadColor);
-	border-style: solid;
-    border-Color: var(--borderColor);
-    border-top: none;
-    padding: 10px;
-    padding-top: 0px;
-    padding-bottom: 0px;
-    Color: var(--tableHeadColor);
-}
-
-td {
-	padding-top: 0px;
-	padding-bottom: 0px;
-	padding-left: 5px;
-	padding-right: 5px;
-	border-style: solid;
-    border-Color: var(--borderColor);
-    text-align: center;
-    Color: var(--textColor);
-}
-
-.padTop {
-	padding-top: 10px;
-}
-
-.padBot {
-	padding-bottom: 10px;
-}
-
-button, input::file-selector-button, input[type="number"], input[type="text"], select{
-	background-Color: var(--entrybg);
-	border: 1px var(--borderColor) solid;
-	border-radius: 2px;
-	Color: var(--textColor);
-	margin: 2px;
-	font-family: Monospace;
-	outline: none;
-}
-
-button {
-	background-Color: var(--buttonbg);
-}
-
-input[type="number"], input[type="text"], select {
-	width: calc(100% - 4px);
-	font-family: Monospace;
-}
-
-button:hover, input::file-selector-button:hover{
-	background-Color: var(--buttonbgHover);
-}
-
-
-</style>
-</head>
-
-<body>
-
-<canvas width='1' height='1' id="background" style="position: absolute; z-index: 0;"></canvas>
-
-<div id="container">
-
-<div id="topMenuContainer">
-<div id="topMenu">
-<!-- tool box selection buttons -->
-<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);">File</button>
-<button id="viewsButton" onclick="openToolbox(&#39;views&#39;);">Views</button>
-
-<button id="divideButton" onclick="openToolbox(&#39;divide&#39;);">Divide</button>
-<button id="sortButton" onclick="openToolbox(&#39;sort&#39;);">Sort</button>
-<button id="addFieldsButton" onclick="openToolbox(&#39;addFields&#39;);">Add Field</button>
-<button id="applyTemplateButton" onclick="openToolbox(&#39;applyTemplate&#39;);">Apply Template</button>
-<button id="newByteButton" onclick="openToolbox(&#39;newByte&#39;);">New Byte</button>
-<button id="dropBytesButton" onclick="openToolbox(&#39;dropBytes&#39;);">Drop Bytes</button>
-<button id="xorBytesButton" onclick="openToolbox(&#39;xorBytes&#39;);">XOR Bytes</button>
-<button id="reverseBytesButton" onclick="openToolbox(&#39;reverseBytes&#39;);">Reverse Bytes</button>
-<button id="plotViewButton" onclick="openToolbox(&#39;plotView&#39;);">Plot View</button>
-<button id="extractButton" onclick="openToolbox(&#39;extract&#39;);">Extract</button>
-
-
-
-
-</div> <!-- start tool box -->
-
-<div id="inputMenu" class="closedToolbox">
-<table>
-<tr>
-	<td class="toolboxCell">File Open:</td><td class="toolboxCell"><input id="browseOpen" type="file"/></td>
-</tr>
-<tr><td class="toolboxCell">&nbsp;</td></tr>
-<tr>
-	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
-</tr>
-<tr>
-	<td class="toolboxCell">Link Type:</td><td class="toolboxCell"><select style="width: 100%;" id="outputLinkType"></select></td>
-</tr>
-<tr>
-	<td class="toolboxCell"></td><td class="toolboxCell"><button id="outputGenerateButton" style="width: 100%;" onclick="generateOutput();">Export</button></td>
-</tr>
-<tr>
-	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
-</tr>
-</table>
-
-</div>
-
-<div id="views" class="closedToolbox">
-	
-	<select style="width: 14em;" id="viewType">
-		<option>Hexadecimal</option>
-		<option>Decimal</option>
-		<option>ASCII</option>
-	</select>
-	
-	<button type="button" onclick="fieldView()">Fields On/Off</button>
-	<button type="button" onclick="toggleHighlightConstants()">Highlight Constants</button>
-	
-	<button id="streamsButton" onclick="openNewWindow('Streams');">Streams Window</button>
-	<button id="fieldsButton" onclick="openNewWindow('Fields');">Fields Window</button>
-	
-	<button id="modeButton" onclick="toggleColorMode();">Light/Dark</button>
-	<button id="plusButton" onclick="increaseTableFontSize();">+</button>
-	<button id="minusButton" onclick="decreaseTableFontSize();">-</button>
-	
-	
-</div>
-
-<div id="addFields" class="closedToolbox">
-	<table>
-	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="fieldStartByte" min="0"></td></tr>
-	<tr><td class="toolboxCell">Length (bytes):</td><td class="toolboxCell"><input type="number" id="fieldLength" min="0"></td></tr>
-	<tr><td class="toolboxCell">Type:</td><td class="toolboxCell"><select id="fieldType"></select></td></tr>
-	<tr><td class="toolboxCell">Label:</td><td class="toolboxCell"><input type="text" id="fieldLabel"></td></tr>
-	<tr><td class="toolboxCell"></td><td class="toolboxCell">
-	<button style="width: calc(100% - 4px);" onclick="addFieldUser();">Add</button>
-	</td></tr>
-	</table>
-</div>
-
-<div id="applyTemplate" class="closedToolbox">
-	<table>
-	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="templateStartByte" min="0"></td></tr>
-	<tr><td class="toolboxCell">Template:</td><td class="toolboxCell"><select id="templateId"></select></td></tr>
-	<tr><td class="toolboxCell"></td><td class="toolboxCell">
-	<button style="width: calc(100% - 4px);" onclick="applyTemplate();">Apply</button>
-	</td></tr>
-	</table>
-</div>
-
-<div id="divide" class="closedToolbox">
-	<table>
-	<tr>
-	<td class="toolboxCell">Divide on byte/field:</td>
-	<td class="toolboxCell"><input type="number" id="divideField" min="0"></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Mask (only on bytes):</td>
-	<td class="toolboxCell"><input type="text" id="divideMask" value="0xFF"></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnField();">Divide</button></td>
-	</tr>
-	
-	<tr><td class="toolboxCell">&nbsp;</td></tr>
-	
-	<tr>
-	<td class="toolboxCell">Divide on Length:</td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnLength();">Divide on Length</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-
-<div id="sort" class="closedToolbox">
-	<table>
-	<tr>
-	<td class="toolboxCell">Sort on byte/field:</td>
-	<td class="toolboxCell"><input type="number" id="sortField" min="0"></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Mask (only on bytes):</td>
-	<td class="toolboxCell"><input type="text" id="sortMask" value="0xFF"></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(1);">Sort Ascending</button></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(-1);">Sort Descending</button></td>
-	</tr>
-	
-	<tr><td class="toolboxCell">&nbsp;</td></tr>
-	
-	<tr>
-	<td class="toolboxCell">Sort on length:</td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(1);">Sort on Length Asc</button></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(-1);">Sort on Length Desc</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-<div id="newByte" class="closedToolbox">
-	<table>
-	
-	<tr>
-	<td class="toolboxCell">Insert at byte/field location:</td>
-	<td class="toolboxCell"><input type="number" id="newByteAt" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Derived from bytes start:</td>
-	<td class="toolboxCell"><input type="number" id="newByteFromStart" min=-1></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Derived from bytes length:</td>
-	<td class="toolboxCell"><input type="number" id="newByteFromLength" min=1></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Mask (must match length):</td>
-	<td class="toolboxCell"><input type="text" id="newByteMask" value="0xFF"></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Align bits:</td>
-	<td class="toolboxCell"><select id="newByteAlign"><option>none</option><option>left</option><option>right</option></select></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Overwrite current stream:</td>
-	<td class="toolboxCell"><select id="newByteOverwrite"><option>false</option><option>true</option></select></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="newByteUser();">Create</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-
-<div id="dropBytes" class="closedToolbox">
-	<table>
-	
-	<tr>
-	<td class="toolboxCell">Drop bytes/fields starting at:</td>
-	<td class="toolboxCell"><input type="number" id="dropBytesStart" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Drop bytes/fields length:</td>
-	<td class="toolboxCell"><input type="number" id="dropBytesLength" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Drop from packet:</td>
-	<td class="toolboxCell"><input type="number" id="dropBytesPacketNumber" min=-1 value=-1></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Overwrite current stream:</td>
-	<td class="toolboxCell"><select id="dropBytesOverwrite"><option>false</option><option>true</option></select></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="dropBytesUser();">Drop bytes</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-
-<div id="xorBytes" class="closedToolbox">
-	<table>
-	
-	<tr>
-	<td class="toolboxCell">XOR bytes starting at:</td>
-	<td class="toolboxCell"><input type="number" id="xorBytesStart" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">XOR bytes length:</td>
-	<td class="toolboxCell"><input type="number" id="xorBytesLength" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">XOR value (will repeat to cover bytes):</td>
-	<td class="toolboxCell"><input type="text" id="xorBytesValue" value="0xFF"></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Overwrite current stream:</td>
-	<td class="toolboxCell"><select id="xorBytesOverwrite"><option>false</option><option>true</option></select></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="xorBytesUser();">XOR bytes</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-
-<div id="reverseBytes" class="closedToolbox">
-	<table>
-	
-	<tr>
-	<td class="toolboxCell">Reverse bytes starting at:</td>
-	<td class="toolboxCell"><input type="number" id="reverseBytesStart" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Reverse bytes length:</td>
-	<td class="toolboxCell"><input type="number" id="reverseBytesLength" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Reverse type:</td>
-	<td class="toolboxCell"><select id="reverseBytesType"><option>each byte</option><option>order of bytes</option></select></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Overwrite current stream:</td>
-	<td class="toolboxCell"><select id="reverseBytesOverwrite"><option>false</option><option>true</option></select></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="reverseBytesUser();">Reverse bytes</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-
-<div id="extract" class="closedToolbox">
-	<table>
-	
-	<tr>
-	<td class="toolboxCell">Extract start byte/field:</td>
-	<td class="toolboxCell"><input type="number" id="extractStart" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Extract length bytes/fields:</td>
-	<td class="toolboxCell"><input type="number" id="extractLength" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractASCII();">Extract as ASCII</button></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractHex();">Extract as hex</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-<div id="plotView" class="closedToolbox">
-	<table>
-	
-	<tr>
-	<td class="toolboxCell">Plot byte/field:</td>
-	<td class="toolboxCell"><input type="number" id="plotField" min=0></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell">Plot byte/field:</td>
-	<td class="toolboxCell"><input type="number" id="plotFormat" min=2 value=10></td>
-	</tr>
-	
-	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="plotField();">Plot</button></td>
-	</tr>
-	
-	</table>
-	
-</div>
-
-</div> <!-- end toolbox -->
-
-<div id="packetDisplayOuter">
-	<div id="packetDisplayInner">
-	</div>
-</div>
-
-<div id='loadingPage'>
-<p id='loadingText'>Loading...</p>
-<p id='loadingText2'></p>
-</div>
-
-<script>
+// ----------------------------------------------------------------------------
 
 class megaTable {
 
@@ -1151,20 +491,18 @@ var packets = [[]];
 var asciiOn = false;
 var decimalOn = false;
 var fieldOn = false;
-var highlightConst = true;
+var highlightConst = false;
 
 var windows = {};
 windows['Streams'] = false;
-windows['Fields'] = false;
 windows['ASCII'] = false;
 windows['Hex'] = false;
 windows['PlotView'] = false;
 windows['StreamsContainer'] = false;
-windows['FieldsContainer'] = false;
 windows['ASCIIContainer'] = false;
 windows['HexContainer'] = false;
 windows['PlotViewContainer'] = false;
-windowNames = ['Streams', 'Fields', 'ASCII', 'Hex', 'PlotView'];
+windowNames = ['Streams', 'ASCII', 'Hex', 'PlotView'];
 
 linkTypes = ["NULL","ETHERNET","EXP_ETHERNET","AX25","PRONET","CHAOS","IEEE802_5","ARCNET_BSD","SLIP","PPP","FDDI","PPP_HDLC","PPP_ETHER","SYMANTEC_FIREWALL","ATM_RFC1483","RAW","C_HDLC","IEEE802_11","ATM_CLIP","FRELAY","LOOP","ENC","NETBSD_HDLC","LINUX_SLL","LTALK","PFLOG","IEEE802_11_PRISM","IP_OVER_FC","SUNATM","IEEE802_11_RADIOTAP","TZSP","ARCNET_LINUX","JUNIPER_MLPPP","JUNIPER_MLFR","JUNIPER_ES","JUNIPER_GGSN","JUNIPER_MFR","JUNIPER_ATM2","JUNIPER_SERVICES","JUNIPER_ATM1","APPLE_IP_OVER_IEEE1394","MTP2_WITH_PHDR","MTP2","MTP3","SCCP","DOCSIS","LINUX_IRDA","IBM_SP","IBM_SN","USER0","USER1","USER2","USER3","USER4","USER5","USER6","USER7","USER8","USER9","USER10","USER11","USER12","USER13","USER14","USER15","IEEE802_11_AVS","JUNIPER_MONITOR","BACNET_MS_TP","PPP_PPPD","JUNIPER_PPPOE","JUNIPER_PPPOE_ATM","GPRS_LLC","GPF_T","GPF_F","GCOM_T1E1","GCOM_SERIAL","JUNIPER_PIC_PEER","ERF_ETH","ERF_POS","LINUX_LAPD","JUNIPER_ETHER","JUNIPER_PPP","JUNIPER_FRELAY","JUNIPER_CHDLC","MFR","JUNIPER_VP","A429","A653_ICM","USB_FREEBSD","BLUETOOTH_HCI_H4","IEEE802_16_MAC_CPS","USB_LINUX","CAN20B","IEEE802_15_4_LINUX","PPI","IEEE802_16_MAC_CPS_RADIO","JUNIPER_ISM","IEEE802_15_4_WITHFCS","SITA","ERF","RAIF1","IPMB_KONTRON","JUNIPER_ST","BLUETOOTH_HCI_H4_WITH_PHDR","AX25_KISS","LAPD","PPP_WITH_DIR","C_HDLC_WITH_DIR","FRELAY_WITH_DIR","LAPB_WITH_DIR","IPMB_LINUX","FLEXRAY","MOST","LIN","X2E_SERIAL","X2E_XORAYA","IEEE802_15_4_NONASK_PHY","LINUX_EVDEV","GSMTAP_UM","GSMTAP_ABIS","MPLS","USB_LINUX_MMAPPED","DECT","AOS","WIHART","FC_2","FC_2_WITH_FRAME_DELIMS","IPNET","CAN_SOCKETCAN","IPV4","IPV6","IEEE802_15_4_NOFCS","DBUS","JUNIPER_VS","JUNIPER_SRX_E2E","JUNIPER_FIBRECHANNEL","DVB_CI","MUX27010","STANAG_5066_D_PDU","JUNIPER_ATM_CEMIC","NFLOG","NETANALYZER","NETANALYZER_TRANSPARENT","IPOIB","MPEG_2_TS","NG40","NFC_LLCP","PFSYNC","INFINIBAND","SCTP","USBPCAP","RTAC_SERIAL","BLUETOOTH_LE_LL","WIRESHARK_UPPER_PDU","NETLINK","BLUETOOTH_LINUX_MONITOR","BLUETOOTH_BREDR_BB","BLUETOOTH_LE_LL_WITH_PHDR","PROFIBUS_DL","PKTAP","EPON","IPMI_HPM_2","ZWAVE_R1_R2","ZWAVE_R3","WATTSTOPPER_DLM","ISO_14443","RDS","USB_DARWIN","OPENFLOW","SDLC","TI_LLN_SNIFFER","LORATAP","VSOCK","NORDIC_BLE","DOCSIS31_XRA31","ETHERNET_MPACKET","DISPLAYPORT_AUX","LINUX_SLL2","SERCOS_MONITOR","OPENVIZSLA","EBHSCR","VPP_DISPATCH","DSA_TAG_BRCM","DSA_TAG_BRCM_PREPEND","IEEE802_15_4_TAP","DSA_TAG_DSA","DSA_TAG_EDSA","ELEE","Z_WAVE_SERIAL","USB_2_0","ATSC_ALP","ETW","NETANALYZER_NG","ZBOSS_NCP","USB_2_0_LOW_SPEED","USB_2_0_FULL_SPEED","USB_2_0_HIGH_SPEED","AUERSWALD_LOG","ZWAVE_TAP","SILABS_DEBUG_CHANNEL","FIRA_UCI"]
 linkTypeNumbers = [0,1,2,3,4,5,6,7,8,9,10,50,51,99,100,101,104,105,106,107,108,109,112,113,114,117,119,122,123,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299]
@@ -1185,6 +523,7 @@ function xorBytesUser() {
 	var length = parseInt(document.getElementById('xorBytesLength').value);
 	var value = document.getElementById('xorBytesValue').value;
 	var overwriteStream = eval(document.getElementById('xorBytesOverwrite').value);
+	value = value.split('0x').join('');
 	xorBytes(start, length, value, overwriteStream);
 }
 
@@ -1212,6 +551,11 @@ function newByteUser() {
 	newByte(at, start, length, mask, align, overwriteStream);
 }
 
+function findUser() {
+	var value = document.getElementById('findValue').value;
+	find(value);
+}
+
 function addFieldUser() {
 	var start = parseInt(document.getElementById('fieldStartByte').value);
 	var length = parseInt(document.getElementById('fieldLength').value);
@@ -1228,8 +572,15 @@ function applyTemplate () {
 
 function sortOnField(direction) {
 	var field = parseInt(document.getElementById('sortField').value);
-	var mask = document.getElementById('sortMask').value
+	var mask = document.getElementById('sortMask').value;
+	mask = mask.split('0x').join('');
 	sortField(field, mask, direction);
+}
+
+function divideOnField() {
+	var field = parseInt(document.getElementById('divideField').value);
+	var mask = document.getElementById('divideMask').value
+	divideField(field, mask);
 }
 
 function changeView() {
@@ -1304,13 +655,14 @@ function lightMode () {
 	style.setProperty('--textColor', 'var(--textColorLight)');
 	style.setProperty('--tableHeadColor', 'var(--tableHeadColorLight)');
 	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorLight)');
+	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorLight2)');
 	style.setProperty('--cellColor', 'var(--cellColorLight)');
 	style.setProperty('--cellBorder', 'var(--cellBorderLight)');
 	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongLight)');
 	style.setProperty('--shadowColor', 'var(--shadowColorLight)');
 	style.setProperty('--tableTopLeft', 'var(--tableTopLeftLight)');
 	});
-	if (packetTable.running) {colorTable();}
+	if (packetTable.running) {populatePacketView();}
 	if (windows['PlotViewContainer']) {try {drawPlot();} catch {}}
 }
 
@@ -1327,13 +679,14 @@ function darkMode () {
 	style.setProperty('--textColor', 'var(--textColorDark)');
 	style.setProperty('--tableHeadColor', 'var(--tableHeadColorDark)');
 	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorDark)');
+	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorDark2)');
 	style.setProperty('--cellColor', 'var(--cellColorDark)');
 	style.setProperty('--cellBorder', 'var(--cellBorderDark)');
 	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongDark)');
 	style.setProperty('--shadowColor', 'var(--shadowColorDark)');
 	style.setProperty('--tableTopLeft', 'var(--tableTopLeftDark)');
 	});
-	if (packetTable.running) {colorTable();}
+	if (packetTable.running) {populatePacketView();}
 	if (windows['PlotViewContainer']) { try {drawPlot();} catch {}}
 }
 
@@ -1364,28 +717,22 @@ function openToolbox(item) {
 // Helper functions
 // ------------------------------------------------------------------------------------------------
 
-
-function hex2bin(data) {
-	return ('0'.repeat(data.length*4) + parseInt(data, 16).toString(2)).substr(data.length*-4);
+function decArray2bin(data) {
+	result = ''
+	data.forEach( function(b) { result += decByte2bin(b); });
+	return result;
 }
 
-function bin2hex(data) {
-	while (data.length % 4 != 0) {
-		data = '0' + data;
+function bin2decArray(data) {
+	result = [];
+	for (var i=0; i<data.length; i+=8) {
+		result.push( parseInt( data.substr(i, 8), 2) );
 	}
-	return ('0'.repeat(data.length/4) + parseInt(data, 2).toString(16)).substr(data.length/-4);
+	return result;
 }
 
-function hex2asciiRAW(packet) {
-    var ascii = [];
-    for (var i = 0; i < packet.length; i++) {
-        ascii.push( (String.fromCharCode(parseInt(packet[i], 16))) );
-	}
-    return ascii;
-}
-
-function bitwiseAND(b1, b2) {
-	return ('0'.repeat(b1.length) + (parseInt(b1, 16) & parseInt(b2, 16)).toString(16)).substr(b1.length * -1);
+function decByte2bin(data) {
+	return ('00000000' + data.toString(2)).substr(-8);
 }
 
 function pad4(num) {
@@ -1393,45 +740,20 @@ function pad4(num) {
     return s.substr(-4);
 }
 
-function xorHex(a, b) {
-	// a and b need to be 1 byte
-	a = parseInt(a, 16);
-	b = parseInt(b, 16);
-	result = a ^ b;
-	return ('00' + result.toString(16)).substr(-2)
-}
-
-function reverse(hexByte) {
-	binary = hex2bin(hexByte)
+function reverse(intByte) {
+	binary = decByte2bin(intByte)
 	binary = binary.split('').reverse().join('')
-	return bin2hex(binary);
+	return parseInt(binary, 2);
 }
 
-function buildPacketViews(intArray) {
-	var ascii = [];
-	var integer = [];
-	
-	for (var i=0; i<intArray.length; i++) {
-		 integer.push( intArray[i] );
-		 ascii.push( (String.fromCharCode(integer[i]).replace(/[^\w]/g, "") + " ").slice(0,1) );
-	}
-	
-	return [ascii, integer];
-}
-
-function buildPacketViewsFromHex(hexArray) {
-	var ascii = [];
-	var integer = [];
-	
-	for (var i=0; i<hexArray.length; i++) {
-		 integer.push( parseInt(hexArray[i], 16) );
-		 ascii.push( (String.fromCharCode(integer[i]).replace(/[^\w]/g, "") + " ").slice(0,1) );
-	}
-	
-	return [ascii, integer];
-}
 
 // ------------------------------------------------------------------------------------------------
+
+function find(value) {
+	findValue = value;
+	if (value == '') { findOn = false } else { findOn = true; }
+	populatePacketView();
+}
 
 function reverseBytes(start, length, type, overwrite) {
 	if (!overwrite) {
@@ -1459,8 +781,8 @@ function reverseBytes(start, length, type, overwrite) {
 		packet = packets[currentStream][i][0].slice(0, start);
 		packet.push(...newBytes);
 		packet.push(...packets[currentStream][i][0].slice(start+length,));
-		[ascii, integer] = buildPacketViewsFromHex(packet);
-		newPackets.push([packet, ascii, integer, packets[currentStream][i][3]]);
+		
+		newPackets.push([packet, packets[currentStream][i][1]]);
 	}
 
 	packets[streamIndex.indexOf(streamName)] = newPackets;
@@ -1482,20 +804,24 @@ function xorBytes(start, length, value, overwrite) {
 	}
 
 	var newPackets = [];
+	var mask = [];
+	for (var i=0; i<length; i++) {
+		mask.push( parseInt( value.substr( (i*2) % value.length, 2 ), 16 ) );
+	}
+	console.log(mask);
 
 	for (var i=0; i<packets[currentStream].length; i++) {
 		newBytes = packets[currentStream][i][0].slice(start, start+length);
 
 		for (var x=0; x<newBytes.length; x++) {
-			newBytes[x] = xorHex(newBytes[x], value);
+			newBytes[x] = newBytes[x] ^ mask[x];
 		}
 
 		packet = packets[currentStream][i][0].slice(0, start);
 		packet.push(...newBytes);
 		packet.push(...packets[currentStream][i][0].slice(start+length,));
 		
-		[ascii, integer] = buildPacketViewsFromHex(packet);
-		newPackets.push([packet, ascii, integer, packets[currentStream][i][3]]);
+		newPackets.push([packet, packets[currentStream][i][1]]);
 	}
 	
 	packets[streamIndex.indexOf(streamName)] = newPackets;
@@ -1507,12 +833,18 @@ function xorBytes(start, length, value, overwrite) {
 
 
 function specialMask(mask, data, align) {
+	if (mask.length != data.length) { return data; }
+	
 	if (align == 'none') {
-		return bitwiseAND(mask, data);
+		var result = [];
+		for (var i=0; i<mask.length; i++) {
+			result.push(data[i] &  mask[i]);		
+		}
+		return result;
 	}
 
-	binaryMask = hex2bin(mask);
-	binaryData = hex2bin(data);
+	binaryMask = decArray2bin(mask);
+	binaryData = decArray2bin(data);
 	result = '';
 
 	for (var x=0; x<binaryMask.length; x++) {
@@ -1529,7 +861,7 @@ function specialMask(mask, data, align) {
 		result = ('0'.repeat(binaryMask.length) + result).substr(binaryMask.length*-1)
 	}
 
-	return bin2hex(result);
+	return bin2decArray(result);
 }
 
 
@@ -1546,19 +878,12 @@ function dropBytes(start, length, packetNumber, overwriteStream) {
 
 	var newPackets = [];
 	for (var i=0; i<packets[currentStream].length; i++) {
-		if (packetNumber === false || packetNumber == packets[currentStream][i][3]) {
-			packet = packets[currentStream][i][0].slice(0, start);
-			packet.push(...packets[currentStream][i][0].slice(start+length,));
+		if (packetNumber === false || packetNumber == packets[currentStream][i][1]) {
+
+			integer = packets[currentStream][i][0].slice(0, start);
+			integer.push(...packets[currentStream][i][0].slice(start+length,));
 			
-			ascii = packets[currentStream][i][1].slice(0, start);
-			ascii.push(...packets[currentStream][i][1].slice(start+length,));
-			
-			integer = packets[currentStream][i][2].slice(0, start);
-			integer.push(...packets[currentStream][i][2].slice(start+length,));
-			
-			number = packets[currentStream][i][3] + 0;
-			
-			newPackets.push([packet, ascii, integer, number]);
+			newPackets.push([integer, packets[currentStream][i][1]]);
 		} else {
 			newPackets.push(packets[currentStream][i]);
 		}
@@ -1582,27 +907,28 @@ function newByte(at, start, length, mask, align, overwriteStream) {
 		var streamName = streamIndex[currentStream];
 	}
 
+	maskArray = [];
+	for (var i=0; i<mask.length; i+=2) {
+		maskArray.push( parseInt(mask.substr(i, 2), 16) );
+	}
+	mask = maskArray;
+	
 	var newPackets = [];
 
 	for (var i=0; i<packets[currentStream].length; i++) {
 		if (start > -1) {
-			newBytes = packets[currentStream][i][0].slice(start, start+length).join('');
+			newBytes = packets[currentStream][i][0].slice(start, start+length);
 		} else {
-			newBytes = Array(length).fill('ff');
+			newBytes = Array(length).fill(255);
 		}
-		newBytes = specialMask(mask, newBytes, align);
-		newBytesArray = [];
-
-		for (var x=0; x<newBytes.length; x+=2) {
-			newBytesArray.push(newBytes.substr(x,x+2));
-		}
+		
+		newBytesArray = specialMask(mask, newBytes, align);
 
 		packet = packets[currentStream][i][0].slice(0, at);
 		packet.push(...newBytesArray);
 		packet.push(...packets[currentStream][i][0].slice(at,));
 		
-		[ascii, integer] = buildPacketViewsFromHex(packet);
-		newPackets.push([packet, ascii, integer, packets[currentStream][i][3]]);
+		newPackets.push([packet, packets[currentStream][i][1]]);
 	}
 	packets[streamIndex.indexOf(streamName)] = newPackets;
 	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
@@ -1610,17 +936,180 @@ function newByte(at, start, length, mask, align, overwriteStream) {
 	switchStream(streamName);
 }
 
+function sortOnLength(direction) {
+	var parentStream = streamChildren[currentStream]
+	var streamName = currentStream + "_$_Sort_$_Length";
+
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+
+	var sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  		if (a[0].length < b[0].length) return -1 * direction;
+   		if (a[0].length > b[0].length) return 1 * direction;
+   		return 0;
+	});
+
+	packets[streamIndex.indexOf(streamName)] = sortedPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function sortField(field, mask, direction) {
+	var parentStream = streamChildren[currentStream];
+	var streamName = currentStream + "_$_Sort_$_" + field;
+	var sortedPackets = [];
+	
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+	
+	if (fieldOn) {
+		var numberedFormattedPackets = [...formattedPacketsRaw];
+		var i = 0;
+		numberedFormattedPackets.forEach( function(a) { a.push(i); i++; } );
+		sortedFormattedPackets = [...numberedFormattedPackets].sort(function(a, b) {
+  			if (a[field] < b[field]) return -1 * direction;
+   			if (a[field] > b[field]) return 1 * direction;
+   			return 0;
+		});
+		var x = 0;
+		sortedFormattedPackets.forEach( function(a) {
+			sortedPackets.push(packets[currentStream][a.at(-1)]);
+		});
+	} else {
+		if (mask == 'ff') {
+			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  				if (a[0][field] < b[0][field]) return -1 * direction;
+   				if (a[0][field] > b[0][field]) return 1 * direction;
+   				return 0;
+   			});
+   		} else {
+   			mask = parseInt(mask, 16);
+			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  				if ((a[2][field] & mask) < (b[2][field] & mask)) { return -1 * direction; }
+  				else { return 1 * direction; }
+   			});
+   		}
+	}
+
+	packets[streamIndex.indexOf(streamName)] = sortedPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function divideOnLength() {
+	var lastStream = '';
+	var streamName = '';
+	var type = '';
+	var length = '';
+	var parentStream = streamChildren[currentStream];
+	var x = packets[currentStream].length + 0;
+
+	for (var i=0; i<x; i++) {
+
+		streamName = packets[currentStream][i][0].length;
+		streamName = currentStream + "_$_Length_$_" + streamName;
+
+		if (streamIndex.includes(streamName)) {
+			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i])
+			lastStream = streamName;
+		} else {
+			streamIndex.push(streamName);
+			streamChildren.push([]);
+			parentStream.push(streamName);
+			packets[streamIndex.indexOf(streamName)] = [];
+			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i]);
+			if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]]; }
+			lastStream = streamName;
+		}
+	}
+	populateStreamsView();
+	switchStream(lastStream);
+	return null;
+}
+
+
+function divideField(field, mask) {
+	var lastStream = '';
+	var fieldData = '';
+	var end = 0;
+	var start = 0;
+	var type = '';
+	var length = '';
+	var parentStream = streamChildren[currentStream];
+	var mask = parseInt(mask.split('0x').join(''), 16);
+	
+	if (fieldOn) {
+		if (fields[currentStream] && fields[currentStream][field]) {
+			var fieldName = fields[currentStream][field][3]
+			for (var i = 0; i < packets[currentStream].length; i++) {
+				start = fields[currentStream][field][0];
+				end = fields[currentStream][field][0] + fields[currentStream][field][1];
+				type = fields[currentStream][field][2];
+				length = fields[currentStream][field][1];
+				[fieldData, raw] = type(packets[currentStream][i][0].slice(start, end));
+				fieldData = currentStream + "_$_" + fieldName + "_$_" + fieldData;
+				if (streamIndex.includes(fieldData)) {
+					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
+					lastStream = fieldData;
+				} else {
+					streamIndex.push(fieldData);
+					streamChildren.push([]);
+					parentStream.push(fieldData);
+					packets[streamIndex.indexOf(fieldData)] = [];
+					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
+					fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]];
+					lastStream = fieldData;
+				}
+			}
+			populateStreamsView();
+			switchStream(lastStream);
+			return null;
+		}
+	}
+
+	var x = packets[currentStream].length + 0;
+
+	for (var i=0; i<x; i++) {
+		fieldData = packets[currentStream][i][0][field] & mask;
+		fieldData = fieldData.toString(16);
+		fieldData = currentStream + "_$_" + field + "_$_" + fieldData;
+
+		if (streamIndex.includes(fieldData)) {
+			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
+			lastStream = fieldData;
+		} else {
+			streamIndex.push(fieldData);
+			streamChildren.push([]);
+			parentStream.push(fieldData);
+			packets[streamIndex.indexOf(fieldData)] = [];
+			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
+			if (fields[currentStream]) { fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]]; }
+			lastStream = fieldData;
+		}
+	}
+	populateStreamsView();
+	switchStream(lastStream);
+	return null;
+}
 
 function extractASCII() {
 	var start = parseInt(document.getElementById('extractStart').value);
 	var length = parseInt(document.getElementById('extractLength').value);
 	var output = [];
-
+	
 	for (var i=0; i < packets[currentStream].length; i++) {
-		output.push(...hex2asciiRAW(packets[currentStream][i][0].slice(start, start+length)));
+		output.push(...packets[currentStream][i][0].slice(start, start+length));
 	}
-
+	
+	output = output.map( function (e) { return String.fromCharCode(e); });
 	output = output.join('');
+
 	output = '<textarea readonly>' + output + '</textarea>'
 	openNewWindow('ASCII');
 	windows['ASCIIContainer'].innerHTML = output;
@@ -1635,7 +1124,8 @@ function extractHex() {
 	for (var i=0; i < packets[currentStream].length; i++) {
 		output.push(...packets[currentStream][i][0].slice(start, start+length));
 	}
-
+	
+	output = intArray2hexArray(output);
 	output = output.join(' ');
 	output = '<textarea readonly>' + output + '</textarea>'
 	openNewWindow('Hex');
@@ -1674,25 +1164,34 @@ function populateLinkTypes() {
 	});
 }
 
-function populateASCIIView() {
-	// Do nothing, just to keep the openNewWindow function happy.
-}
-
-
-function populateHexView() {
-	// Do nothing, just to keep the openNewWindow function happy.
-}
-
-function populatePlotViewView() {
-	// Do nothing, just to keep the openNewWindow function happy.
-}
-
-
 function populateStreamsView() {
 	var streamTable = streamRow(0, 0);
-	windows['StreamsContainer'].innerHTML = streamTable;
+	document.getElementById('streamsContainer').innerHTML = streamTable;
 }
 
+function populateFieldsView() {
+	var button = '';
+	var text = '<table style="width: 100%;"><tr><th>Field</th><th>Length</th><th>Type</th><th>Label</th><th>Delete</th></tr>';
+
+	if (fields[currentStream]) {
+		for (var i=0; i < fields[currentStream].length; i++) {
+			if (fields[currentStream][i]) {
+				text += '<tr>'
+				text += '<td>' + fields[currentStream][i][0] + '</td>';
+				text += '<td>' + fields[currentStream][i][1] + '</td>';
+				text += '<td>' + fields[currentStream][i][2].name + '</td>';
+				text += '<td>' + fields[currentStream][i][3] + '</td>';
+				text += '<td><button onclick="deleteField(' + i + ');">Delete</button></td>';
+				text += '</tr>';
+			}
+		}
+	}
+	text += '</table>';
+	document.getElementById('fieldsContainer').innerHTML = text;
+}
+
+// Plot View functions
+// ----------------------------------------------------------------------------
 
 function drawPlot() {
 	canvas = windows['PlotViewContainer'].children[0]
@@ -1747,17 +1246,17 @@ function plotField() {
 			end = fields[currentStream][field][0] + fields[currentStream][field][1];
 			type = fields[currentStream][field][2];
 			length = fields[currentStream][field][1];
-			fieldData = type(packet[2].slice(start, end));
-			value = parseInt(fieldData, format);
+			[fieldData, raw] = type(packet[0].slice(start, end));
+			value = parseInt(raw, format);
 			plotData.push( value );
 			if (value > plotDataMax) { plotDataMax = value; }
 			if (value < plotDataMin) { plotDataMin = value; }
 		});
 	} else {
 		packets[currentStream].forEach( function(packet) {
-			plotData.push( packet[2][field] );
-			if (packet[2][field] > plotDataMax) { plotDataMax = packet[2][field]; }
-			if (packet[2][field] < plotDataMin) { plotDataMin = packet[2][field]; }
+			plotData.push( packet[0][field] );
+			if (packet[0][field] > plotDataMax) { plotDataMax = packet[0][field]; }
+			if (packet[0][field] < plotDataMin) { plotDataMin = packet[0][field]; }
 		});
 	}
 	windows['PlotView'].addEventListener('resize', function(event) { drawPlot(); }, true);
@@ -1775,35 +1274,12 @@ function plotField() {
 }
 
 
-function populateFieldsView() {
-	var button = '';
-	var text = '<table><tr><th>Field</th><th>Length</th><th>Type</th><th>Label</th><th>Delete</th></tr>';
-
-	if (fields[currentStream]) {
-		for (var i=0; i < fields[currentStream].length; i++) {
-			if (fields[currentStream][i]) {
-				text += '<tr>'
-				text += '<td>' + fields[currentStream][i][0] + '</td>';
-				text += '<td>' + fields[currentStream][i][1] + '</td>';
-				text += '<td>' + fields[currentStream][i][2].name + '</td>';
-				text += '<td>' + fields[currentStream][i][3] + '</td>';
-				text += '<td><button onclick="localStorage.setItem(\'deleteField\',\'' + i + '\');">Delete</button></td>';
-				text += '</tr>';
-			}
-		}
-	}
-	text += '</table>';
-	windows['FieldsContainer'].innerHTML = text;
-}
-
-
 function updateUI() {
 	processFields();
 	fieldOn = true;
 	populatePacketView();
 	populateFieldsView();
 }
-
 
 function addField(start, length, type, title, noUpdateUI) {
 	if (fields[currentStream]) {
@@ -1823,7 +1299,6 @@ function deleteField(index) {
 	fieldOn = true;
 	populatePacketView();
 	populateFieldsView();
-	localStorage.clear();
 }
 
 
@@ -1834,15 +1309,6 @@ function switchStream(stream) {
 	populateFieldsView();
 	populateStreamsView();
 }
-
-
-window.addEventListener('storage', storageUpdate);
-function storageUpdate(update) {
-	// update.key is the item updated
-	// update.newValue is the items new value
-	eval(update.key + '("' + update.newValue + '");');
-}
-
 
 function deleteStream(streamName) {
 	deleteStreamChildren(streamName);
@@ -1858,19 +1324,16 @@ function deleteStream(streamName) {
 		streamChildren[i] = streamChildren[i].filter(e => e !== streamName);
 	}
 	populateStreamsView();
-	localStorage.clear();
 }
 
 function deleteStreamChildren(streamName) {
 	var streamNumber = streamIndex.indexOf(streamName)
 	streamChildren[streamNumber].forEach(deleteStream);
-	localStorage.clear();
 }
 
 
 function mergeIntoStream(mergeStream) {
-	var streamNumber = streamIndex.indexOf(mergeStream);	
-	localStorage.clear();
+	var streamNumber = streamIndex.indexOf(mergeStream);
 	
 	var parentStream = streamChildren[currentStream];
 	var streamName = currentStream + "_$_Merge_$_" + mergeStream.split('_$_').join('-');
@@ -1898,11 +1361,11 @@ function streamRow(i, depth) {
 	if (!streamIndex[i]) {return '';}
 
 	var text = streamIndex[i].split('_$_').slice(1,).join(': ') + ' (' + packets[i].length + ')';
-	var button = '<button id="stream' + i + '" onclick="localStorage.setItem(\'switchStream\',\'' + streamIndex[i] + '\');">' + text + '</button>';
-	var selectedButton = '<button style="background: var(--buttonbgSelected);" id="stream' + i + '" onclick="localStorage.setItem(\'switchStream\',\'' + streamIndex[i] + '\');">' + text + '</button>';
-	var deleteButton = '<button id="streamDel' + i + '" onclick="localStorage.setItem(\'deleteStream\',\'' + streamIndex[i] + '\');">X</button>';
-	var deleteChildrenButton = '<button id="streamDelChildren' + i + '" onclick="localStorage.setItem(\'deleteStreamChildren\',\'' + streamIndex[i] + '\');">X&#x2193;</button>';
-	var mergeButton = '<button id="streamMerge' + i + '" onclick="localStorage.setItem(\'mergeIntoStream\',\'' + streamIndex[i] + '\');">Y</button>';
+	var button = '<button onclick="switchStream(\'' + streamIndex[i] + '\');\">' + text + '</button>';
+	var selectedButton = '<button onclick="switchStream(\'' + streamIndex[i] + '\');" style="background: var(--buttonbgSelected);">' + text + '</button>';
+	var deleteButton = '<button onclick="deleteStream(\'' + streamIndex[i] + '\');">X</button>';
+	var deleteChildrenButton = '<button onclick="deleteStreamChildren(\'' + streamIndex[i] + '\');">X&#x2193;</button>';
+	var mergeButton = '<button onclick="mergeIntoStream(\'' + streamIndex[i] + '\');">Y</button>';
 	var row = '<p class="stream">'
 	row += '&nbsp;&nbsp;|'.repeat(depth);
 	row += '__';
@@ -1924,177 +1387,6 @@ function streamRow(i, depth) {
 	return row;
 }
 
-
-function sortOnLength(direction) {
-	var parentStream = streamChildren[currentStream]
-	var streamName = currentStream + "_$_Sort_$_Length";
-
-	streamIndex.push(streamName);
-	streamChildren.push([]);
-	parentStream.push(streamName);
-
-	var sortedPackets = [...packets[currentStream]].sort(function(a, b) {
-  		if (a[0].length < b[0].length) return -1 * direction;
-   		if (a[0].length > b[0].length) return 1 * direction;
-   		return 0;
-	});
-
-	packets[streamIndex.indexOf(streamName)] = sortedPackets;
-	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
-	populateStreamsView();
-	switchStream(streamName);
-}
-
-
-function sortField(field, mask, direction) {
-	var parentStream = streamChildren[currentStream];
-	var streamName = currentStream + "_$_Sort_$_" + field;
-	var mask = mask.split('0x').join('');
-	var sortedPackets = [];
-	
-	streamIndex.push(streamName);
-	streamChildren.push([]);
-	parentStream.push(streamName);
-	
-	if (fieldOn) {
-		var numberedFormattedPackets = [...formattedPacketsRaw];
-		var i = 0;
-		numberedFormattedPackets.forEach( function(a) { a.push(i); i++; } );
-		sortedFormattedPackets = [...numberedFormattedPackets].sort(function(a, b) {
-  			if (a[field] < b[field]) return -1 * direction;
-   			if (a[field] > b[field]) return 1 * direction;
-   			return 0;
-		});
-		var x = 0;
-		sortedFormattedPackets.forEach( function(a) {
-			sortedPackets.push(packets[currentStream][a.at(-1)]);
-		});
-	} else {
-		if (mask == 'ff') {
-			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
-  				if (a[0][field] < b[0][field]) return -1 * direction;
-   				if (a[0][field] > b[0][field]) return 1 * direction;
-   				return 0;
-   			});
-   		} else {
-			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
-  				if (bitwiseAND(a[0][field], mask) < bitwiseAND(b[0][field], mask)) return -1 * direction;
-   				if (bitwiseAND(a[0][field], mask) > bitwiseAND(b[0][field], mask)) return 1 * direction;
-   				return 0;
-   			});
-   		}
-	}
-
-	packets[streamIndex.indexOf(streamName)] = sortedPackets;
-	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
-	populateStreamsView();
-	switchStream(streamName);
-}
-
-
-function divideOnField() {
-	var field = parseInt(document.getElementById('divideField').value);
-	var mask = document.getElementById('divideMask').value
-	divideField(field, mask);
-}
-
-
-function divideOnLength() {
-	var lastStream = '';
-	var streamName = '';
-	var type = '';
-	var length = '';
-	var parentStream = streamChildren[currentStream];
-	var x = packets[currentStream].length + 0;
-
-	for (var i=0; i<x; i++) {
-
-		streamName = packets[currentStream][i][0].length;
-		streamName = currentStream + "_$_Length_$_" + streamName;
-
-		if (streamIndex.includes(streamName)) {
-			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i])
-			lastStream = streamName;
-		} else {
-			streamIndex.push(streamName);
-			streamChildren.push([]);
-			parentStream.push(streamName);
-			packets[streamIndex.indexOf(streamName)] = [];
-			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i]);
-			if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]]; }
-			lastStream = streamName;
-		}
-	}
-	populateStreamsView();
-	switchStream(lastStream);
-	return null;
-}
-
-
-function divideField(field, mask) {
-	var lastStream = '';
-	var fieldData = '';
-	var end = 0;
-	var start = 0;
-	var type = '';
-	var length = '';
-	var parentStream = streamChildren[currentStream];
-	var mask = mask.split('0x').join('');
-	
-	if (fieldOn) {
-		if (fields[currentStream] && fields[currentStream][field]) {
-			var fieldName = fields[currentStream][field][3]
-			for (var i = 0; i < packets[currentStream].length; i++) {
-				start = fields[currentStream][field][0];
-				end = fields[currentStream][field][0] + fields[currentStream][field][1];
-				type = fields[currentStream][field][2];
-				length = fields[currentStream][field][1];
-				fieldData = type(packets[currentStream][i][2].slice(start, end));
-				fieldData = currentStream + "_$_" + fieldName + "_$_" + fieldData;
-				if (streamIndex.includes(fieldData)) {
-					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
-					lastStream = fieldData;
-				} else {
-					streamIndex.push(fieldData);
-					streamChildren.push([]);
-					parentStream.push(fieldData);
-					packets[streamIndex.indexOf(fieldData)] = [];
-					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
-					fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]];
-					lastStream = fieldData;
-				}
-			}
-			populateStreamsView();
-			switchStream(lastStream);
-			return null;
-		}
-	}
-
-	var x = packets[currentStream].length + 0;
-
-	for (var i=0; i<x; i++) {
-		fieldData = bitwiseAND( packets[currentStream][i][0][field], mask );
-		fieldData = currentStream + "_$_" + field + "_$_" + fieldData;
-
-		if (streamIndex.includes(fieldData)) {
-			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
-			lastStream = fieldData;
-		} else {
-			streamIndex.push(fieldData);
-			streamChildren.push([]);
-			parentStream.push(fieldData);
-			packets[streamIndex.indexOf(fieldData)] = [];
-			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
-			if (fields[currentStream]) { fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]]; }
-			lastStream = fieldData;
-		}
-	}
-	populateStreamsView();
-	switchStream(lastStream);
-	return null;
-}
-
-
 function processFields() {
 	formattedPackets = [];
 	formattedPacketsRaw = [];
@@ -2103,9 +1395,9 @@ function processFields() {
 	var start = 0;
 	var type = '';
 	var length = '';
-	var index = 0;
-	if (asciiOn) {index = 1;}
-	if (decimalOn) {index = 2;}
+	var formatter = function (e) { return HEX[e]; };
+	if (asciiOn) { formatter = function (e) { return String.fromCharCode(e); }; }
+	if (decimalOn) { formatter = function (e) { return e; }; }
 
 	for (var i=0; i<packets[currentStream].length; i++) {
 		formattedPacket = [];
@@ -2118,13 +1410,13 @@ function processFields() {
 				end = fields[currentStream][f][0] + fields[currentStream][f][1];
 				type = fields[currentStream][f][2];
 				length = fields[currentStream][f][1];
-				fieldData = type(packets[currentStream][i][2].slice(start, end));
-				formattedPacketRaw[f] = fieldData.valueOf();
+				[fieldData, raw] = type(packets[currentStream][i][0].slice(start, end));
+				formattedPacketRaw[f] = raw;
 				formattedPacket.push(fieldData);
 				f += fields[currentStream][f][1]-1;
 			} else {
-				formattedPacket.push(packets[currentStream][i][index][f]);
-				formattedPacketRaw[f] = packets[currentStream][i][2][f];
+				formattedPacket.push(formatter( packets[currentStream][i][0][f] ));
+				formattedPacketRaw[f] = packets[currentStream][i][0][f];
 			}
 		}
 
@@ -2141,17 +1433,18 @@ function reverseNibbles(hexByte) {
 // Input / Output Processing
 // ---------------------------------------------------------------------------------------
 
+// Pre-build an array of hex values for lookup, faster than generating each value for
+// every byte:
+HEX = [];
+for (var i=0; i<256; i++) {
+	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
+}
+
 function readLSBFLength(intArray) {
 	return (intArray[0] * 1) + 
 		   (intArray[1] * 256) + 
 		   (intArray[2] * 65536) + 
 		   (intArray[3] * 16777216);
-}
-
-HEX = [];
-
-for (var i=0; i<256; i++) {
-	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
 }
 
 function intArray2hexString(intArray) {
@@ -2204,6 +1497,17 @@ function processInput(inputData) {
 	
 }
 
+function readInput() {
+	loadingPage.style.visibility = 'unset';
+	var fr = new FileReader();
+    fr.onloadend = function () {
+    	var result = this.result;
+   	 	processInput(new Uint8Array(result));
+    };
+    fr.readAsArrayBuffer(this.files[0]);
+}
+
+
 // Next Gen PCAP File Parser
 // ---------------------------------------------------------------------------------------
 
@@ -2214,9 +1518,7 @@ function processInput_NextGen(inputData) {
 	while (s >= 0 && n < maxPackets) {
 		[s, packet] = processNextGenBlock(s, inputData);
 		if (packet) {
-			hex = intArray2hexArray(packet);
-			ascii = intArray2asciiArray(packet);
-			packets[currentStream].push([hex, ascii, packet, n]);
+			packets[currentStream].push([packet, n]);
 			n++;
 		}
 	}
@@ -2265,9 +1567,7 @@ function processInput_CAP(inputData) {
 	var s = 24;
 	while (s >= 0 && n < maxPackets) {
 		[s, packet] = processCapBlock(inputData, s);
-		hex = intArray2hexArray(packet);
-		ascii = intArray2asciiArray(packet);
-		packets[currentStream].push([hex, ascii, packet, n]);
+		packets[currentStream].push([packet, n]);
 		n++;
 	}
 }
@@ -2288,9 +1588,9 @@ function generateOutputBytes(linkType) {
 	packets[currentStream].forEach( function (packet) {
 		output.push( ...[0,0,0,0] );
 		output.push( ...[0,0,0,0] );
-		output.push( ...number2LSFBArray(packet[2].length, 4) );
-		output.push( ...number2LSFBArray(packet[2].length, 4) );
-		output.push( ...packet[2] );
+		output.push( ...number2LSFBArray(packet[0].length, 4) );
+		output.push( ...number2LSFBArray(packet[0].length, 4) );
+		output.push( ...packet[0] );
 	});
 	return new Uint8Array(output);
 }
@@ -2347,6 +1647,23 @@ function findConstants() {
 	return constantFields;
 }
 
+var findOn = false
+var findValue = '';
+function runFind(dataTableRow) {
+	result = [];
+	len = findValue.split(' ').length
+	
+	for (var i=0; i<dataTableRow.length-len; i++) {
+		if (dataTableRow.slice(i, i+len).join(' ') == findValue) {
+			for (var x=0; x<len; x++) {
+				result[i] = i;
+				i++;
+			}
+		}
+	}
+	
+	return result;
+}
 
 function populatePacketView() {
 
@@ -2354,27 +1671,30 @@ function populatePacketView() {
 	var rowHeaders = [];
 	var longestPacket = 0;
 	var colorMask = [];
+	var findResults = [];
 
 	for (var i = 0; i < packets[currentStream].length; i++) {
 	
 		colorMask.push([]);
+		findResults.push([]);
 
 		if (packets[currentStream][i][0].length > longestPacket) {
 			longestPacket = packets[currentStream][i][0].length;
 		}
 
-		rowHeaders.push([packets[currentStream][i][3], packets[currentStream][i][0].length]);
+		rowHeaders.push([packets[currentStream][i][1], packets[currentStream][i][0].length]);
 
 		if (fieldOn) {
 			dataTable.push(formattedPackets[i]);
 		} else if (asciiOn) {
-			dataTable.push(packets[currentStream][i][1]);
+			dataTable.push( intArray2asciiArray( packets[currentStream][i][0] ));
 		} else if (decimalOn) {
-			dataTable.push(packets[currentStream][i][2]);
+			dataTable.push( packets[currentStream][i][0] );
 		} else {
-			dataTable.push(packets[currentStream][i][0]);
+			dataTable.push( intArray2hexArray( packets[currentStream][i][0] ));
 		}
 	}
+		
 
 	if (highlightConst) {
 		var highlightColor = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor');
@@ -2383,6 +1703,17 @@ function populatePacketView() {
 			constants.forEach( function (e) { 
 				colorMask[i][e] = highlightColor;
 			});			
+		}
+	}
+	
+	if (findOn) {
+		var highlightColor2 = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor2');
+		for (var i=0; i<dataTable.length; i++) {
+			findResults = runFind( dataTable[i] );
+			findResults.forEach( function (e) {
+				colorMask[i][e] = highlightColor2;
+			});
+		
 		}
 	}
 
@@ -2413,7 +1744,7 @@ function populatePacketView() {
 	packetTable.tableScaleY = tableFontHeight;
 	packetTable.tableScaleX = tableFontSpread;
 	packetTable.calculate();
-	colorTable();
+	reDrawTable();
 }
 
 tableFontHeight = 18;
@@ -2424,7 +1755,7 @@ function increaseTableFontSize() {
 	packetTable.tableScaleY = tableFontHeight;
 	packetTable.tableScaleX = tableFontSpread;
 	packetTable.calculate();
-	colorTable();
+	reDrawTable();
 }
 
 function decreaseTableFontSize() {
@@ -2433,10 +1764,10 @@ function decreaseTableFontSize() {
 	packetTable.tableScaleY = tableFontHeight;
 	packetTable.tableScaleX = tableFontSpread;
 	packetTable.calculate();
-	colorTable();
+	reDrawTable();
 }
 
-function colorTable() {
+function reDrawTable() {
 	var style = getComputedStyle(document.body) 
 	packetTable.tableDataFontColor = style.getPropertyValue('--textColor');
 	packetTable.tableHeaderFontColor = style.getPropertyValue('--tableHeadColor');
@@ -2446,34 +1777,8 @@ function colorTable() {
 	packetTable.tableTopLeftColor = style.getPropertyValue('--tableTopLeft');
 	packetTable.tableScaleY = tableFontHeight;
 	packetTable.tableScaleX = tableFontSpread;	
-	
-	newMask = [];
-	
-	var highlightColor = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor');
-	packetTable.colorMask.forEach( function (y) {
-		newRow = []
-		for (var x=0; x<y.length; x++) {
-			if(y[x]) { newRow[x] = highlightColor };
-		}
-		newMask.push(newRow);
-	});
-	packetTable.colorMask = newMask;
     packetTable.drawTable();	
 }
-
-var data = null
-function readInputTest() {
-	loadingPage.style.visibility = 'unset';
-	var fr = new FileReader();
-    fr.onloadend = function () {
-    	var result = this.result;
-   	 	data = new Uint8Array(result);
-   	 	processInput(data);
-    };
-    fr.readAsArrayBuffer(this.files[0]);
-}
-
-
 
 function openNewWindow(name) {
 	if (!windows[name]) {
@@ -2497,10 +1802,8 @@ function openNewWindow(name) {
 		windows[name].document.title = name + " Window";
 		if (colorMode == 'light') { colorMode = 'dark'; toggleColorMode();}
 		if (colorMode == 'dark') { colorMode = 'light'; toggleColorMode();}
-		eval('populate' + name + 'View();');
 
 	} else {
-		//fields window is already open
 		if (windows[name].closed) {
 			windows[name] = false;
 			openNewWindow(name);
@@ -2513,11 +1816,10 @@ function openNewWindow(name) {
 var loadingPage = null;
 var loadingText = null;
 function onLoad() {
-	localStorage.clear();
 	populateFieldTypes();
 	populateTemplates();
 	populateLinkTypes();
-	document.getElementById("browseOpen").onchange = readInputTest;
+	document.getElementById("browseOpen").onchange = readInput;
 	document.getElementById("viewType").onchange = changeView;
 	
 	loadingPage = document.getElementById('loadingPage');
@@ -2548,6 +1850,717 @@ function onLoad() {
 	});
 }
 
-document.onload = onLoad();
-
 </script>
+
+<title>packetView</title>
+<style>
+
+:root {
+	--backgroundLight: #ffffff;
+    --midgroundLight: #d5d5d5;
+    --borderColorLight: #8d8d8d;
+    --buttonbgLight: #e5e5e5;
+    --entrybgLight: #efefef;
+    --buttonbgHoverLight: #fdffd0;
+    --buttonbgSelectedLight: #fffac6;
+    --textColorLight: #000;
+    --tableHeadColorLight: #001279;
+    --tableHighlightColorLight: #aa0000;
+    --tableHighlightColorLight2: #008c00;
+    --cellColorLight: #e6e6e6;
+    --cellBorderLight: #9e9e9e;
+    --cellBorderStrongLight: #666;
+    --shadowColorLight: #aaa;
+    --tableTopLeftLight: #aaa;
+    
+    --backgroundDark: #303030;
+    --midgroundDark: #111111;
+    --borderColorDark: #4d4d4d;
+    --entrybgDark: #151515;
+    --buttonbgDark: #333333;
+    --buttonbgHoverDark: #a28f75;
+    --buttonbgSelectedDark: #818181;
+    --textColorDark: #fff;
+    --tableHeadColorDark: #ffa400;
+    --tableHighlightColorDark: #ff0000;
+    --tableHighlightColorDark2: #00ff00;
+    --cellColorDark: #050505;
+    --cellBorderDark: #606060;
+    --cellBorderStrongDark: #777;
+    --shadowColorDark: #000;
+    --tableTopLeftDark: #484848;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --buttonbg: var(--buttonbgDark);
+    --entrybg: var(--entrybgDark);
+    --buttonbgHover: var(--buttonbgHoverDark);
+    --buttonbgSelected: var(--buttonbgSelectedDark);
+    --textColor: var(--textColorDark);
+    --tableHeadColor: var(--tableHeadColorDark);
+    --tableHighlightColor: var(--tableHighlightColorDark);
+    --tableHighlightColor2: var(--tableHighlightColorDark2);
+    --cellColor: var(--cellColorDark);
+    --cellBorder: var(--cellBorderDark);
+    --cellBorderStrong: var(--cellBorderStrongDark);
+    --shadowColor: var(--shadowColorDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+}
+
+*::-webkit-scrollbar {
+    -webkit-appearance: none;
+}
+*::-webkit-scrollbar:vertical {
+    width: 1em;
+}
+*::-webkit-scrollbar:horizontal {
+    height: 1em;
+}
+*::-webkit-scrollbar-thumb {
+    border-radius: 8px;
+    border: 2px solid var(--midground); /* should match background, can't be transparent */
+    background-Color: var(--borderColor);
+}
+*::-webkit-scrollbar-track { 
+    background-Color: var(--midground); 
+    border-radius: 8px; 
+} 
+
+::-webkit-scrollbar-corner {
+    background-Color: var(--midground); 
+}
+
+#loadingPage {
+    z-index: 100;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #555555cc;
+    color: var(--textColor);
+	visibility: hidden;
+}
+
+#loadingText {
+	text-align: center;
+    width: 100%;
+    top: 50%;
+    position: absolute;
+}
+
+#loadingText2 {
+	text-align: center;
+    width: 100%;
+    top: calc(50% + 1em);
+    position: absolute;
+}
+
+textArea {
+	resize: none;
+    width: calc(100% + 10px);
+    height: 100%;
+    background: var(--midground);
+    Color: var(--textColor);
+    border: none;
+    padding: 0px;
+    outline: none;
+}
+
+#container {
+	width: 100%;
+	height: 100%;
+	font-family: helvetica;
+	font-size: 12pt;
+	Color: var(--textColor);
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+	
+}
+
+
+#topMenuContainer {
+	background-Color: var(--midground);
+	width: calc(100% - 22px);
+	height: fit-content;
+	padding: 5px;
+	margin: 5px;
+	margin-bottom: 0px;
+	border-radius: 5px;
+	overflow: hidden;
+	border: 1px var(--borderColor) solid;
+	flex-shrink: 0;
+	flex-grow: 0;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
+	z-index: 1;
+}
+
+#topMenu {
+	width: 100%;
+	z-index: 1;
+}
+
+
+#packetDisplayOuter {
+	background-Color: var(--midground);
+	width: calc(100% - 22px);
+	padding: 5px;
+	margin: 5px;
+	border-radius: 5px;
+	border: 1px var(--borderColor) solid;
+	flex-shrink: 1;
+	flex-grow: 1;
+	display: flex;
+	flex-direction: column;
+	max-height: 100%;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
+}
+
+#packetDisplayInner {
+	overflow: hidden;
+    height: 1;
+    width: 100%;
+    flex-shrink: 1;
+    flex-grow: 1
+}
+
+
+.container {
+	display: block;
+}
+
+.containerOuter {
+	background-Color: var(--midground);
+    width: -webkit-fill-available;
+    padding: 10px;
+    margin: 0px;
+    height: -webkit-fill-available;
+    overflow: scroll;
+}
+
+
+.closedToolbox {
+	visibility: hidden;
+	width: 100%;
+	height: 0px;
+	max-height: 0px;
+}
+
+.openToolbox {
+	visibility: unset;
+	width 100%;
+	height: auto;
+	margin-top: 5px;
+	padding-top: 5px;
+	max-height: 9001;
+	z-index: 1;
+	border-top: 1px solid var(--borderColor);
+}
+
+html, body {
+	margin: 0; 
+	height: 100%; 
+	overflow: hidden;
+	background-Color: var(--background);
+	Color: var(--textColor);
+	font-family: Monospace;
+}
+
+
+p {
+	margin: 0px;
+}
+
+.stream {
+	margin: 0px;
+	margin-top: -8px;
+    font-size: 23px;
+    Color: var(--borderColor);
+    text-wrap: nowrap;
+    font-family: sans-serif;
+}
+
+.packets {
+  position: relative;
+  Color:  var(--textColor);
+  width: 100%;
+  overflow: scroll;
+  height: 100%;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+table {
+	text-wrap: nowrap;
+	font-size: 12pt;
+	position: relative;
+	border-collapse: collapse;
+	font-family: monospace;
+}
+
+.toolboxCell {
+	border: none;
+    text-align: left
+}
+
+th {
+	background: var(--midground);
+	position: sticky;
+	top: 0;
+	Color: var(--tableHeadColor);
+	border-style: solid;
+    border-Color: var(--borderColor);
+    border-top: none;
+    padding: 10px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    Color: var(--tableHeadColor);
+}
+
+td {
+	padding-top: 0px;
+	padding-bottom: 0px;
+	padding-left: 5px;
+	padding-right: 5px;
+	border-style: solid;
+    border-Color: var(--borderColor);
+    text-align: center;
+    Color: var(--textColor);
+}
+
+.padTop {
+	padding-top: 10px;
+}
+
+.padBot {
+	padding-bottom: 10px;
+}
+
+button, input::file-selector-button, input[type="number"], input[type="text"], select{
+	background-Color: var(--entrybg);
+	border: 1px var(--borderColor) solid;
+	border-radius: 2px;
+	Color: var(--textColor);
+	margin: 2px;
+	font-family: Monospace;
+	outline: none;
+}
+
+button {
+	background-Color: var(--buttonbg);
+}
+
+input[type="number"], input[type="text"], select {
+	width: calc(100% - 4px);
+	font-family: Monospace;
+}
+
+button:hover, input::file-selector-button:hover{
+	background-Color: var(--buttonbgHover);
+}
+
+
+</style>
+</head>
+
+<body>
+
+<canvas width='1' height='1' id="background" style="position: absolute; z-index: 0;"></canvas>
+
+<div id="container">
+
+<div id="topMenuContainer">
+<div id="topMenu">
+<!-- tool box selection buttons -->
+<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);">File</button>
+|
+<button id="viewsButton" onclick="openToolbox(&#39;views&#39;);">Views</button>
+<button id="streamsButton" onclick="openToolbox(&#39;streams&#39;);">Streams</button>
+<button id="fieldsButton" onclick="openToolbox(&#39;fields&#39;);">Fields</button>
+|
+<button id="findButton" onclick="openToolbox(&#39;find&#39;);">Find</button>
+<button id="divideButton" onclick="openToolbox(&#39;divide&#39;);">Divide</button>
+<button id="sortButton" onclick="openToolbox(&#39;sort&#39;);">Sort</button>
+<button id="addFieldsButton" onclick="openToolbox(&#39;addFields&#39;);">Add Field</button>
+<button id="applyTemplateButton" onclick="openToolbox(&#39;applyTemplate&#39;);">Apply Template</button>
+<button id="newByteButton" onclick="openToolbox(&#39;newByte&#39;);">New Byte</button>
+<button id="dropBytesButton" onclick="openToolbox(&#39;dropBytes&#39;);">Drop Bytes</button>
+<button id="xorBytesButton" onclick="openToolbox(&#39;xorBytes&#39;);">XOR Bytes</button>
+<button id="reverseBytesButton" onclick="openToolbox(&#39;reverseBytes&#39;);">Reverse Bytes</button>
+|
+<button id="plotViewButton" onclick="openToolbox(&#39;plotView&#39;);">Plot View</button>
+<button id="extractButton" onclick="openToolbox(&#39;extract&#39;);">Extract</button>
+
+
+</div> <!-- start tool box -->
+
+<div id="inputMenu" class="closedToolbox">
+<table>
+<tr>
+	<td class="toolboxCell">File Open:</td><td class="toolboxCell"><input id="browseOpen" type="file"/></td>
+</tr>
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr>
+	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
+</tr>
+<tr>
+	<td class="toolboxCell">Link Type:</td><td class="toolboxCell"><select style="width: 100%;" id="outputLinkType"></select></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button id="outputGenerateButton" style="width: 100%;" onclick="generateOutput();">Export</button></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
+</tr>
+</table>
+
+</div>
+
+<div id="views" class="closedToolbox">
+	
+	<select style="width: 14em;" id="viewType">
+		<option>Hexadecimal</option>
+		<option>Decimal</option>
+		<option>ASCII</option>
+	</select>
+	
+	<button type="button" onclick="fieldView()">Fields On/Off</button>
+	<button type="button" onclick="toggleHighlightConstants()">Highlight Constants</button>
+	
+	<button id="streamsButton" onclick="openNewWindow('Streams');">Streams Window</button>
+	
+	<button id="modeButton" onclick="toggleColorMode();">Light/Dark</button>
+	<button id="plusButton" onclick="increaseTableFontSize();">+</button>
+	<button id="minusButton" onclick="decreaseTableFontSize();">-</button>
+	
+	
+</div>
+
+<div id="addFields" class="closedToolbox">
+	<table>
+	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="fieldStartByte" min="0"></td></tr>
+	<tr><td class="toolboxCell">Length (bytes):</td><td class="toolboxCell"><input type="number" id="fieldLength" min="0"></td></tr>
+	<tr><td class="toolboxCell">Type:</td><td class="toolboxCell"><select id="fieldType"></select></td></tr>
+	<tr><td class="toolboxCell">Label:</td><td class="toolboxCell"><input type="text" id="fieldLabel"></td></tr>
+	<tr><td class="toolboxCell"></td><td class="toolboxCell">
+	<button style="width: calc(100% - 4px);" onclick="addFieldUser();">Add</button>
+	</td></tr>
+	</table>
+</div>
+
+<div id="fields" class="closedToolbox">
+<div style="max-height: 10em; overflow: scroll;" id="fieldsContainer"></div>
+</div>
+
+
+<div id="streams" class="closedToolbox">
+<div style="max-height: 10em; overflow: scroll;" id="streamsContainer"></div>
+</div>
+
+<div id="applyTemplate" class="closedToolbox">
+	<table>
+	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="templateStartByte" min="0"></td></tr>
+	<tr><td class="toolboxCell">Template:</td><td class="toolboxCell"><select id="templateId"></select></td></tr>
+	<tr><td class="toolboxCell"></td><td class="toolboxCell">
+	<button style="width: calc(100% - 4px);" onclick="applyTemplate();">Apply</button>
+	</td></tr>
+	</table>
+</div>
+
+<div id="divide" class="closedToolbox">
+	<table>
+	<tr>
+	<td class="toolboxCell">Divide on byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="divideField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (only on bytes):</td>
+	<td class="toolboxCell"><input type="text" id="divideMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnField();">Divide</button></td>
+	</tr>
+	
+	<tr><td class="toolboxCell">&nbsp;</td></tr>
+	
+	<tr>
+	<td class="toolboxCell">Divide on Length:</td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnLength();">Divide on Length</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="find" class="closedToolbox">
+	<table>
+	<tr>
+	<td class="toolboxCell">Find Value:</td>
+	<td class="toolboxCell"><input type='text' id='findValue'></td>
+	</tr>
+
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="findUser();">Find</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="help('find');">Help</button></td>
+	</tr>
+	</table>
+	
+</div>
+
+<div id="sort" class="closedToolbox">
+	<table>
+	<tr>
+	<td class="toolboxCell">Sort on byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="sortField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (only on bytes):</td>
+	<td class="toolboxCell"><input type="text" id="sortMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(1);">Sort Ascending</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(-1);">Sort Descending</button></td>
+	</tr>
+	
+	<tr><td class="toolboxCell">&nbsp;</td></tr>
+	
+	<tr>
+	<td class="toolboxCell">Sort on length:</td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(1);">Sort on Length Asc</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(-1);">Sort on Length Desc</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+<div id="newByte" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Insert at byte/field location:</td>
+	<td class="toolboxCell"><input type="number" id="newByteAt" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Derived from bytes start:</td>
+	<td class="toolboxCell"><input type="number" id="newByteFromStart" min=-1></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Derived from bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="newByteFromLength" min=1></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (must match length):</td>
+	<td class="toolboxCell"><input type="text" id="newByteMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Align bits:</td>
+	<td class="toolboxCell"><select id="newByteAlign"><option>none</option><option>left</option><option>right</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="newByteOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="newByteUser();">Create</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="dropBytes" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Drop bytes/fields starting at:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Drop bytes/fields length:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Drop from packet:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesPacketNumber" min=-1 value=-1></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="dropBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="dropBytesUser();">Drop bytes</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="xorBytes" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">XOR bytes starting at:</td>
+	<td class="toolboxCell"><input type="number" id="xorBytesStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">XOR bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="xorBytesLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">XOR value (will repeat to cover bytes):</td>
+	<td class="toolboxCell"><input type="text" id="xorBytesValue" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="xorBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="xorBytesUser();">XOR bytes</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="reverseBytes" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Reverse bytes starting at:</td>
+	<td class="toolboxCell"><input type="number" id="reverseBytesStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Reverse bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="reverseBytesLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Reverse type:</td>
+	<td class="toolboxCell"><select id="reverseBytesType"><option>each byte</option><option>order of bytes</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="reverseBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="reverseBytesUser();">Reverse bytes</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+
+<div id="extract" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Extract start byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="extractStart" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Extract length bytes/fields:</td>
+	<td class="toolboxCell"><input type="number" id="extractLength" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractASCII();">Extract as ASCII</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractHex();">Extract as hex</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+<div id="plotView" class="closedToolbox">
+	<table>
+	
+	<tr>
+	<td class="toolboxCell">Plot byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="plotField" min=0></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Plot byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="plotFormat" min=2 value=10></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="plotField();">Plot</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+</div> <!-- end toolbox -->
+
+<div id="packetDisplayOuter">
+	<div id="packetDisplayInner">
+	</div>
+</div>
+
+<div id='loadingPage'>
+<p id='loadingText'>Loading...</p>
+<p id='loadingText2'></p>
+</div>
+
+<script>
+document.onload = onLoad();
+</script>
+
+</html>
