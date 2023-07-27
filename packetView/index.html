@@ -189,6 +189,7 @@ templates.push(Frame_Relay_2_Byte);
 
 messages = {}
 messages['find'] = 'Will find and highlight all values within the packet view table which match the value to be found. Note that spaces are interpreted as byte/field boundaries. For example: 08 00 45 will find three byte sequences matching those values.'
+messages['buildFromHex'] = 'Builds a packet capture from a hex input. New line characters (\\n) are interpreted as breaks between packets. Spaces are interpreted as breaks between bytes. For example: AA BB CC\\nDD EE FF will produce two packets, each three bytes long.'
 
 function help(type) {
 	alert(messages[type]);
@@ -494,21 +495,24 @@ var fieldOn = false;
 var highlightConst = false;
 
 var windows = {};
-windows['Streams'] = false;
 windows['ASCII'] = false;
 windows['Hex'] = false;
 windows['PlotView'] = false;
-windows['StreamsContainer'] = false;
 windows['ASCIIContainer'] = false;
 windows['HexContainer'] = false;
 windows['PlotViewContainer'] = false;
-windowNames = ['Streams', 'ASCII', 'Hex', 'PlotView'];
+windowNames = ['ASCII', 'Hex', 'PlotView'];
 
 linkTypes = ["NULL","ETHERNET","EXP_ETHERNET","AX25","PRONET","CHAOS","IEEE802_5","ARCNET_BSD","SLIP","PPP","FDDI","PPP_HDLC","PPP_ETHER","SYMANTEC_FIREWALL","ATM_RFC1483","RAW","C_HDLC","IEEE802_11","ATM_CLIP","FRELAY","LOOP","ENC","NETBSD_HDLC","LINUX_SLL","LTALK","PFLOG","IEEE802_11_PRISM","IP_OVER_FC","SUNATM","IEEE802_11_RADIOTAP","TZSP","ARCNET_LINUX","JUNIPER_MLPPP","JUNIPER_MLFR","JUNIPER_ES","JUNIPER_GGSN","JUNIPER_MFR","JUNIPER_ATM2","JUNIPER_SERVICES","JUNIPER_ATM1","APPLE_IP_OVER_IEEE1394","MTP2_WITH_PHDR","MTP2","MTP3","SCCP","DOCSIS","LINUX_IRDA","IBM_SP","IBM_SN","USER0","USER1","USER2","USER3","USER4","USER5","USER6","USER7","USER8","USER9","USER10","USER11","USER12","USER13","USER14","USER15","IEEE802_11_AVS","JUNIPER_MONITOR","BACNET_MS_TP","PPP_PPPD","JUNIPER_PPPOE","JUNIPER_PPPOE_ATM","GPRS_LLC","GPF_T","GPF_F","GCOM_T1E1","GCOM_SERIAL","JUNIPER_PIC_PEER","ERF_ETH","ERF_POS","LINUX_LAPD","JUNIPER_ETHER","JUNIPER_PPP","JUNIPER_FRELAY","JUNIPER_CHDLC","MFR","JUNIPER_VP","A429","A653_ICM","USB_FREEBSD","BLUETOOTH_HCI_H4","IEEE802_16_MAC_CPS","USB_LINUX","CAN20B","IEEE802_15_4_LINUX","PPI","IEEE802_16_MAC_CPS_RADIO","JUNIPER_ISM","IEEE802_15_4_WITHFCS","SITA","ERF","RAIF1","IPMB_KONTRON","JUNIPER_ST","BLUETOOTH_HCI_H4_WITH_PHDR","AX25_KISS","LAPD","PPP_WITH_DIR","C_HDLC_WITH_DIR","FRELAY_WITH_DIR","LAPB_WITH_DIR","IPMB_LINUX","FLEXRAY","MOST","LIN","X2E_SERIAL","X2E_XORAYA","IEEE802_15_4_NONASK_PHY","LINUX_EVDEV","GSMTAP_UM","GSMTAP_ABIS","MPLS","USB_LINUX_MMAPPED","DECT","AOS","WIHART","FC_2","FC_2_WITH_FRAME_DELIMS","IPNET","CAN_SOCKETCAN","IPV4","IPV6","IEEE802_15_4_NOFCS","DBUS","JUNIPER_VS","JUNIPER_SRX_E2E","JUNIPER_FIBRECHANNEL","DVB_CI","MUX27010","STANAG_5066_D_PDU","JUNIPER_ATM_CEMIC","NFLOG","NETANALYZER","NETANALYZER_TRANSPARENT","IPOIB","MPEG_2_TS","NG40","NFC_LLCP","PFSYNC","INFINIBAND","SCTP","USBPCAP","RTAC_SERIAL","BLUETOOTH_LE_LL","WIRESHARK_UPPER_PDU","NETLINK","BLUETOOTH_LINUX_MONITOR","BLUETOOTH_BREDR_BB","BLUETOOTH_LE_LL_WITH_PHDR","PROFIBUS_DL","PKTAP","EPON","IPMI_HPM_2","ZWAVE_R1_R2","ZWAVE_R3","WATTSTOPPER_DLM","ISO_14443","RDS","USB_DARWIN","OPENFLOW","SDLC","TI_LLN_SNIFFER","LORATAP","VSOCK","NORDIC_BLE","DOCSIS31_XRA31","ETHERNET_MPACKET","DISPLAYPORT_AUX","LINUX_SLL2","SERCOS_MONITOR","OPENVIZSLA","EBHSCR","VPP_DISPATCH","DSA_TAG_BRCM","DSA_TAG_BRCM_PREPEND","IEEE802_15_4_TAP","DSA_TAG_DSA","DSA_TAG_EDSA","ELEE","Z_WAVE_SERIAL","USB_2_0","ATSC_ALP","ETW","NETANALYZER_NG","ZBOSS_NCP","USB_2_0_LOW_SPEED","USB_2_0_FULL_SPEED","USB_2_0_HIGH_SPEED","AUERSWALD_LOG","ZWAVE_TAP","SILABS_DEBUG_CHANNEL","FIRA_UCI"]
 linkTypeNumbers = [0,1,2,3,4,5,6,7,8,9,10,50,51,99,100,101,104,105,106,107,108,109,112,113,114,117,119,122,123,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299]
 
 // User functions - takes input from the UI and passes them to other functions.
 // ------------------------------------------------------------------------------------------------
+
+function buildFromHexUser() {
+	var hexInput = document.getElementById('hexInput').value;
+	buildFromHex(hexInput);
+}
 
 function reverseBytesUser() {
 	var start = parseInt(document.getElementById('reverseBytesStart').value);
@@ -746,8 +750,53 @@ function reverse(intByte) {
 	return parseInt(binary, 2);
 }
 
+function hexArray2intArray(hexArray) {
+	return hexArray.map( function(e) { return parseInt(e, 16); })
+}
+
 
 // ------------------------------------------------------------------------------------------------
+
+function clearData() {
+	fields = [];
+	currentStream = 0;
+	streamIndex = ['0_$_Input_$_Packets'];
+	streamChildren = [[]];
+	formattedPackets = [];
+	formattedPacketsRaw = [];
+	packets = [[]];
+	asciiOn = false;
+	decimalOn = false;
+	fieldOn = false;
+	highlightConst = false;
+	
+	windows = {};
+	windows['ASCII'] = false;
+	windows['Hex'] = false;
+	windows['PlotView'] = false;
+	windows['ASCIIContainer'] = false;
+	windows['HexContainer'] = false;
+	windows['PlotViewContainer'] = false;
+	windowNames = ['ASCII', 'Hex', 'PlotView'];
+
+}
+
+function buildFromHex(hexInput) {
+	clearData();
+	var inputArray = [];
+	var inputPackets = hexInput.split('\n');
+	var i = 0;
+	inputPackets.forEach( function(inputPacket) {
+		inputPacket = inputPacket.split(' ');
+		inputPacket = hexArray2intArray(inputPacket);
+		inputArray.push([inputPacket, i]);
+		i++;
+	});	
+	packets[0] = inputArray;
+	populatePacketView();
+	populateStreamsView();
+	populateFieldsView();
+}
 
 function find(value) {
 	findValue = value;
@@ -1618,8 +1667,6 @@ function generateOutput() {
 
 // ---------------------------------------------------------------------------------------
 
-
-
 function findConstants() {
 	var constantValues = [];
 	var constantFields = [];
@@ -1653,11 +1700,12 @@ function runFind(dataTableRow) {
 	result = [];
 	len = findValue.split(' ').length
 	
-	for (var i=0; i<dataTableRow.length-len; i++) {
+	for (var i=0; i<dataTableRow.length-len+1; i++) {
 		if (dataTableRow.slice(i, i+len).join(' ') == findValue) {
-			for (var x=0; x<len; x++) {
-				result[i] = i;
+			result[i] = i;
+			for (var x=1; x<len; x++) {
 				i++;
+				result[i] = i;
 			}
 		}
 	}
@@ -2202,7 +2250,10 @@ button:hover, input::file-selector-button:hover{
 <tr>
 	<td class="toolboxCell">File Open:</td><td class="toolboxCell"><input id="browseOpen" type="file"/></td>
 </tr>
+
 <tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr style='border-top: 1px solid var(--borderColor);'><td class="toolboxCell">&nbsp;</td></tr>
+
 <tr>
 	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
 </tr>
@@ -2215,6 +2266,24 @@ button:hover, input::file-selector-button:hover{
 <tr>
 	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
 </tr>
+
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr style='border-top: 1px solid var(--borderColor);'><td class="toolboxCell">&nbsp;</td></tr>
+
+<tr>
+	<td class="toolboxCell">Build from Hex:</td><td class="toolboxCell"></td>
+</tr>
+<tr>
+	<td class="toolboxCell" colspan=2><textArea id='hexInput' style='border: 1px solid var(--borderColor); width: calc(100% + 2px);'></textarea></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="buildFromHexUser();">Build</button></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="help('buildFromHex');">Help</button></td>
+</tr>
+
+
 </table>
 
 </div>
