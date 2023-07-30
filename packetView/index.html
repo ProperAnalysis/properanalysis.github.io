@@ -3,21 +3,41 @@
 <script>
 
 // Field Functions:
-// Each function should take an array of bytes, and return array:
+// Each function should take an array of fields (1 or more), and return array:
 // [display, raw]
 // display is the value to display on the screen.
 // raw is the value of the item for sorting purposes, an int if possible.
 // ----------------------------------------------------------------------------
+
+ipNumbers = ['HOPOPT','ICMP','IGMP','GGP','IPv4','ST','TCP','CBT','EGP','IGP','BBN-RCC-MON','NVP-II','PUP','ARGUS (deprecated)','EMCON','XNET','CHAOS','UDP','MUX','DCN-MEAS','HMP','PRM','XNS-IDP','TRUNK-1','TRUNK-2','LEAF-1','LEAF-2','RDP','IRTP','ISO-TP4','NETBLT','MFE-NSP','MERIT-INP','DCCP','3PC','IDPR','XTP','DDP','IDPR-CMTP','TP++','IL','IPv6','SDRP','IPv6-Route','IPv6-Frag','IDRP','RSVP','GRE','DSR','BNA','ESP','AH','I-NLSP','SWIPE (deprecated)','NARP','MOBILE','TLSP','SKIP','IPv6-ICMP','IPv6-NoNxt','IPv6-Opts','','CFTP','','SAT-EXPAK','KRYPTOLAN','RVD','IPPC','','SAT-MON','VISA','IPCV','CPNX','CPHB','WSN','PVP','BR-SAT-MON','SUN-ND','WB-MON','WB-EXPAK','ISO-IP','VMTP','SECURE-VMTP','VINES','IPTM','NSFNET-IGP','DGP','TCF','EIGRP','OSPFIGP','Sprite-RPC','LARP','MTP','AX.25','IPIP','MICP (deprecated)','SCC-SP','ETHERIP','ENCAP','','GMTP','IFMP','PNNI','PIM','ARIS','SCPS','QNX','A/N','IPComp','SNP','Compaq-Peer','IPX-in-IP','VRRP','PGM','ANY-ZERO-HOP','L2TP','DDX','IATP','STP','SRP','UTI','SMP','SM (deprecated)','PTP','ISIS over IPv4','FIRE','CRTP','CRUDP','SSCOPMCE','IPLT','SPS','PIPE','SCTP','FC','RSVP-E2E-IGNORE','Mobility Header','UDPLite','MPLS-in-IP','manet','HIP','Shim6','WESP','ROHC','Ethernet','AGGFRAG','NSH']
+function protocolFromIpNumber(number) {
+	try { result = ipNumbers[number]; }
+	catch { result = number; }
+	return [result, number]
+}
 
 function ipv4Address(bytes) {	
 	result = bytes.join('.')
 	return [result, result];
 }
 
+function ipv6Address(bytes) {
+      [bytes, x]=hexField(bytes);
+      var interim=[];
+    var joined=[];
+      for (var i = 0; i < (bytes.length); i+=4) {
+      joined=[bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]];
+        interim.push(joined.join(''));
+      }
+    results=interim.join(':');
+    return[results, results];
+}
+
 function decimalMSBF(bytes) {
 	var result = 0;
+	bytes = bytes.reverse();
 	for (var i=0; i<bytes.length; i++) {
-		result += bytes[i] * (2 ** (8*(bytes.length-i-1)));
+		result += bytes[i] * (2 ** (8*i));
 	}
 	return [result.toString(), result];
 }
@@ -25,9 +45,13 @@ function decimalMSBF(bytes) {
 function decimalLSByteF(bytes) {
 	var result = 0;
 	for (var i=0; i<bytes.length; i++) {
-		result += bytes[i] * (2 ** (8*(i)));
+		result += bytes[i] * (2 ** (8*i));
 	}
 	return [result.toString(), result];
+}
+
+function binaryJoin(bits) {
+	return bits.join('');
 }
 
 function binary(bytes) {
@@ -35,6 +59,14 @@ function binary(bytes) {
 	for (var i=0; i<bytes.length; i++) {
 		result += ('00000000' + bytes[i].toString(2)).substr(-8)
 	}
+	return [result, result];
+}
+
+function binary_NoPad(fields) {
+	var result = '';
+	fields.forEach (function (f) {
+		result += f.toString(2);
+	})
 	return [result, result];
 }
 
@@ -67,107 +99,281 @@ function hexField(bytes) {
 	return [result, result];
 }
 
+function decimalMSBF_fromBinary(bits) {
+	result = 0;
+	i = 0;
+	bits = bits.reverse();
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	return [result, result];
+}
+
+function decimalLSBF_fromBinary(bits) {
+	result = 0;
+	i = 0;
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	return [result, result];
+}
+
+function hexFieldFromBinary(bits) {
+	result = 0;
+	i = 0;
+	bits = bits.reverse();
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	string = ('0'.repeat(bits.length/4) + result.toString(16)).substr(bits.length / -4);
+	string = '0x' + string;
+	return [string, result];
+}
+
+function hexFieldFromBinary_NoPad(bits) {
+	result = 0;
+	i = 0;
+	bits = bits.reverse();
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	return [result.toString(16), result];
+}
+
 // Add all of the field functions to the fieldFunctions list.
 // This list is used to populate the UI.
 // ----------------------------------------------------------------------------
 
 fieldFunctions = [];
 fieldFunctions.push(ipv4Address);
+
 fieldFunctions.push(decimalMSBF);
 fieldFunctions.push(decimalLSByteF);
 fieldFunctions.push(binary);
+fieldFunctions.push(binary_NoPad);
 fieldFunctions.push(binaryVisual);
 fieldFunctions.push(macAddress);
 fieldFunctions.push(hexField);
+
 fieldFunctions.push(ascii);
+fieldFunctions.push(ipv6Address);
+fieldFunctions.push(hexFieldFromBinary);
+fieldFunctions.push(hexFieldFromBinary_NoPad);
+fieldFunctions.push(decimalMSBF_fromBinary);
+fieldFunctions.push(decimalLSBF_fromBinary);
 
 // Templates:
-// Each function should take a byteOffset, the byte to start the template.
-// The template can then call any functions, using the byteOffset to change
+// Each function should take a offset, the byte to start the template.
+// The template can then call any functions, using the offset to change
 // the starting point.
 // ----------------------------------------------------------------------------
 
-function Ethernet_802_3_template(byteOffset) {
-	addField(0+byteOffset, 6, macAddress, 'MAC Dest', true);
-	addField(6+byteOffset, 6, macAddress, 'MAC Source', true);
-	addField(12+byteOffset, 2, hexField, 'Ethertype', true);
+function Ethernet_802_3_template(offset) {
+	addField(0+offset, 6, macAddress, 'MAC Dest', true);
+	addField(6+offset, 6, macAddress, 'MAC Source', true);
+	addField(12+offset, 2, hexField, 'Ethertype', true);
 	updateUI();
 }
 
-function IPv4_template(byteOffset) {
-	addField(0+byteOffset, 1, hexField, 'Ver', true);
-	addField(1+byteOffset, 1, hexField, 'TOS', true);
-	addField(2+byteOffset, 2, decimalMSBF, 'Len', true);
-	addField(4+byteOffset, 2, decimalMSBF, 'Id', true);
-	addField(6+byteOffset, 2, hexField, 'Flags/Frag', true);
-	addField(8+byteOffset, 1, decimalMSBF, 'TTL', true);
-	addField(9+byteOffset, 1, decimalMSBF, 'PID', true);
-	addField(10+byteOffset, 2, hexField, 'Checksum', true);
-	addField(12+byteOffset, 4, ipv4Address, 'Source IP', true);
-	addField(16+byteOffset, 4, ipv4Address, 'Dest IP', true);
-	updateUI();
-}
-
-
-function TCP_template(byteOffset) {
-	addField(0+byteOffset, 2, decimalMSBF, 'Source Port', true);
-	addField(2+byteOffset, 2, decimalMSBF, 'Dest Port', true);
-	addField(4+byteOffset, 4, decimalMSBF, 'Sequence Number', true);
-	addField(8+byteOffset, 1, binary, 'Len + 0000', true);
-	addField(9+byteOffset, 1, binary, 'CEUAPRSF', true);
-	addField(10+byteOffset, 2, decimalMSBF, 'Window Size', true);
-	addField(12+byteOffset, 2, hexField, 'Checksum', true);
-	updateUI();
-}
-
-
-function TCP_Ack_template(byteOffset) {
-	addField(0+byteOffset, 2, decimalMSBF, 'Source Port', true);
-	addField(2+byteOffset, 2, decimalMSBF, 'Dest Port', true);
-	addField(4+byteOffset, 4, decimalMSBF, 'Sequence Number', true);
-	addField(8+byteOffset, 4, decimalMSBF, 'Ack Number', true);
-	addField(12+byteOffset, 1, binary, 'Len + 0000', true);
-	addField(13+byteOffset, 1, binary, 'CEUAPRSF', true);
-	addField(14+byteOffset, 2, decimalMSBF, 'Window Size', true);
-	addField(16+byteOffset, 2, hexField, 'Checksum', true);
-	updateUI();
-}
-
-
-function TCP_Option_Header_template(byteOffset) {
-	addField(0+byteOffset, 1, hexField, 'Opt Kind', true);
-	addField(1+byteOffset, 1, hexField, 'Opt Len', true);
-	updateUI();
-}
-
-
-function Byte_To_Bits(byteOffset) {
-	newByte(byteOffset+1, byteOffset, 1, "01", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "02", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "04", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "08", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "10", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "20", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "40", "right", true);
-	newByte(byteOffset+1, byteOffset, 1, "80", "right", true);
+function IPv4_template(offset) {
+	Byte_To_Bits_NoUpdate(offset);
+	Byte_To_Bits_NoUpdate(8+offset);
+	Byte_To_Bits_NoUpdate(20+offset);
+	Byte_To_Bits_NoUpdate(28+offset);
 	
-	addField(byteOffset+1, 1, decimalMSBF, 'b0', true);
-	addField(byteOffset+2, 1, decimalMSBF, 'b1', true);
-	addField(byteOffset+3, 1, decimalMSBF, 'b2', true);
-	addField(byteOffset+4, 1, decimalMSBF, 'b3', true);
-	addField(byteOffset+5, 1, decimalMSBF, 'b4', true);
-	addField(byteOffset+6, 1, decimalMSBF, 'b5', true);
-	addField(byteOffset+7, 1, decimalMSBF, 'b6', true);
-	addField(byteOffset+8, 1, decimalMSBF, 'b7', true);
+	addField(0+offset, 4, hexFieldFromBinary_NoPad, 'Ver', true);
+	addField(4+offset, 4, hexFieldFromBinary_NoPad, 'IHL', true);
+	addField(8+offset, 6, hexFieldFromBinary_NoPad, 'TOS', true);
+	addField(14+offset, 2, hexFieldFromBinary_NoPad, 'ECN', true);
 	
+	addField(16+offset, 2, decimalMSBF, 'Len', true);
+	addField(18+offset, 2, decimalMSBF, 'Id', true);
+	addField(20+offset, 1, binary_NoPad, '0', true);
+	addField(21+offset, 1, binary_NoPad, 'DF', true);
+	addField(22+offset, 1, binary_NoPad, 'MF', true);
+	addField(23+offset, 13, decimalMSBF, 'Frag Offset', true);
+	addField(36+offset, 1, decimalMSBF, 'TTL', true);
+	addField(37+offset, 1, decimalMSBF, 'PID', true);
+	addField(38+offset, 2, hexField, 'Checksum', true);
+	addField(40+offset, 4, ipv4Address, 'Source IP', true);
+	addField(44+offset, 4, ipv4Address, 'Dest IP', true);
 	updateUI();
 }
 
-function Frame_Relay_2_Byte(byteOffset) {
-	newByte(byteOffset, byteOffset, 2, "FCF0", "right", true);
-	dropBytes(byteOffset+2, 2, false, true);
-	addField(byteOffset, 2, decimalMSBF, 'DLCI', true);
-	addField(byteOffset+2, 2, hexField, 'Ethertype', true);
+function IPv4_template_with_protocols(offset) {
+	Byte_To_Bits_NoUpdate(offset);
+	Byte_To_Bits_NoUpdate(8+offset);
+	Byte_To_Bits_NoUpdate(20+offset);
+	Byte_To_Bits_NoUpdate(28+offset);
+	
+	addField(0+offset, 4, hexFieldFromBinary_NoPad, 'Ver', true);
+	addField(4+offset, 4, hexFieldFromBinary_NoPad, 'IHL', true);
+	addField(8+offset, 6, hexFieldFromBinary_NoPad, 'TOS', true);
+	addField(14+offset, 2, hexFieldFromBinary_NoPad, 'ECN', true);
+	
+	addField(16+offset, 2, decimalMSBF, 'Len', true);
+	addField(18+offset, 2, decimalMSBF, 'Id', true);
+	addField(20+offset, 1, binary_NoPad, '0', true);
+	addField(21+offset, 1, binary_NoPad, 'DF', true);
+	addField(22+offset, 1, binary_NoPad, 'MF', true);
+	addField(23+offset, 13, decimalMSBF, 'Frag Offset', true);
+	addField(36+offset, 1, decimalMSBF, 'TTL', true);
+	addField(37+offset, 1, protocolFromIpNumber, 'PID', true);
+	addField(38+offset, 2, hexField, 'Checksum', true);
+	addField(40+offset, 4, ipv4Address, 'Source IP', true);
+	addField(44+offset, 4, ipv4Address, 'Dest IP', true);
+	updateUI();
+}
+
+function TCP_template(offset) {
+	Byte_To_Bits_NoUpdate(8+offset);
+	Byte_To_Bits_NoUpdate(16+offset);
+
+	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+offset, 4, decimalMSBF, 'Sequence Number', true);
+	
+	addField(8+offset, 4, decimalMSBF_fromBinary, 'Len', true); //4 bits
+	addField(12+offset, 4, binaryJoin, '0000', true); //4 buts
+	
+	addField(16+offset, 1, binary_NoPad, 'CWR', true);
+	addField(17+offset, 1, binary_NoPad, 'ECE', true);
+	addField(18+offset, 1, binary_NoPad, 'URG', true);
+	addField(19+offset, 1, binary_NoPad, 'ACK', true);
+	addField(20+offset, 1, binary_NoPad, 'PSH', true);
+	addField(21+offset, 1, binary_NoPad, 'RST', true);
+	addField(22+offset, 1, binary_NoPad, 'SYN', true);
+	addField(23+offset, 1, binary_NoPad, 'FIN', true);
+	addField(24+offset, 2, decimalMSBF, 'Window Size', true);
+	addField(26+offset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+function TCP_Ack_template(offset) {
+	Byte_To_Bits_NoUpdate(12+offset);
+	Byte_To_Bits_NoUpdate(20+offset);
+
+	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+offset, 4, decimalMSBF, 'Sequence Number', true);
+	addField(8+offset, 4, decimalMSBF, 'Ack Number', true);
+	addField(12+offset, 4, decimalMSBF_fromBinary, 'Len', true); //4 bits
+	addField(16+offset, 4, binary_NoPad, '0000', true); //4 bits
+	addField(20+offset, 1, binary_NoPad, 'CWR', true);
+	addField(21+offset, 1, binary_NoPad, 'ECE', true);
+	addField(22+offset, 1, binary_NoPad, 'URG', true);
+	addField(23+offset, 1, binary_NoPad, 'ACK', true);
+	addField(24+offset, 1, binary_NoPad, 'PSH', true);
+	addField(25+offset, 1, binary_NoPad, 'RST', true);
+	addField(26+offset, 1, binary_NoPad, 'SYN', true);
+	addField(27+offset, 1, binary_NoPad, 'FIN', true);
+	addField(28+offset, 2, decimalMSBF, 'Window Size', true);
+	addField(30+offset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+function TCP_Option_Header_template(offset) {
+	addField(0+offset, 1, hexField, 'Opt Kind', true);
+	addField(1+offset, 1, hexField, 'Opt Len', true);
+	updateUI();
+}
+
+function ARP_template(offset) {
+	addField(0+offset, 2, decimalMSBF, 'HTYPE', true);
+	addField(2+offset, 2, hexField, 'PTYPE', true);
+	addField(4+offset, 1, decimalMSBF, 'HLEN', true);
+	addField(5+offset, 1, decimalMSBF, 'PLEN', true);
+	addField(6+offset, 2, decimalMSBF, 'OPER', true);
+	addField(8+offset, 6, macAddress, 'SHA', true);
+	addField(14+offset, 4, ipv4Address, 'SPA', true);
+	addField(18+offset, 6, macAddress, 'THA', true);
+	addField(24+offset, 4, ipv4Address, 'TPA', true);
+	updateUI();
+}
+
+function UDP_template(offset) {
+	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+offset, 2, decimalMSBF, 'Len', true);
+	addField(6+offset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+function DNS_template(offset) {
+	Byte_To_Bits_NoUpdate(2+offset);
+	Byte_To_Bits_NoUpdate(10+offset);
+
+	addField(0+offset, 2, hexField, 'ID', true);
+	addField(2+offset, 1, binary_NoPad, 'QR', true); 					// 1 bit
+	addField(3+offset, 4, decimalMSBF_fromBinary, 'OPCODE', true);		// 4 bits
+	addField(7+offset, 1, binary_NoPad, 'AA', true);					// 1 bit
+	addField(8+offset, 1, binary_NoPad, 'TC', true);					// 1 bit
+	addField(9+offset, 1, binary_NoPad, 'RD', true);					// 1 bit
+	addField(10+offset, 1, binary_NoPad, 'RA', true);					// 1 bit
+	addField(11+offset, 3, binary_NoPad, '000', true);					// 3 bits
+	addField(14+offset, 4, decimalMSBF_fromBinary, 'RCODE', true);		// 4 bits
+	addField(18+offset, 2, decimalMSBF, 'QDCOUNT', true);				// -------------
+	addField(20+offset, 2, decimalMSBF, 'ANCOUNT', true);				// total 16 bits
+	addField(22+offset, 2, decimalMSBF, 'NSCOUNT', true);
+	addField(24+offset, 2, decimalMSBF, 'ARCOUNT', true);
+	updateUI();
+	
+}
+
+function IPv6_template(offset) {
+      Byte_To_Bits_NoUpdate(offset);
+      Byte_To_Bits_NoUpdate(8+offset);
+      Byte_To_Bits_NoUpdate(16+offset);
+      Byte_To_Bits_NoUpdate(24+offset);
+      
+      addField(offset, 4, decimalMSBF_fromBinary, 'Ver', true);					// 4 bits
+      addField(4+offset, 6, hexFieldFromBinary_NoPad, 'DS', true);				// 6 bits
+      addField(10+offset, 2, hexFieldFromBinary_NoPad, 'ECN', true);			// 2 bits
+      addField(12+offset, 20, hexFieldFromBinary, 'Flow Label', true);			// 20 bits
+      addField(32+offset, 2, decimalMSBF, 'Len', true);					  // -------------
+      addField(34+offset, 1, hexField, 'Next Header', true);			  // total 32 bits
+      addField(35+offset, 1, decimalMSBF, 'Hop Lim', true);
+      addField(36+offset, 16, ipv6Address, 'Source IPv6', true);
+      addField(52+offset, 16, ipv6Address, 'Dest IPv6', true);
+      updateUI();
+}
+
+function Byte_To_Bits_NoUpdate(offset) {
+	newByte(offset+1, offset, 1, "01", "right", true);
+	newByte(offset+1, offset, 1, "02", "right", true);
+	newByte(offset+1, offset, 1, "04", "right", true);
+	newByte(offset+1, offset, 1, "08", "right", true);
+	newByte(offset+1, offset, 1, "10", "right", true);
+	newByte(offset+1, offset, 1, "20", "right", true);
+	newByte(offset+1, offset, 1, "40", "right", true);
+	newByte(offset+1, offset, 1, "80", "right", true);
+	dropBytes(offset, 1, false, true);
+	
+	addField(offset, 1, decimalMSBF, 'b0', true);
+	addField(offset+1, 1, decimalMSBF, 'b1', true);
+	addField(offset+2, 1, decimalMSBF, 'b2', true);
+	addField(offset+3, 1, decimalMSBF, 'b3', true);
+	addField(offset+4, 1, decimalMSBF, 'b4', true);
+	addField(offset+5, 1, decimalMSBF, 'b5', true);
+	addField(offset+6, 1, decimalMSBF, 'b6', true);
+	addField(offset+7, 1, decimalMSBF, 'b7', true);
+	
+}
+
+function Byte_To_Bits(offset) {
+	Byte_To_Bits_NoUpdate(offset)
+	updateUI();
+}
+
+function Frame_Relay_2_Byte(offset) {
+	newByte(offset, offset, 2, "FCF0", "right", true);
+	dropBytes(offset+2, 2, false, true);
+	addField(offset, 2, decimalMSBF, 'DLCI', true);
+	addField(offset+2, 2, hexField, 'Ethertype', true);
 	updateUI();
 }
 
@@ -177,9 +383,14 @@ function Frame_Relay_2_Byte(byteOffset) {
 var templates = [];
 templates.push(Ethernet_802_3_template);
 templates.push(IPv4_template);
+templates.push(IPv4_template_with_protocols);
 templates.push(TCP_template);
 templates.push(TCP_Ack_template);
 templates.push(TCP_Option_Header_template);
+templates.push(ARP_template);
+templates.push(UDP_template);
+templates.push(DNS_template);
+templates.push(IPv6_template);
 templates.push(Byte_To_Bits);
 templates.push(Frame_Relay_2_Byte);
 
@@ -980,6 +1191,12 @@ function newByte(at, start, length, mask, align, overwriteStream) {
 		newPackets.push([packet, packets[currentStream][i][1]]);
 	}
 	packets[streamIndex.indexOf(streamName)] = newPackets;
+	
+	if (overwriteStream) { 
+		//processFields();
+		return null;
+	}
+	
 	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
 	populateStreamsView();
 	switchStream(streamName);
