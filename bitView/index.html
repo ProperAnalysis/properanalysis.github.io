@@ -95,7 +95,7 @@ div {
 #container {
 	width: 100%;
 	height: 100%;
-	font-family: helvetica;
+	font-family: monospace;
 	font-size: 12pt;
 	color: var(--textColor);
 	position: absolute;
@@ -105,7 +105,7 @@ div {
 
 
 #topMenu {
-	height: auto;
+    height: auto;
     width: 100%;
     margin-bottom: 5px;
     display: inline-block;
@@ -123,7 +123,7 @@ div {
 	margin: 5px;
 	margin-right: 0px;
 	margin-bottom: 0px;
-	padding: 10px;
+	padding: 5px;
 	border: 1px var(--borderColor) solid;
 	box-shadow: 0px 0px 5px 3px var(--shadowColor);
 	z-index: 1;
@@ -177,7 +177,7 @@ div {
 	background-color: var(--midground);
 	width: calc(100% - 33px);
 	height: fit-content;
-	padding: 10px;
+	padding: 5px;
 	margin: 5px;
 	margin-bottom: 0px;
 	border-radius: 5px;
@@ -1272,7 +1272,7 @@ function clearWidthGraph () {
 	var ctx = graph.getContext("2d");
 	var text = ctx.measureText("Testing Widths...")
 	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.font = "20px Helvetica";
+	ctx.font = "20px monospace";
 	ctx.fillStyle = "#fff";
 	ctx.fillText("Testing Widths...", (graph.width/2)-text.width, graph.height/2)-text.height;
 }
