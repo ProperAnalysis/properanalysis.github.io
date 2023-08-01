@@ -1,6 +1,207 @@
 <html>
 <head>
 <script>
+// Encapsulation functions:
+// Take each packet and encapsulate it within a protocol
+// Each function should work on packets[currentStream]
+// There is no way to run these through the UI - they are run through the console.
+// Not intended for most users, used for building up simulated packets.
+
+
+function escapeHDLCBytes(packet) {
+	escaped = [];
+	
+	packet.forEach( function (bite) {
+		if (bite == 126) { escaped.push( ...[125, 94] ); }
+		else if (bite == 125) { escaped.push( ...[125, 93] ); }
+		else { escaped.push(bite); }
+	});
+	
+	return escaped
+}
+
+function encap_HDLC_byteStuff(maxIdle) {
+	var result = [];
+	
+	packets[currentStream].forEach( function(packet) {
+		result.push( ...Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+		result.push( ...escapeHDLC(packet[0]) );
+		result.push( ...crc16(packet[0]) );
+		result.push( ...Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+	});
+	
+	return result.join(' ');
+}
+
+function escapeHDLCBits(packet) {
+	return packet.replaceAll('11111', '111110');
+}
+
+function encap_HDLC_bitStuff(maxIdle) {
+	var result = [];
+
+	packets[currentStream].forEach( function(packet) {
+		binaryPacket = escapeHDLCBits( decArray2bin( packet[0] ) );
+		binaryCRC = decArray2bin( crc16( packet[0] ) );
+		preAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+		postAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+		result.push( preAmble );
+		result.push( binaryPacket );
+		result.push( binaryCRC );
+		result.push( postAmble );
+	})
+	
+	return result.join('');
+}
+
+function encap_IP_MLPPP(MTU) {
+	pppHeader = hexString2IntArray('ff03003d');
+	ipHeader = hexString2IntArray('21');
+	
+	n = 0;
+	MTU = MTU - 8; // deduct header and FCS from MTU
+	
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+	// 128 64 32 16 8 4 2 1	
+		
+	if (packet[0].length > MTU) {
+		bytesLeft = packet[0].length;
+			
+		newPacket = [];
+		newPacket.push( ...pppHeader );
+		newPacket.push( 128 + (n % 64) );
+		newPacket.push( ...ipHeader );
+		newPacket.push( ...packet[0].slice(0, MTU) );
+		newPacket.push( ...crc16(newPacket) ); //Dummy CRC - need to fix this
+		newPackets.push( [newPacket, n] );
+		n++;
+			
+		position = MTU;
+		bytesLeft = packet[0].length - MTU;
+		while(bytesLeft > MTU) {
+			newPacket = [];
+			newPacket.push( ...pppHeader );
+			newPacket.push( (n % 64) ); // 00 + sequence
+			newPacket.push( ...packet[0].slice(position, position+MTU+1) );
+			newPacket.push( ...crc16(newPacket) ); //Dummy CRC - need to fix this
+			newPackets.push( [newPacket, n] );
+			n++;
+			position+=MTU+1; // Saved a byte by not putting the PPP number in each frame
+			bytesLeft-=(MTU+1);
+		}
+			
+		newPacket = [];
+		newPacket.push( ...pppHeader );
+		newPacket.push( 64 + (n % 64) ); // 01 + sequence
+		newPacket.push( ...packet[0].slice(position,) );
+		newPacket.push( ...crc16(newPacket) ); //Dummy CRC - need to fix this
+		newPackets.push( [newPacket, n] );
+		n++;
+			
+	} else {
+		newPacket = [];
+		newPacket.push( ...pppHeader );
+		newPacket.push( 192 + (n % 64) );
+		newPacket.push( ...ipHeader );
+		newPacket.push( ...packet[0] );
+		newPacket.push( ...crc16(newPacket) ); // Dummy CRC - need to fix this
+		newPackets.push( [newPacket, n] );
+		n++;
+	}
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+}
+
+// CRC function for use with the MLPPP encapsulator
+// buffer is a Uint8Array or just an array of integers
+// returns an integer array representing the CRC result
+function crc16(buffer) {
+    var crc = 0xFFFF;
+    var odd;
+
+    for (var i = 0; i < buffer.length; i++) {
+        crc = crc ^ buffer[i];
+
+        for (var j = 0; j < 8; j++) {
+            odd = crc & 0x0001;
+            crc = crc >> 1;
+            if (odd) {
+                crc = crc ^ 0x8408;
+            }
+        }
+    }
+    return hexString2IntArray(crc.toString(16));
+};
+
+function encap_IP_Frelay() {
+	// DLCI Mask is 1111 1100 1111 0000
+	// 102 is 1861  0001 1000 0110 0001
+	// 101 is 1851  0001 1000 0101 0001
+	ip2DLCI = {}
+	ip2DLCI['192.168.1.140'] = hexString2IntArray('1861');
+	ip2DLCI['192.168.1.194'] = hexString2IntArray('1851');
+	etherType = hexString2IntArray('0800');
+	
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+
+		destIP = packet[0].slice(16, 20).join('.');
+		
+		newPacket = [ ...ip2DLCI[destIP] ];
+		newPacket.push( ...etherType );
+		
+		newPacket.push( ...packet[0] );
+		newPackets.push( [ newPacket, packet[1] ] );
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+	
+}
+
+function encap_IP_Ethernet() {
+	ip2MAC = {}
+	ip2MAC['192.168.1.140'] = hexString2IntArray('11223300aaaa');
+	ip2MAC['192.168.1.194'] = hexString2IntArray('11223300bbbb');
+	etherType = hexString2IntArray('0800');
+
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+
+		sourceIP = packet[0].slice(12, 16).join('.');
+		destIP = packet[0].slice(16, 20).join('.');
+		
+		newPacket = [ ...ip2MAC[destIP] ];
+		newPacket.push( ...ip2MAC[sourceIP] );
+		newPacket.push( ...etherType );
+		
+		newPacket.push( ...packet[0] );
+		newPackets.push( [ newPacket, packet[1] ] );
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+}
+
+function encap_Ethernet() {
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+		sourceMAC = 'AABBCCDDEEFF';
+		destMAC = '001122334455'; 
+		etherType = '0800';
+		header = destMAC + sourceMAC + etherType;
+		newPacket = hexString2IntArray(header);
+		newPacket.push( ...packet[0] );
+		newPackets.push( [newPacket, packet[1]] )
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+}
+
 
 // Field Functions:
 // Each function should take an array of fields (1 or more), and return array:
@@ -8,13 +209,6 @@
 // display is the value to display on the screen.
 // raw is the value of the item for sorting purposes, an int if possible.
 // ----------------------------------------------------------------------------
-
-ipNumbers = ['HOPOPT','ICMP','IGMP','GGP','IPv4','ST','TCP','CBT','EGP','IGP','BBN-RCC-MON','NVP-II','PUP','ARGUS (deprecated)','EMCON','XNET','CHAOS','UDP','MUX','DCN-MEAS','HMP','PRM','XNS-IDP','TRUNK-1','TRUNK-2','LEAF-1','LEAF-2','RDP','IRTP','ISO-TP4','NETBLT','MFE-NSP','MERIT-INP','DCCP','3PC','IDPR','XTP','DDP','IDPR-CMTP','TP++','IL','IPv6','SDRP','IPv6-Route','IPv6-Frag','IDRP','RSVP','GRE','DSR','BNA','ESP','AH','I-NLSP','SWIPE (deprecated)','NARP','MOBILE','TLSP','SKIP','IPv6-ICMP','IPv6-NoNxt','IPv6-Opts','','CFTP','','SAT-EXPAK','KRYPTOLAN','RVD','IPPC','','SAT-MON','VISA','IPCV','CPNX','CPHB','WSN','PVP','BR-SAT-MON','SUN-ND','WB-MON','WB-EXPAK','ISO-IP','VMTP','SECURE-VMTP','VINES','IPTM','NSFNET-IGP','DGP','TCF','EIGRP','OSPFIGP','Sprite-RPC','LARP','MTP','AX.25','IPIP','MICP (deprecated)','SCC-SP','ETHERIP','ENCAP','','GMTP','IFMP','PNNI','PIM','ARIS','SCPS','QNX','A/N','IPComp','SNP','Compaq-Peer','IPX-in-IP','VRRP','PGM','ANY-ZERO-HOP','L2TP','DDX','IATP','STP','SRP','UTI','SMP','SM (deprecated)','PTP','ISIS over IPv4','FIRE','CRTP','CRUDP','SSCOPMCE','IPLT','SPS','PIPE','SCTP','FC','RSVP-E2E-IGNORE','Mobility Header','UDPLite','MPLS-in-IP','manet','HIP','Shim6','WESP','ROHC','Ethernet','AGGFRAG','NSH']
-function protocolFromIpNumber(number) {
-	try { result = ipNumbers[number]; }
-	catch { result = number; }
-	return [result, number]
-}
 
 function ipv4Address(bytes) {	
 	result = bytes.join('.')
@@ -172,14 +366,14 @@ fieldFunctions.push(decimalLSBF_fromBinary);
 // the starting point.
 // ----------------------------------------------------------------------------
 
-function Ethernet_802_3_template(offset) {
+function template_Ethernet_802_3(offset) {
 	addField(0+offset, 6, macAddress, 'MAC Dest', true);
 	addField(6+offset, 6, macAddress, 'MAC Source', true);
 	addField(12+offset, 2, hexField, 'Ethertype', true);
 	updateUI();
 }
 
-function IPv4_template(offset) {
+function template_IPv4(offset) {
 	Byte_To_Bits_NoUpdate(offset);
 	Byte_To_Bits_NoUpdate(8+offset);
 	Byte_To_Bits_NoUpdate(20+offset);
@@ -204,7 +398,7 @@ function IPv4_template(offset) {
 	updateUI();
 }
 
-function IPv4_template_with_protocols(offset) {
+function template_IPv4_with_protocols(offset) {
 	Byte_To_Bits_NoUpdate(offset);
 	Byte_To_Bits_NoUpdate(8+offset);
 	Byte_To_Bits_NoUpdate(20+offset);
@@ -229,7 +423,7 @@ function IPv4_template_with_protocols(offset) {
 	updateUI();
 }
 
-function TCP_template(offset) {
+function template_TCP(offset) {
 	Byte_To_Bits_NoUpdate(8+offset);
 	Byte_To_Bits_NoUpdate(16+offset);
 
@@ -253,7 +447,7 @@ function TCP_template(offset) {
 	updateUI();
 }
 
-function TCP_Ack_template(offset) {
+function template_TCP_Ack(offset) {
 	Byte_To_Bits_NoUpdate(12+offset);
 	Byte_To_Bits_NoUpdate(20+offset);
 
@@ -276,13 +470,13 @@ function TCP_Ack_template(offset) {
 	updateUI();
 }
 
-function TCP_Option_Header_template(offset) {
+function template_TCP_Option_Header(offset) {
 	addField(0+offset, 1, hexField, 'Opt Kind', true);
 	addField(1+offset, 1, hexField, 'Opt Len', true);
 	updateUI();
 }
 
-function ARP_template(offset) {
+function template_ARP(offset) {
 	addField(0+offset, 2, decimalMSBF, 'HTYPE', true);
 	addField(2+offset, 2, hexField, 'PTYPE', true);
 	addField(4+offset, 1, decimalMSBF, 'HLEN', true);
@@ -295,7 +489,7 @@ function ARP_template(offset) {
 	updateUI();
 }
 
-function UDP_template(offset) {
+function template_UDP(offset) {
 	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
 	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
 	addField(4+offset, 2, decimalMSBF, 'Len', true);
@@ -303,7 +497,7 @@ function UDP_template(offset) {
 	updateUI();
 }
 
-function DNS_template(offset) {
+function template_DNS(offset) {
 	Byte_To_Bits_NoUpdate(2+offset);
 	Byte_To_Bits_NoUpdate(10+offset);
 
@@ -324,7 +518,7 @@ function DNS_template(offset) {
 	
 }
 
-function IPv6_template(offset) {
+function template_IPv6(offset) {
       Byte_To_Bits_NoUpdate(offset);
       Byte_To_Bits_NoUpdate(8+offset);
       Byte_To_Bits_NoUpdate(16+offset);
@@ -364,12 +558,12 @@ function Byte_To_Bits_NoUpdate(offset) {
 	
 }
 
-function Byte_To_Bits(offset) {
+function template_Byte_To_Bits(offset) {
 	Byte_To_Bits_NoUpdate(offset)
 	updateUI();
 }
 
-function Frame_Relay_2_Byte(offset) {
+function template_Frame_Relay_2_Byte(offset) {
 	newByte(offset, offset, 2, "FCF0", "right", true);
 	dropBytes(offset+2, 2, false, true);
 	addField(offset, 2, decimalMSBF, 'DLCI', true);
@@ -381,18 +575,18 @@ function Frame_Relay_2_Byte(offset) {
 // This list is used to populate the UI.
 // ----------------------------------------------------------------------------
 var templates = [];
-templates.push(Ethernet_802_3_template);
-templates.push(IPv4_template);
-templates.push(IPv4_template_with_protocols);
-templates.push(TCP_template);
-templates.push(TCP_Ack_template);
-templates.push(TCP_Option_Header_template);
-templates.push(ARP_template);
-templates.push(UDP_template);
-templates.push(DNS_template);
-templates.push(IPv6_template);
-templates.push(Byte_To_Bits);
-templates.push(Frame_Relay_2_Byte);
+templates.push(template_Ethernet_802_3);
+templates.push(template_IPv4);
+templates.push(template_IPv4_with_protocols);
+templates.push(template_TCP);
+templates.push(template_TCP_Ack);
+templates.push(template_TCP_Option_Header);
+templates.push(template_ARP);
+templates.push(template_UDP);
+templates.push(template_DNS);
+templates.push(template_IPv6);
+templates.push(template_Byte_To_Bits);
+templates.push(template_Frame_Relay_2_Byte);
 
 // Help functions
 // Displays a message for the user depending on the help button pressed. 
@@ -705,6 +899,8 @@ var decimalOn = false;
 var fieldOn = false;
 var highlightConst = false;
 
+// Global list of windows and containers so that functions know where to find them.
+// Also so that the UI knows how to update them if dark/light mode is activated.
 var windows = {};
 windows['ASCII'] = false;
 windows['Hex'] = false;
@@ -714,18 +910,21 @@ windows['HexContainer'] = false;
 windows['PlotViewContainer'] = false;
 windowNames = ['ASCII', 'Hex', 'PlotView'];
 
+// List of link types for the CAP file export function to use.
 linkTypes = ["NULL","ETHERNET","EXP_ETHERNET","AX25","PRONET","CHAOS","IEEE802_5","ARCNET_BSD","SLIP","PPP","FDDI","PPP_HDLC","PPP_ETHER","SYMANTEC_FIREWALL","ATM_RFC1483","RAW","C_HDLC","IEEE802_11","ATM_CLIP","FRELAY","LOOP","ENC","NETBSD_HDLC","LINUX_SLL","LTALK","PFLOG","IEEE802_11_PRISM","IP_OVER_FC","SUNATM","IEEE802_11_RADIOTAP","TZSP","ARCNET_LINUX","JUNIPER_MLPPP","JUNIPER_MLFR","JUNIPER_ES","JUNIPER_GGSN","JUNIPER_MFR","JUNIPER_ATM2","JUNIPER_SERVICES","JUNIPER_ATM1","APPLE_IP_OVER_IEEE1394","MTP2_WITH_PHDR","MTP2","MTP3","SCCP","DOCSIS","LINUX_IRDA","IBM_SP","IBM_SN","USER0","USER1","USER2","USER3","USER4","USER5","USER6","USER7","USER8","USER9","USER10","USER11","USER12","USER13","USER14","USER15","IEEE802_11_AVS","JUNIPER_MONITOR","BACNET_MS_TP","PPP_PPPD","JUNIPER_PPPOE","JUNIPER_PPPOE_ATM","GPRS_LLC","GPF_T","GPF_F","GCOM_T1E1","GCOM_SERIAL","JUNIPER_PIC_PEER","ERF_ETH","ERF_POS","LINUX_LAPD","JUNIPER_ETHER","JUNIPER_PPP","JUNIPER_FRELAY","JUNIPER_CHDLC","MFR","JUNIPER_VP","A429","A653_ICM","USB_FREEBSD","BLUETOOTH_HCI_H4","IEEE802_16_MAC_CPS","USB_LINUX","CAN20B","IEEE802_15_4_LINUX","PPI","IEEE802_16_MAC_CPS_RADIO","JUNIPER_ISM","IEEE802_15_4_WITHFCS","SITA","ERF","RAIF1","IPMB_KONTRON","JUNIPER_ST","BLUETOOTH_HCI_H4_WITH_PHDR","AX25_KISS","LAPD","PPP_WITH_DIR","C_HDLC_WITH_DIR","FRELAY_WITH_DIR","LAPB_WITH_DIR","IPMB_LINUX","FLEXRAY","MOST","LIN","X2E_SERIAL","X2E_XORAYA","IEEE802_15_4_NONASK_PHY","LINUX_EVDEV","GSMTAP_UM","GSMTAP_ABIS","MPLS","USB_LINUX_MMAPPED","DECT","AOS","WIHART","FC_2","FC_2_WITH_FRAME_DELIMS","IPNET","CAN_SOCKETCAN","IPV4","IPV6","IEEE802_15_4_NOFCS","DBUS","JUNIPER_VS","JUNIPER_SRX_E2E","JUNIPER_FIBRECHANNEL","DVB_CI","MUX27010","STANAG_5066_D_PDU","JUNIPER_ATM_CEMIC","NFLOG","NETANALYZER","NETANALYZER_TRANSPARENT","IPOIB","MPEG_2_TS","NG40","NFC_LLCP","PFSYNC","INFINIBAND","SCTP","USBPCAP","RTAC_SERIAL","BLUETOOTH_LE_LL","WIRESHARK_UPPER_PDU","NETLINK","BLUETOOTH_LINUX_MONITOR","BLUETOOTH_BREDR_BB","BLUETOOTH_LE_LL_WITH_PHDR","PROFIBUS_DL","PKTAP","EPON","IPMI_HPM_2","ZWAVE_R1_R2","ZWAVE_R3","WATTSTOPPER_DLM","ISO_14443","RDS","USB_DARWIN","OPENFLOW","SDLC","TI_LLN_SNIFFER","LORATAP","VSOCK","NORDIC_BLE","DOCSIS31_XRA31","ETHERNET_MPACKET","DISPLAYPORT_AUX","LINUX_SLL2","SERCOS_MONITOR","OPENVIZSLA","EBHSCR","VPP_DISPATCH","DSA_TAG_BRCM","DSA_TAG_BRCM_PREPEND","IEEE802_15_4_TAP","DSA_TAG_DSA","DSA_TAG_EDSA","ELEE","Z_WAVE_SERIAL","USB_2_0","ATSC_ALP","ETW","NETANALYZER_NG","ZBOSS_NCP","USB_2_0_LOW_SPEED","USB_2_0_FULL_SPEED","USB_2_0_HIGH_SPEED","AUERSWALD_LOG","ZWAVE_TAP","SILABS_DEBUG_CHANNEL","FIRA_UCI"]
 linkTypeNumbers = [0,1,2,3,4,5,6,7,8,9,10,50,51,99,100,101,104,105,106,107,108,109,112,113,114,117,119,122,123,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299]
 
-// User functions - takes input from the UI and passes them to other functions.
+// UI functions - takes input from the UI and passes them to other functions.
+// Functions that should only be called by the UI are prefixed with UI_
+// All other functions can be called by the console and should work as expected.
 // ------------------------------------------------------------------------------------------------
 
-function buildFromHexUser() {
+function UI_buildFromHex() {
 	var hexInput = document.getElementById('hexInput').value;
 	buildFromHex(hexInput);
 }
 
-function reverseBytesUser() {
+function UI_reverseBytes() {
 	var start = parseInt(document.getElementById('reverseBytesStart').value);
 	var length = parseInt(document.getElementById('reverseBytesLength').value);
 	var type = document.getElementById('reverseBytesType').value;
@@ -733,7 +932,7 @@ function reverseBytesUser() {
 	reverseBytes(start, length, type, overwriteStream);
 }
 
-function xorBytesUser() {
+function UI_xorBytes() {
 	var start = parseInt(document.getElementById('xorBytesStart').value);
 	var length = parseInt(document.getElementById('xorBytesLength').value);
 	var value = document.getElementById('xorBytesValue').value;
@@ -742,7 +941,7 @@ function xorBytesUser() {
 	xorBytes(start, length, value, overwriteStream);
 }
 
-function dropBytesUser() {
+function UI_dropBytes() {
 	var start = parseInt(document.getElementById('dropBytesStart').value);
 	var length = parseInt(document.getElementById('dropBytesLength').value);
 	var overwriteStream = eval(document.getElementById('dropBytesOverwrite').value);
@@ -755,7 +954,7 @@ function dropBytesUser() {
 	dropBytes(start, length, packetNumber, overwriteStream);
 }
 
-function newByteUser() {
+function UI_newByte() {
 	var at = parseInt(document.getElementById('newByteAt').value);
 	var start = parseInt(document.getElementById('newByteFromStart').value);
 	var length = parseInt(document.getElementById('newByteFromLength').value);
@@ -766,12 +965,12 @@ function newByteUser() {
 	newByte(at, start, length, mask, align, overwriteStream);
 }
 
-function findUser() {
+function UI_find() {
 	var value = document.getElementById('findValue').value;
 	find(value);
 }
 
-function addFieldUser() {
+function UI_addField() {
 	var start = parseInt(document.getElementById('fieldStartByte').value);
 	var length = parseInt(document.getElementById('fieldLength').value);
 	var type = eval(document.getElementById('fieldType').value);
@@ -779,30 +978,50 @@ function addFieldUser() {
 	addField(start, length, type, label);
 }
 
-function applyTemplate () {
+function UI_applyTemplate () {
 	var template = eval(document.getElementById('templateId').value);
 	var byteOffset = parseInt(document.getElementById('templateStartByte').value);
 	template(byteOffset);
 }
 
-function sortOnField(direction) {
+function UI_sortOnField(direction) {
 	var field = parseInt(document.getElementById('sortField').value);
 	var mask = document.getElementById('sortMask').value;
 	mask = mask.split('0x').join('');
 	sortField(field, mask, direction);
 }
 
-function divideOnField() {
+function UI_divideOnField() {
 	var field = parseInt(document.getElementById('divideField').value);
 	var mask = document.getElementById('divideMask').value
 	divideField(field, mask);
 }
 
-function changeView() {
+function UI_changeView() {
 	var view = document.getElementById('viewType').value
 	if (view == 'Hexadecimal') { hexView(); }
 	else if (view == 'Decimal') { decimalView(); }
 	else if (view == 'ASCII') { asciiView(); }
+}
+
+function UI_extractASCII() {
+	var start = parseInt(document.getElementById('extractStart').value);
+	var length = parseInt(document.getElementById('extractLength').value);
+	var packet = parseInt(document.getElementById('extractPacket').value);
+	extractASCII(start, length, packet);
+}
+
+function UI_extractHex() {
+	var start = parseInt(document.getElementById('extractStart').value);
+	var length = parseInt(document.getElementById('extractLength').value);
+	var packet = parseInt(document.getElementById('extractPacket').value);
+	extractHex(start, length, packet);
+}
+
+function UI_plotField() {
+	var field = parseInt(document.getElementById('plotField').value);
+	var format = parseInt(document.getElementById('plotFormat').value);
+	plotField(field, format);
 }
 
 function hexView(){
@@ -853,11 +1072,11 @@ function toggleColorMode() {
 		} 
 	});
 
-	if (colorMode == 'dark') { lightMode(); return null; }
-	if (colorMode == 'light') { darkMode(); return null; }
+	if (colorMode == 'dark') { UI_lightMode(); return null; }
+	if (colorMode == 'light') { UI_darkMode(); return null; }
 }
 
-function lightMode () {
+function UI_lightMode () {
 	colorMode = 'light'
 	styleDocs.forEach( function(style) {
 	style.setProperty('--background', 'var(--backgroundLight)');
@@ -881,7 +1100,7 @@ function lightMode () {
 	if (windows['PlotViewContainer']) {try {drawPlot();} catch {}}
 }
 
-function darkMode () {
+function UI_darkMode () {
 	colorMode = 'dark';
 	styleDocs.forEach( function(style) {
 	style.setProperty('--background', 'var(--backgroundDark)');
@@ -932,6 +1151,13 @@ function openToolbox(item) {
 // Helper functions
 // ------------------------------------------------------------------------------------------------
 
+ipNumbers = ['HOPOPT','ICMP','IGMP','GGP','IPv4','ST','TCP','CBT','EGP','IGP','BBN-RCC-MON','NVP-II','PUP','ARGUS (deprecated)','EMCON','XNET','CHAOS','UDP','MUX','DCN-MEAS','HMP','PRM','XNS-IDP','TRUNK-1','TRUNK-2','LEAF-1','LEAF-2','RDP','IRTP','ISO-TP4','NETBLT','MFE-NSP','MERIT-INP','DCCP','3PC','IDPR','XTP','DDP','IDPR-CMTP','TP++','IL','IPv6','SDRP','IPv6-Route','IPv6-Frag','IDRP','RSVP','GRE','DSR','BNA','ESP','AH','I-NLSP','SWIPE (deprecated)','NARP','MOBILE','TLSP','SKIP','IPv6-ICMP','IPv6-NoNxt','IPv6-Opts','','CFTP','','SAT-EXPAK','KRYPTOLAN','RVD','IPPC','','SAT-MON','VISA','IPCV','CPNX','CPHB','WSN','PVP','BR-SAT-MON','SUN-ND','WB-MON','WB-EXPAK','ISO-IP','VMTP','SECURE-VMTP','VINES','IPTM','NSFNET-IGP','DGP','TCF','EIGRP','OSPFIGP','Sprite-RPC','LARP','MTP','AX.25','IPIP','MICP (deprecated)','SCC-SP','ETHERIP','ENCAP','','GMTP','IFMP','PNNI','PIM','ARIS','SCPS','QNX','A/N','IPComp','SNP','Compaq-Peer','IPX-in-IP','VRRP','PGM','ANY-ZERO-HOP','L2TP','DDX','IATP','STP','SRP','UTI','SMP','SM (deprecated)','PTP','ISIS over IPv4','FIRE','CRTP','CRUDP','SSCOPMCE','IPLT','SPS','PIPE','SCTP','FC','RSVP-E2E-IGNORE','Mobility Header','UDPLite','MPLS-in-IP','manet','HIP','Shim6','WESP','ROHC','Ethernet','AGGFRAG','NSH']
+function protocolFromIpNumber(number) {
+	try { result = ipNumbers[number]; }
+	catch { result = number; }
+	return [result, number]
+}
+
 function decArray2bin(data) {
 	result = ''
 	data.forEach( function(b) { result += decByte2bin(b); });
@@ -965,51 +1191,13 @@ function hexArray2intArray(hexArray) {
 	return hexArray.map( function(e) { return parseInt(e, 16); })
 }
 
-
 // ------------------------------------------------------------------------------------------------
 
-function clearData() {
-	fields = [];
-	currentStream = 0;
-	streamIndex = ['0_$_Input_$_Packets'];
-	streamChildren = [[]];
-	formattedPackets = [];
-	formattedPacketsRaw = [];
-	packets = [[]];
-	asciiOn = false;
-	decimalOn = false;
-	fieldOn = false;
-	highlightConst = false;
-	
-	windows = {};
-	windows['ASCII'] = false;
-	windows['Hex'] = false;
-	windows['PlotView'] = false;
-	windows['ASCIIContainer'] = false;
-	windows['HexContainer'] = false;
-	windows['PlotViewContainer'] = false;
-	windowNames = ['ASCII', 'Hex', 'PlotView'];
-
-}
-
-function buildFromHex(hexInput) {
-	clearData();
-	var inputArray = [];
-	var inputPackets = hexInput.split('\n');
-	var i = 0;
-	inputPackets.forEach( function(inputPacket) {
-		inputPacket = inputPacket.split(' ');
-		inputPacket = hexArray2intArray(inputPacket);
-		inputArray.push([inputPacket, i]);
-		i++;
-	});	
-	packets[0] = inputArray;
-	populatePacketView();
-	populateStreamsView();
-	populateFieldsView();
-}
 
 function find(value) {
+	// Value is a string
+	// Written to find matches as displayed in the UI.
+	// Spaces are interpreted as field boundaries.
 	findValue = value;
 	if (value == '') { findOn = false } else { findOn = true; }
 	populatePacketView();
@@ -1364,13 +1552,15 @@ function divideField(field, mask) {
 	return null;
 }
 
-function extractASCII() {
-	var start = parseInt(document.getElementById('extractStart').value);
-	var length = parseInt(document.getElementById('extractLength').value);
+function extractASCII(start, length, packet) {
 	var output = [];
 	
-	for (var i=0; i < packets[currentStream].length; i++) {
-		output.push(...packets[currentStream][i][0].slice(start, start+length));
+	if (packet == -1) {
+		for (var i=0; i < packets[currentStream].length; i++) {
+			output.push(...packets[currentStream][i][0].slice(start, start+length));
+		}
+	} else {
+			output.push(...packets[currentStream][packet][0].slice(start, start+length));
 	}
 	
 	output = output.map( function (e) { return String.fromCharCode(e); });
@@ -1382,13 +1572,15 @@ function extractASCII() {
 }
 
 
-function extractHex() {
-	var start = parseInt(document.getElementById('extractStart').value);
-	var length = parseInt(document.getElementById('extractLength').value);
+function extractHex(start, length, packet) {
 	var output = [];
 
-	for (var i=0; i < packets[currentStream].length; i++) {
-		output.push(...packets[currentStream][i][0].slice(start, start+length));
+	if (packet == -1) {
+		for (var i=0; i < packets[currentStream].length; i++) {
+			output.push(...packets[currentStream][i][0].slice(start, start+length));
+		}
+	} else {
+			output.push(...packets[currentStream][packet][0].slice(start, start+length));
 	}
 	
 	output = intArray2hexArray(output);
@@ -1494,11 +1686,9 @@ function drawPlot() {
 plotData = null;
 plotDataMax = 0;
 plotDataMin = 9999999999999999;
-function plotField() {
+function plotField(field, format) {
 	plotDataMax = 0;
 	plotDataMin = 9999999999999999;
-	var field = parseInt(document.getElementById('plotField').value);
-	var format = parseInt(document.getElementById('plotFormat').value);
 	
 	openNewWindow('PlotView');
 	var plot = '<canvas id="plotCanvas">'
@@ -1539,7 +1729,6 @@ function plotField() {
 	
 }
 
-
 function updateUI() {
 	processFields();
 	fieldOn = true;
@@ -1558,7 +1747,6 @@ function addField(start, length, type, title, noUpdateUI) {
 	updateUI();
 }
 
-
 function deleteField(index) {
 	delete fields[currentStream][index];
 	processFields();
@@ -1566,7 +1754,6 @@ function deleteField(index) {
 	populatePacketView();
 	populateFieldsView();
 }
-
 
 function switchStream(stream) {
 	currentStream = streamIndex.indexOf(stream);
@@ -1597,7 +1784,6 @@ function deleteStreamChildren(streamName) {
 	streamChildren[streamNumber].forEach(deleteStream);
 }
 
-
 function mergeIntoStream(mergeStream) {
 	var streamNumber = streamIndex.indexOf(mergeStream);
 	
@@ -1621,7 +1807,6 @@ function mergeIntoStream(mergeStream) {
 	populateStreamsView();
 	switchStream(streamName);
 }
-
 
 function streamRow(i, depth) {
 	if (!streamIndex[i]) {return '';}
@@ -1690,199 +1875,6 @@ function processFields() {
 		formattedPacketsRaw.push(formattedPacketRaw);
 	}
 }
-
-
-function reverseNibbles(hexByte) {
-	return hexByte[1] + hexByte[0];
-}
-
-// Input / Output Processing
-// ---------------------------------------------------------------------------------------
-
-// Pre-build an array of hex values for lookup, faster than generating each value for
-// every byte:
-HEX = [];
-for (var i=0; i<256; i++) {
-	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
-}
-
-function readLSBFLength(intArray) {
-	return (intArray[0] * 1) + 
-		   (intArray[1] * 256) + 
-		   (intArray[2] * 65536) + 
-		   (intArray[3] * 16777216);
-}
-
-function intArray2hexString(intArray) {
-	result = '';
-	intArray.forEach( function(b) { result += HEX[b]; } );
-	return result;
-}
-
-function intArray2hexArray(intArray) {
-	return intArray.map( function (e) { return HEX[e]; } );
-}
-
-function intArray2asciiArray(intArray) {
-	return intArray.map( function (e) { return String.fromCharCode(e); } );
-}
-
-function number2LSFBArray(number, length) {
-	result = []
-	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
-	for (var i=0; i<number.length; i+=2) {
-		result.push( parseInt(number.substr(i,2), 16) );
-	}
-	return result.reverse();
-}
-
-function hexString2IntArray(hexString) {
-	var intArray = []
-	for (var i=0; i<hexString.length; i+=2) {
-		intArray.push( parseInt(hexString.substr(i,2), 16) );
-	}
-	return intArray;
-}
-
-function processInput(inputData) {
-	packets = [[]];
-
-	if (intArray2hexString(inputData.slice(0,4)) == 'd4c3b2a1') {
-		processInput_CAP(inputData);
-		populatePacketView();
-		loadingPage.style.visibility = 'hidden';
-		return null;
-	}
-	
-	if (intArray2hexString(inputData.slice(0,4)) == '0a0d0d0a') {
-		processInput_NextGen(inputData);
-		populatePacketView();
-		loadingPage.style.visibility = 'hidden';
-		return null;
-	}
-	
-}
-
-function readInput() {
-	loadingPage.style.visibility = 'unset';
-	var fr = new FileReader();
-    fr.onloadend = function () {
-    	var result = this.result;
-   	 	processInput(new Uint8Array(result));
-    };
-    fr.readAsArrayBuffer(this.files[0]);
-}
-
-
-// Next Gen PCAP File Parser
-// ---------------------------------------------------------------------------------------
-
-function processInput_NextGen(inputData) {
-	var s = 0;
-	var n = 0;
-	var maxPackets = 1000000;
-	while (s >= 0 && n < maxPackets) {
-		[s, packet] = processNextGenBlock(s, inputData);
-		if (packet) {
-			packets[currentStream].push([packet, n]);
-			n++;
-		}
-	}
-}
-
-function processNextGenEnhancedPacket(s, inputData) {
-	var capLen = readLSBFLength(inputData.slice(s+20,s+24));
-	return Array.from(inputData.slice(s+28,s+28+capLen));
-}
-
-function processNextGenSimplePacket(s, inputData) {
-	var capLen = readLSBFLength(inputData.slice(s+8,s+12));
-	return Array.from(inputData.slice(s+12,s+12+capLen));
-}
-
-function processNextGenBlock(s, inputData) {
-	var blockType = intArray2hexString(inputData.slice(s+0,s+4));
-	var blockLength = readLSBFLength(inputData.slice(s+4,s+8));
-	var packet = false;
-	
-	if ( blockType == '06000000' ) { packet = processNextGenEnhancedPacket(s, inputData); }
-	if ( blockType == '03000000' ) { packet = processNextGenSimplePacket(s, inputData); }
-	
-	if ( s+blockLength == inputData.length ) { s = -1; } 
-	else { s += blockLength }
-	
-	return [s, packet];
-}
-
-
-// CAP File Parser
-// ---------------------------------------------------------------------------------------
-
-function processCapBlock(inputData, s) {
-	packetLength = readLSBFLength(inputData.slice(s+8, s+12));
-	packet = Array.from(inputData.slice(s+16, s+16+packetLength));
-	if ( s+packetLength+16 == inputData.length ) { s = -1; }
-	else { s = s+packetLength+16 }
-	
-	return [s, packet]
-}
-
-function processInput_CAP(inputData) {
-	var maxPackets = 1000000;
-	var n = 0;
-	var s = 24;
-	while (s >= 0 && n < maxPackets) {
-		[s, packet] = processCapBlock(inputData, s);
-		packets[currentStream].push([packet, n]);
-		n++;
-	}
-}
-
-// CAP File Writer
-// ---------------------------------------------------------------------------------------
-
-function generateOutputBytes(linkType) {
-	linkNumber = linkTypes.indexOf(linkType);
-	linkNumber = linkTypeNumbers[linkNumber];
-	output = [];
-	output.push( ...[212, 195, 178, 161] );
-	output.push( ...[2, 0, 4, 0] );
-	output.push( ...[0,0,0,0] );
-	output.push( ...[0,0,0,0] );
-	output.push( ...[0,0,0,0] );
-	output.push( ...number2LSFBArray(linkNumber, 4) );
-	packets[currentStream].forEach( function (packet) {
-		output.push( ...[0,0,0,0] );
-		output.push( ...[0,0,0,0] );
-		output.push( ...number2LSFBArray(packet[0].length, 4) );
-		output.push( ...number2LSFBArray(packet[0].length, 4) );
-		output.push( ...packet[0] );
-	});
-	return new Uint8Array(output);
-}
-
-function generateOutput() {
-	list = document.getElementById("outputList");
-	linkType = document.getElementById("outputLinkType").value;
-
-	while (list.hasChildNodes()) {
-		list.removeChild(list.firstChild);
-	}
-
-	var d = new Date();
-	let time = d.getTime();
-
-	let link = document.createElement('a');
-	link.innerHTML = time + '_export.cap';
-	link.download = time + '_export.cap';
-	link.style = 'color: white;'
-	let bytes = generateOutputBytes(linkType);
-	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
-	link.href = URL.createObjectURL(blob);
-	list.appendChild(link);
-}
-
-// ---------------------------------------------------------------------------------------
 
 function findConstants() {
 	var constantValues = [];
@@ -2079,6 +2071,395 @@ function openNewWindow(name) {
 	}
 }
 
+
+// Input / Output Processing
+// ---------------------------------------------------------------------------------------
+
+// Pre-build an array of hex values for lookup, faster than generating each value for
+// every byte:
+HEX = [];
+for (var i=0; i<256; i++) {
+	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
+}
+
+function readLSBFLength(intArray) {
+	return (intArray[0] * 1) + 
+		   (intArray[1] * 256) + 
+		   (intArray[2] * 65536) + 
+		   (intArray[3] * 16777216);
+}
+
+function intArray2hexString(intArray) {
+	result = '';
+	intArray.forEach( function(b) { result += HEX[b]; } );
+	return result;
+}
+
+function intArray2hexArray(intArray) {
+	return intArray.map( function (e) { return HEX[e]; } );
+}
+
+function intArray2asciiArray(intArray) {
+	return intArray.map( function (e) { return String.fromCharCode(e); } );
+}
+
+function number2LSFBArray(number, length) {
+	result = []
+	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
+	for (var i=0; i<number.length; i+=2) {
+		result.push( parseInt(number.substr(i,2), 16) );
+	}
+	return result.reverse();
+}
+
+function hexString2IntArray(hexString) {
+	var intArray = []
+	for (var i=0; i<hexString.length; i+=2) {
+		intArray.push( parseInt(hexString.substr(i,2), 16) );
+	}
+	return intArray;
+}
+
+function processInput(inputData) {
+	packets = [[]];
+
+	if (intArray2hexString(inputData.slice(0,4)) == 'd4c3b2a1') {
+		processInput_CAP(inputData);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+	
+	if (intArray2hexString(inputData.slice(0,4)) == '0a0d0d0a') {
+		processInput_NextGen(inputData);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+	
+}
+
+function readInput() {
+	loadingPage.style.visibility = 'unset';
+	var fr = new FileReader();
+    fr.onloadend = function () {
+    	var result = this.result;
+   	 	processInput(new Uint8Array(result));
+    };
+    file = document.getElementById('browseOpen').files[0]
+    fr.readAsArrayBuffer(this.files[0]);
+}
+
+function reset() {
+	clearData();
+	readInput();
+}
+
+function clearData() {
+	fields = [];
+	currentStream = 0;
+	streamIndex = ['0_$_Input_$_Packets'];
+	streamChildren = [[]];
+	formattedPackets = [];
+	formattedPacketsRaw = [];
+	packets = [[]];
+	asciiOn = false;
+	decimalOn = false;
+	fieldOn = false;
+	highlightConst = false;
+	
+	windows = {};
+	windows['ASCII'] = false;
+	windows['Hex'] = false;
+	windows['PlotView'] = false;
+	windows['ASCIIContainer'] = false;
+	windows['HexContainer'] = false;
+	windows['PlotViewContainer'] = false;
+	windowNames = ['ASCII', 'Hex', 'PlotView'];
+}
+
+function buildFromHex(hexInput) {
+	clearData();
+	var inputArray = [];
+	var inputPackets = hexInput.split('\n');
+	var i = 0;
+	inputPackets.forEach( function(inputPacket) {
+		inputPacket = inputPacket.split(' ');
+		inputPacket = hexArray2intArray(inputPacket);
+		inputArray.push([inputPacket, i]);
+		i++;
+	});	
+	packets[0] = inputArray;
+	populatePacketView();
+	populateStreamsView();
+	populateFieldsView();
+}
+
+
+// Next Gen PCAP File Parser
+// ---------------------------------------------------------------------------------------
+
+function processInput_NextGen(inputData) {
+	var s = 0;
+	var n = 0;
+	var maxPackets = 1000000;
+	while (s >= 0 && n < maxPackets) {
+		[s, packet] = processNextGenBlock(s, inputData);
+		if (packet) {
+			packets[currentStream].push([packet, n]);
+			n++;
+		}
+	}
+}
+
+function processNextGenEnhancedPacket(s, inputData) {
+	var capLen = readLSBFLength(inputData.slice(s+20,s+24));
+	return Array.from(inputData.slice(s+28,s+28+capLen));
+}
+
+function processNextGenSimplePacket(s, inputData) {
+	var capLen = readLSBFLength(inputData.slice(s+8,s+12));
+	return Array.from(inputData.slice(s+12,s+12+capLen));
+}
+
+function processNextGenBlock(s, inputData) {
+	var blockType = intArray2hexString(inputData.slice(s+0,s+4));
+	var blockLength = readLSBFLength(inputData.slice(s+4,s+8));
+	var packet = false;
+	
+	if ( blockType == '06000000' ) { packet = processNextGenEnhancedPacket(s, inputData); }
+	if ( blockType == '03000000' ) { packet = processNextGenSimplePacket(s, inputData); }
+	
+	if ( s+blockLength == inputData.length ) { s = -1; } 
+	else { s += blockLength }
+	
+	return [s, packet];
+}
+
+
+// CAP File Parser
+// ---------------------------------------------------------------------------------------
+
+function processCapBlock(inputData, s) {
+	packetLength = readLSBFLength(inputData.slice(s+8, s+12));
+	packet = Array.from(inputData.slice(s+16, s+16+packetLength));
+	if ( s+packetLength+16 == inputData.length ) { s = -1; }
+	else { s = s+packetLength+16 }
+	
+	return [s, packet]
+}
+
+function processInput_CAP(inputData) {
+	var maxPackets = 1000000;
+	var n = 0;
+	var s = 24;
+	while (s >= 0 && n < maxPackets) {
+		[s, packet] = processCapBlock(inputData, s);
+		packets[currentStream].push([packet, n]);
+		n++;
+	}
+}
+
+// CAP File Writer
+// ---------------------------------------------------------------------------------------
+
+function generateOutputBytes(linkType) {
+	linkNumber = linkTypes.indexOf(linkType);
+	linkNumber = linkTypeNumbers[linkNumber];
+	output = [];
+	output.push( ...[212, 195, 178, 161] );
+	output.push( ...[2, 0, 4, 0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...number2LSFBArray(linkNumber, 4) );
+	packets[currentStream].forEach( function (packet) {
+		output.push( ...[0,0,0,0] );
+		output.push( ...[0,0,0,0] );
+		output.push( ...number2LSFBArray(packet[0].length, 4) );
+		output.push( ...number2LSFBArray(packet[0].length, 4) );
+		output.push( ...packet[0] );
+	});
+	return new Uint8Array(output);
+}
+
+function generateOutput() {
+	list = document.getElementById("outputList");
+	linkType = document.getElementById("outputLinkType").value;
+
+	while (list.hasChildNodes()) {
+		list.removeChild(list.firstChild);
+	}
+
+	var d = new Date();
+	let time = d.getTime();
+
+	let link = document.createElement('a');
+	link.innerHTML = time + '_export.cap';
+	link.download = time + '_export.cap';
+	link.style = 'color: white;'
+	let bytes = generateOutputBytes(linkType);
+	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
+	link.href = URL.createObjectURL(blob);
+	list.appendChild(link);
+}
+
+// ---------------------------------------------------------------------------------------
+
+
+function log(input) {
+	if(!input) {return null;}
+	outputArea = document.getElementById("consoleOutput");
+	outputArea.innerHTML += input;
+	outputArea.innerHTML += '\n';
+	outputArea.scrollTo(0, outputArea.scrollHeight);
+}
+
+function matchHighlight(matches) {
+	highlightBox = document.getElementById('highlightBox');
+	highlightBoxSelection = -1;
+	if (matches.length > 0) {
+		consolePosition = document.getElementById('consoleInput').getBoundingClientRect();
+		highlightBox.style.visibility = 'unset';
+		highlightBox.innerHTML = '<p style="border: 1px solid var(--borderColor)">' + matches.join('</p><p style="border: 1px solid var(--borderColor)">') + '</p>'	
+		highlightBox.style.top = consolePosition.bottom;
+		highlightBox.style.left = consolePosition.left + 3;
+	} else {
+		highlightBox.innerHTML = '';
+		highlightBox.style.visibility = 'hidden';
+	}
+}
+
+highlightBoxSelection = -1;
+function changeHighlightBoxSelection(direction) {
+	highlightBoxSelection += direction;
+	if(highlightBoxSelection < -1) { highlightBoxSelection = -1; }
+	for (var i=0; i<highlightBox.children.length; i++) {
+		if (i == highlightBoxSelection) {
+			highlightBox.children[i].style.background = 'var(--buttonbgHover)';
+		} else {
+			highlightBox.children[i].style.background = 'var(--buttonbg)';
+		}
+	}
+}
+
+consoleMemory = [];
+consoleMemoryPos = 0;
+function consoleInput(event) {
+	inputArea = document.getElementById("consoleInput");
+
+	if (event.keyCode === 9) {
+		event.preventDefault();
+		return null;
+	}
+
+	if (event.key === 'ArrowUp') {
+		if (highlightBox.style.visibility == 'unset') {
+			changeHighlightBoxSelection(-1)
+			return null;
+		}
+	
+		consoleMemoryPos++;
+		x = consoleMemory.length - consoleMemoryPos;
+		if (consoleMemory[x]) {
+			inputArea.value = consoleMemory[x];
+			inputArea.setSelectionRange(consoleMemory[x].length, consoleMemory[x].length);
+		} else {
+			consoleMemoryPos--;
+		}
+		return null;
+	}
+	
+	if (event.key === 'ArrowDown') {
+		if (highlightBox.style.visibility == 'unset') {
+			changeHighlightBoxSelection(1)
+			return null;
+		}
+	
+		consoleMemoryPos--;
+		x = consoleMemory.length - consoleMemoryPos;
+		if (consoleMemory[x]) {
+			inputArea.value = consoleMemory[x];
+		} else {
+			consoleMemoryPos = 0;
+			inputArea.value = '';
+		}
+		return null;
+	}
+
+	if (event.key === 'Enter') {
+		if (highlightBox.style.visibility == 'unset') {
+			try {
+				inputArea.value = highlightBox.children[highlightBoxSelection].innerHTML;
+				matchHighlight([]);
+				return null;
+			} catch (e) {}
+		}
+		
+		matchHighlight([]);
+	
+		geval = eval; // forces global scope for eval
+	
+		consoleMemory.push(inputArea.value);
+		log('> ' + inputArea.value);
+	
+		try { result = eval( inputArea.value );}
+		catch ( e ) { result = e; }
+	
+		log(result);
+		inputArea.value = '';
+		return null;
+	}
+	
+	input = inputArea.value;
+	matches = [];
+	if (input.length > 1) {
+		for (name in window) {
+			if (name.indexOf(input) === 0) {
+				matches.push(name);
+			}
+		}
+	}
+	matchHighlight(matches);
+}
+
+function evaluateCode() {
+	log('Evaluating Code:')
+	code = document.getElementById('codeAreaInput').value;
+	geval = eval; // forces global scope for eval
+	try { 
+		log( geval(code) );
+		log('Complete')
+	} catch ( e ) { 
+		log( e );
+	}
+}
+
+function catchTabKey(event) {
+	codeArea = document.getElementById('codeAreaInput');
+	consoleInput = document.getElementById('consoleInput');
+	if (document.activeElement == consoleInput) {
+		if (event.keyCode === 9 & highlightBox.style.visibility == 'unset') {
+			event.preventDefault();
+			try { inputArea.value = highlightBox.children[highlightBoxSelection].innerHTML; }
+			catch (e) { inputArea.value = highlightBox.children[0].innerHTML; }
+			matchHighlight([]);
+			return null;
+		}
+	}
+	
+	if (document.activeElement != codeArea) {
+		return null;
+	}
+	if (event.keyCode === 9) {
+		event.preventDefault();
+		start = codeArea.selectionStart;
+		end = codeArea.selectionEnd
+		codeArea.value = codeArea.value.substring(0,start) + '    ' + codeArea.value.substring(end,);
+		codeArea.setSelectionRange(end+4, end+4);
+	}
+}
+
 var loadingPage = null;
 var loadingText = null;
 function onLoad() {
@@ -2086,7 +2467,9 @@ function onLoad() {
 	populateTemplates();
 	populateLinkTypes();
 	document.getElementById("browseOpen").onchange = readInput;
-	document.getElementById("viewType").onchange = changeView;
+	document.getElementById("viewType").onchange = UI_changeView;
+	document.getElementById("consoleInput").addEventListener("keyup", consoleInput);
+	document.addEventListener("keydown", catchTabKey);
 	
 	loadingPage = document.getElementById('loadingPage');
 	loadingText = document.getElementById('loadingText2');
@@ -2458,6 +2841,7 @@ button:hover, input::file-selector-button:hover{
 |
 <button id="plotViewButton" onclick="openToolbox(&#39;plotView&#39;);">Plot View</button>
 <button id="extractButton" onclick="openToolbox(&#39;extract&#39;);">Extract</button>
+<button id="consoleButton" onclick="openToolbox(&#39;console&#39;);">Console</button>
 
 
 </div> <!-- start tool box -->
@@ -2494,7 +2878,7 @@ button:hover, input::file-selector-button:hover{
 	<td class="toolboxCell" colspan=2><textArea id='hexInput' style='border: 1px solid var(--borderColor); width: calc(100% + 2px);'></textarea></td>
 </tr>
 <tr>
-	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="buildFromHexUser();">Build</button></td>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="UI_buildFromHex();">Build</button></td>
 </tr>
 <tr>
 	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="help('buildFromHex');">Help</button></td>
@@ -2516,8 +2900,6 @@ button:hover, input::file-selector-button:hover{
 	<button type="button" onclick="fieldView()">Fields On/Off</button>
 	<button type="button" onclick="toggleHighlightConstants()">Highlight Constants</button>
 	
-	<button id="streamsButton" onclick="openNewWindow('Streams');">Streams Window</button>
-	
 	<button id="modeButton" onclick="toggleColorMode();">Light/Dark</button>
 	<button id="plusButton" onclick="increaseTableFontSize();">+</button>
 	<button id="minusButton" onclick="decreaseTableFontSize();">-</button>
@@ -2532,7 +2914,7 @@ button:hover, input::file-selector-button:hover{
 	<tr><td class="toolboxCell">Type:</td><td class="toolboxCell"><select id="fieldType"></select></td></tr>
 	<tr><td class="toolboxCell">Label:</td><td class="toolboxCell"><input type="text" id="fieldLabel"></td></tr>
 	<tr><td class="toolboxCell"></td><td class="toolboxCell">
-	<button style="width: calc(100% - 4px);" onclick="addFieldUser();">Add</button>
+	<button style="width: calc(100% - 4px);" onclick="UI_addField();">Add</button>
 	</td></tr>
 	</table>
 </div>
@@ -2551,7 +2933,7 @@ button:hover, input::file-selector-button:hover{
 	<tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="templateStartByte" min="0"></td></tr>
 	<tr><td class="toolboxCell">Template:</td><td class="toolboxCell"><select id="templateId"></select></td></tr>
 	<tr><td class="toolboxCell"></td><td class="toolboxCell">
-	<button style="width: calc(100% - 4px);" onclick="applyTemplate();">Apply</button>
+	<button style="width: calc(100% - 4px);" onclick="UI_applyTemplate();">Apply</button>
 	</td></tr>
 	</table>
 </div>
@@ -2570,7 +2952,7 @@ button:hover, input::file-selector-button:hover{
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnField();">Divide</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_divideOnField();">Divide</button></td>
 	</tr>
 	
 	<tr><td class="toolboxCell">&nbsp;</td></tr>
@@ -2594,7 +2976,7 @@ button:hover, input::file-selector-button:hover{
 
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="findUser();">Find</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_find();">Find</button></td>
 	</tr>
 	
 	<tr>
@@ -2619,12 +3001,12 @@ button:hover, input::file-selector-button:hover{
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(1);">Sort Ascending</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_sortOnField(1);">Sort Ascending</button></td>
 	</tr>
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnField(-1);">Sort Descending</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_sortOnField(-1);">Sort Descending</button></td>
 	</tr>
 	
 	<tr><td class="toolboxCell">&nbsp;</td></tr>
@@ -2678,7 +3060,7 @@ button:hover, input::file-selector-button:hover{
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="newByteUser();">Create</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_newByte();">Create</button></td>
 	</tr>
 	
 	</table>
@@ -2711,7 +3093,7 @@ button:hover, input::file-selector-button:hover{
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="dropBytesUser();">Drop bytes</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_dropBytes();">Drop bytes</button></td>
 	</tr>
 	
 	</table>
@@ -2744,7 +3126,7 @@ button:hover, input::file-selector-button:hover{
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="xorBytesUser();">XOR bytes</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_xorBytes();">XOR bytes</button></td>
 	</tr>
 	
 	</table>
@@ -2777,7 +3159,7 @@ button:hover, input::file-selector-button:hover{
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="reverseBytesUser();">Reverse bytes</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_reverseBytes();">Reverse bytes</button></td>
 	</tr>
 	
 	</table>
@@ -2799,13 +3181,18 @@ button:hover, input::file-selector-button:hover{
 	</tr>
 	
 	<tr>
-	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractASCII();">Extract as ASCII</button></td>
+	<td class="toolboxCell">Extract packet (-1 for all):</td>
+	<td class="toolboxCell"><input type="number" id="extractPacket" min=-1 value=-1></td>
 	</tr>
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="extractHex();">Extract as hex</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_extractASCII();">Extract as ASCII</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_extractHex();">Extract as hex</button></td>
 	</tr>
 	
 	</table>
@@ -2821,13 +3208,34 @@ button:hover, input::file-selector-button:hover{
 	</tr>
 	
 	<tr>
-	<td class="toolboxCell">Plot byte/field:</td>
+	<td class="toolboxCell">Plot Format (only for fields):</td>
 	<td class="toolboxCell"><input type="number" id="plotFormat" min=2 value=10></td>
 	</tr>
 	
 	<tr>
 	<td class="toolboxCell"></td>
-	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="plotField();">Plot</button></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_plotField();">Plot</button></td>
+	</tr>
+	
+	</table>
+	
+</div>
+
+<div id="console" class="closedToolbox">
+	<table style="width: 100%;">
+	
+	<tr>
+	<td style="width: 50%;" class="toolboxCell">
+	<p>Code Area:</p>
+	<p><textArea style="width: 100%; height: 20em; border: 1px solid var(--borderColor); text-wrap: nowrap; overflow: scroll;" id='codeAreaInput'></textArea></p>
+	<p><button style="width: 100%; margin-left: 0px;" onclick="evaluateCode();">Evaluate Code</button></p>
+	</td>
+	
+	<td style="width: 50%;" class="toolboxCell">
+	<p>Console:</p>
+	<p><textArea disabled style="width: 100%; height: 20em; border: 1px solid var(--borderColor);" id='consoleOutput'></textArea></p>
+	<p><input type="text" style="width: 100%; border: 1px solid var(--borderColor); margin-left: 0px;" id='consoleInput'></input></p>
+	</td>
 	</tr>
 	
 	</table>
@@ -2845,6 +3253,8 @@ button:hover, input::file-selector-button:hover{
 <p id='loadingText'>Loading...</p>
 <p id='loadingText2'></p>
 </div>
+
+<div id='highlightBox' style='position: absolute; z-index: 999; top: 0px; visibility: hidden; font-family: monospace; font-size: 10pt; background: var(--buttonbg);'></div>
 
 <script>
 document.onload = onLoad();
