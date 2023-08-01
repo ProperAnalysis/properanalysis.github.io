@@ -1,17 +1,60 @@
+
 <html>
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
 <title>bitView</title>
 <style>
 
 :root {
-    --background: #001928;
-    --midground: #191b18cc;
-    --bordercolor: #4E4E50;
-    --buttonbg: #003d5f;
-    --buttonbgHover: #0071ab;
-    --buttonbgSelected: #005f95;
-    --textcolor: #ffffff;
+
+    --backgroundLight: #ffffff;
+    --midgroundLight: #d5d5d5;
+    --borderColorLight: #8d8d8d;
+    --buttonbgLight: #e5e5e5;
+    --entrybgLight: #efefef;
+    --buttonbgHoverLight: #fdffd0;
+    --buttonbgSelectedLight: #fffac6;
+    --textColorLight: #000;
+    --tableHeadColorLight: #001279;
+    --tableHighlightColorLight: #aa0000;
+    --tableHighlightColorLight2: #008c00;
+    --cellColorLight: #e6e6e6;
+    --cellBorderLight: #9e9e9e;
+    --cellBorderStrongLight: #666;
+    --shadowColorLight: #aaa;
+    --tableTopLeftLight: #aaa;
+    
+    --backgroundDark: #303030;
+    --midgroundDark: #111111;
+    --borderColorDark: #4d4d4d;
+    --entrybgDark: #151515;
+    --buttonbgDark: #333333;
+    --buttonbgHoverDark: #a28f75;
+    --buttonbgSelectedDark: #818181;
+    --textColorDark: #fff;
+    --tableHeadColorDark: #ffa400;
+    --tableHighlightColorDark: #ff0000;
+    --tableHighlightColorDark2: #00ff00;
+    --cellColorDark: #050505;
+    --cellBorderDark: #606060;
+    --cellBorderStrongDark: #777;
+    --shadowColorDark: #000;
+    --tableTopLeftDark: #484848;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --buttonbg: var(--buttonbgDark);
+    --entrybg: var(--entrybgDark);
+    --buttonbgHover: var(--buttonbgHoverDark);
+    --buttonbgSelected: var(--buttonbgSelectedDark);
+    --textColor: var(--textColorDark);
+    --tableHeadColor: var(--tableHeadColorDark);
+    --tableHighlightColor: var(--tableHighlightColorDark);
+    --tableHighlightColor2: var(--tableHighlightColorDark2);
+    --cellColor: var(--cellColorDark);
+    --cellBorder: var(--cellBorderDark);
+    --cellBorderStrong: var(--cellBorderStrongDark);
+    --shadowColor: var(--shadowColorDark);
+    --tableTopLeft: var(--tableTopLeftDark);
 }
 
 *::-webkit-scrollbar {
@@ -54,7 +97,7 @@ div {
 	height: 100%;
 	font-family: helvetica;
 	font-size: 12pt;
-	color: var(--textcolor);
+	color: var(--textColor);
 	position: absolute;
 	display: flex;
 	flex-direction: column;
@@ -64,7 +107,7 @@ div {
 #topMenu {
 	height: auto;
     width: 100%;
-    margin-bottom: 10px;
+    margin-bottom: 5px;
     display: inline-block;
     flex-shrink: 0;
     flex-grow: 0;
@@ -77,12 +120,12 @@ div {
 	height: 20px;
 	width: auto;
 	float: left;
-	margin: 10px;
+	margin: 5px;
 	margin-right: 0px;
 	margin-bottom: 0px;
 	padding: 10px;
-	border: 1px var(--bordercolor) solid;
-	box-shadow: 0px 0px 5px 3px black;
+	border: 1px var(--borderColor) solid;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
 	z-index: 1;
 }
 
@@ -105,19 +148,19 @@ div {
 
 #bitRasterOuter {
 	background-color: var(--midground);
-	width: calc(100% - 40px);
+	width: calc(100% - 33px);
 	padding: 10px;
-	margin: 10px;
+	margin: 5px;
 	margin-top: 0px;
-	margin-bottom: 10px;
+	margin-bottom: 5px;
 	border-radius: 5px;
-	border: 1px var(--bordercolor) solid;
+	border: 1px var(--borderColor) solid;
 	flex-shrink: 1;
 	flex-grow: 1;
 	display: flex;
 	flex-direction: column;
 	max-height: 100%;
-	box-shadow: 0px 0px 5px 3px black;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
 }
 
 #bitRasterInner {
@@ -132,17 +175,17 @@ div {
 
 #bottomMenuContainer {
 	background-color: var(--midground);
-	width: calc(100% - 40px);
+	width: calc(100% - 33px);
 	height: fit-content;
 	padding: 10px;
-	margin: 10px;
+	margin: 5px;
 	margin-bottom: 0px;
 	border-radius: 5px;
 	overflow: hidden;
-	border: 1px var(--bordercolor) solid;
+	border: 1px var(--borderColor) solid;
 	flex-shrink: 0;
 	flex-grow: 0;
-	box-shadow: 0px 0px 5px 3px black;
+	box-shadow: 0px 0px 5px 3px var(--shadowColor);
 	z-index: 1;
 }
 
@@ -156,7 +199,7 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
 	background-color: var(--buttonbg);
 	border: 0px;
 	border-radius: 2px;
-	color: var(--textcolor);
+	color: var(--textColor);
 	margin: 2px;
 }
 
@@ -189,13 +232,13 @@ button:hover, input::file-selector-button:hover{
 
 <div id="bottomMenuContainer">
 <div id="bottomMenu">
-<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);">Input Select</button>
+<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);" style="">Input Select</button>
 <button id="findWidthButton" onclick="openToolbox(&#39;findWidth&#39;);">Find Width</button>
 <button id="columnBiasButton" onclick="openToolbox(&#39;columnBias&#39;);">Column Bias</button>
 <button id="asciiViewButton" onclick="openToolbox(&#39;asciiView&#39;); updateAsciiView();">ASCII View</button>
-<button id="hexViewButton" onclick="openToolbox(&#39;hexView&#39;); updateHexView();">Hex View</button>
+<button id="hexViewButton" onclick="openToolbox(&#39;hexView&#39;); updateHexView();" style="">Hex View</button>
 <button id="binaryViewButton" onclick="openToolbox(&#39;binaryView&#39;); updateBinaryView();">Binary View</button>
-<button id="operationsButton" onclick="openToolbox(&#39;operations&#39;)">Operations</button>
+<button id="operationsButton" onclick="openToolbox(&#39;operations&#39;)" style="">Operations</button>
 <button id="outputMenuButton" onclick="openToolbox(&#39;outputMenu&#39;);">Output</button>
 </div>
 
@@ -238,7 +281,8 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 </div>
 
 <div id="hexView" class="closedToolbox">
-<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: #fff; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: #fff; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E
+</textarea>
 </div>
 
 <div id="binaryView" class="closedToolbox">
@@ -262,15 +306,14 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
 </div>
 
-<div style="width 1px; height 1px; border: 1px solid var(--bordercolor);"></div>
+<div style="width 1px; height 1px; border: 1px solid var(--borderColor);"></div>
 
 <div id="operationsListContainer" style="width: 20%; height: 270px; overflow-y: scroll;">
 <p style="text-align: center;">Applied Operations</p>
-<div id="operationsList">
-</div>
+<div id="operationsList"></div>
 </div>
 
-<div style="width 1px; height 1px; border: 1px solid var(--bordercolor);"></div>
+<div style="width 1px; height 1px; border: 1px solid var(--borderColor);"></div>
 
 <div id="operationsConfig" style="#0000aa; width: 60%; height: 270px;">
 <p style="text-align: center;">Operation Configuration</p>
@@ -416,27 +459,18 @@ Row: <input type="text" id="cursorRow" value="0">
 Bit: <input type="text" id="cursorBit" value="0">
 </div>
 
-<div class="topMenuItem">
-Map: <select id="mapSelect" value="1-bit">
-<option value="1-bit">1-bit</option>
-<option value="2-bit">2-bit</option>
-<option value="4-bit">4-bit</option>
-<option value="8-bit">8-bit</option>
-</select>
-</div>
-
 </div>
 
 <div id="bitRasterOuter">
 <div id="bitRasterInner">
-<div id="outputSpacer" style="width: 1024px; height: 2004px;"></div>
-<canvas id="output" width="1869" height="811" style="border: 0px; position: absolute; z-index: 0; top: 126px; left: 21px;" onmousemove="getBitLocation(event)"></canvas>
+<div id="outputSpacer" style="width: 1024px; height: 15720px;"></div>
+<canvas id="output" width="1389" height="600" style="border: 0px; position: absolute; z-index: 0; top: 126.5px; left: 21px;" onmousemove="getBitLocation(event)"></canvas>
 </div>
 </div>
 
 </div>
 
-</body>
+
 
 <script>
 
@@ -656,13 +690,12 @@ const biasView = document.getElementById('biasView');
 const widthInput = document.getElementById('widthInput');
 const scaleInput = document.getElementById('scaleInput');
 const fileSelector = document.getElementById('fileSelector')
-const mapSelector = document.getElementById('mapSelect')
 const offsetInput = document.getElementById('offsetInput');
 const positionOutput = document.getElementById('position');
 const operationsListHTML = document.getElementById('operationsList');
 var operationsList = [];
 
-var bits = '1'.repeat(1000).split('').map(makeInt);
+var bits = Array(10000).fill(0);
 var bitsNoOp = [...bits];
 
 var mouseX = 0;
@@ -1307,7 +1340,6 @@ function getBitLocation(event) {
 
 	var width = parseInt(widthInput.value);
 	var scale = parseInt(scaleInput.value);
-	var map = mapSelector.value;
 	
 	var column = parseInt(x / scale);
 	var row = parseInt(y / scale);
@@ -1462,13 +1494,6 @@ function showColumnBiasGraph() {
 // function to update the bit raster
 
 function updateBitRaster() {
-	var map = mapSelector.value;
-	var base = 1;
-	var max = 1.0;
-	
-	if (map == "2-bit") { base = 2; max = 3.0}
-	if (map == "4-bit") { base = 4; max = 15.0}
-	if (map == "8-bit") { base = 8; max = 255.0}
 	
 	if (document.getElementById('hexView').className == 'openToolbox') {
 		updateHexView();
@@ -1495,7 +1520,6 @@ function updateBitRaster() {
 	var endX = startX + maxWidth;
 	var endY = startY + maxHeight;
 		
-	if (map == "1-bit") {
 		var width = parseInt(widthInput.value)
 		var scale = parseInt(scaleInput.value)
 		spacer.style.width = width * scale;
@@ -1506,40 +1530,30 @@ function updateBitRaster() {
 		output.style.left = output.parentElement.getBoundingClientRect()['x'];
 		var ctx = output.getContext("2d");
 		ctx.clearRect(0, 0, output.width, output.height);
+		ctx.fillStyle = '#fff';
+		ctx.fillRect(0,0,output.width, output.height);
+
 		var x = 0;
 		var y = 0;
 		var symbol = 0;
-		ctx.fillStyle = 'white';
-	
+		
+		maxX = 0;
+		
+		ctx.fillStyle = '#000';
 		for (var i = parseInt(offsetInput.value); i < bits.length; i++) {
-			if (startX < x && x < endX && startY < y && y < endY) {
+			if (startX <= x && x <= endX && startY <= y && y <= endY) {
 				if (bits[i] == 1) { ctx.rect(x-startX, y-startY, scale, scale); }
 			} 
 			x += scale;
 			if (x == (width*scale)) {y+=scale; x=0;}
+			if (x > maxX) {maxX = x;}
 		}
 		ctx.fill();
-	} else {
-		var width = parseInt(widthInput.value)
-		var scale = parseInt(scaleInput.value)
-		output.width = width * scale;
-		output.height = (parseInt(bits.length / width) * scale) + scale + scale;
-		var ctx = output.getContext("2d");
-		ctx.clearRect(0, 0, output.width, output.height);
-		var x = 0;
-		var y = 0;
-		var symbol = 0;
-	
-		for (var i = (startX * scale) + (startY * scale * width); i < bits.length; i+=base) {
-			if (startX < x && x < endX && startY < y && y < endY) {
-				symbol = parseFloat(parseInt(bits.slice(i, i+base).join(''), 2));
-				ctx.fillStyle = 'hsl(0,10%,' + ((symbol/max)*100) + '%)';
-				ctx.fillRect(x, y, scale*base, scale);
-			}
-			x += scale*base;
-			if (x == (width*scale)) {y+=scale; x=0;}
-		}
-	}
+		
+		ctx.fillStyle = '#222';
+		ctx.fillRect(maxX, 0, output.width, output.height);
+		ctx.fillRect(0, y-startY+scale, output.width, output.height);
+		ctx.fillRect(x-startX+scale, y-startY, output.width, output.height); 
 	
 }
 
@@ -1580,31 +1594,22 @@ fileSelector.addEventListener('change', event => {
 });
 
 // change width
-
 document.getElementById('widthInput').addEventListener('change', event => {
 	updateBitRaster();
 });
 
 // change scale
-
 document.getElementById('scaleInput').addEventListener('change', event => {
 	updateBitRaster();
 });
 
 // change offset
-
 document.getElementById('offsetInput').addEventListener('change', event => {
 	updateBitRaster();
 });
-
-// change map
-
-document.getElementById('mapSelect').addEventListener('change', event => {
-	updateBitRaster();
-});
-
 }
 
 </script>
 
-</html>
+
+</body></html>
