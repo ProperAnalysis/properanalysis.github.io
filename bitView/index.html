@@ -138,12 +138,13 @@ div {
 
 .openToolbox {
 	visibility: unset;
-	width 100%;
+	width: 100%;
 	height: auto;
 	margin-top: 5px;
 	padding-top: 5px;
 	max-height: 9001;
 	z-index: 1;
+	border: 1px solid var(--borderColor);
 }
 
 #bitRasterOuter {
@@ -164,7 +165,7 @@ div {
 }
 
 #bitRasterInner {
-	overflow: scroll;
+    overflow: scroll;
     height: 1;
     width: 100%;
     flex-shrink: 1;
@@ -202,6 +203,7 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
 	color: var(--textColor);
 	margin: 2px;
 	font-family: monospace;
+	font-size: 12pt;
 }
 
 input[type="number"], input[type="text"], select {
