@@ -25,8 +25,8 @@ function encap_HDLC_byteStuff(maxIdle) {
 	
 	packets[currentStream].forEach( function(packet) {
 		result.push( ...Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
-		result.push( ...escapeHDLC(packet[0]) );
-		result.push( ...crc16(packet[0]) );
+		result.push( ...escapeHDLC( packet[0]) );
+		result.push( ...crc16( packet[0]) );
 		result.push( ...Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
 	});
 	
@@ -43,13 +43,13 @@ function encap_HDLC_bitStuff(maxIdle) {
 	packets[currentStream].forEach( function(packet) {
 		binaryPacket = escapeHDLCBits( decArray2bin( packet[0] ) );
 		binaryCRC = decArray2bin( crc16( packet[0] ) );
-		preAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
-		postAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+		preAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill( 126 ) );
+		postAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill( 126 ) );
 		result.push( preAmble );
 		result.push( binaryPacket );
 		result.push( binaryCRC );
 		result.push( postAmble );
-	})
+	});
 	
 	return result.join('');
 }
@@ -595,6 +595,7 @@ templates.push(template_Frame_Relay_2_Byte);
 messages = {}
 messages['find'] = 'Will find and highlight all values within the packet view table which match the value to be found. Note that spaces are interpreted as byte/field boundaries. For example: 08 00 45 will find three byte sequences matching those values.'
 messages['buildFromHex'] = 'Builds a packet capture from a hex input. New line characters (\\n) are interpreted as breaks between packets. Spaces are interpreted as breaks between bytes. For example: AA BB CC\\nDD EE FF will produce two packets, each three bytes long.'
+messages['split'] = 'Joins every packet in the current stream together, then splits them up into new packets based on a hex value. The offset is used to either advance or rewind the split. For example: 08 00 45 would split on an Ethernet/IPv4 transition, to have 0x45 in byte zero, an offset of 2 would be needed. To instead rewind and keep the 12 bytes of MAC addresses, an offset of -12 would be needed.' 
 
 function help(type) {
 	alert(messages[type]);
@@ -1024,6 +1025,12 @@ function UI_plotField() {
 	plotField(field, format);
 }
 
+function UI_splitPackets() {
+	var splitValue = document.getElementById('splitValue').value
+	var splitOffset = parseInt( document.getElementById('splitOffset').value )
+	splitPackets(splitValue, splitOffset);
+}
+
 function hexView(){
 	asciiOn = false;
 	decimalOn = false;
@@ -1193,6 +1200,30 @@ function hexArray2intArray(hexArray) {
 
 // ------------------------------------------------------------------------------------------------
 
+function splitPackets(splitValue, splitOffset) {
+    var newPackets = [];
+    var data = getAllData();
+    var splitValueLen = splitValue.length / 2;
+    var splitValue = hexString2IntArray(splitValue).join('');
+    var packetNumber = 0;
+    var startPacket = 0;
+    var packet = [];
+    var x = 0;
+
+    while(x < data.length) {
+        if(data.slice(x, x+splitValueLen).join('') == splitValue) {
+            if(startPacket) {
+                newPackets.push( [data.slice(startPacket+splitOffset, x+splitOffset) , packetNumber] );
+                packetNumber++;
+            } 
+            startPacket = x
+        }
+        x++
+    }
+
+    packets[currentStream] = newPackets;
+    updateUI();
+}
 
 function find(value) {
 	// Value is a string
@@ -2038,6 +2069,44 @@ function reDrawTable() {
     packetTable.drawTable();	
 }
 
+function binaryWindow(data) {
+	openNewWindow('Binary');
+	
+	html = '<textarea style="height: calc(100% - 2em);" readonly>' + data + '</textarea>'
+	
+	windows['BinaryContainer'].innerHTML = html;
+	
+	var d = new Date();
+	let time = d.getTime();
+
+	let link = document.createElement('a');
+	link.innerHTML = time + '_HDLC.cap';
+	link.download = time + '_HDLC.cap';
+	link.style = 'color: white;'
+	let bytes = binaryString2bytes(data);
+	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
+	link.href = URL.createObjectURL(blob);
+	windows['BinaryContainer'].appendChild(link);
+}
+
+function binaryString2bytes(binaryString) {
+	var output = [];
+	var x = 0;
+	
+	while(x+8 < binaryString.length) {
+		output.push( parseInt( binaryString.substring(x,x+8),2) );
+		x+=8;
+	}
+	
+	padding = 8 - (binaryString.length - x);
+	if (padding > 0) {
+		output.push( parseInt( binaryString.substring(x,x+8) + ('0'.repeat(padding)) ,2) );
+		console.log( binaryString.substring(x,x+8) + ('0'.repeat(padding)) );
+	}
+	
+	return new Uint8Array(output);
+}
+
 function openNewWindow(name) {
 	if (!windows[name]) {
 		try {
@@ -2082,6 +2151,26 @@ for (var i=0; i<256; i++) {
 	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
 }
 
+function getAllDataAsBinary() {
+	return intArray2BinaryArray( getAllData() );
+}
+
+function intArray2BinaryArray(intArray) {
+	result = [];
+	intArray.forEach( function(bite) {
+		result.push( ...('00000000' + bite.toString(2)).substr(-8).split('') );
+	})
+	return result;
+}
+
+function getAllData() {
+	result = [];
+	packets[currentStream].forEach( function(packet) {
+		result.push( ...packet[0] )
+	})
+	return result
+}
+
 function readLSBFLength(intArray) {
 	return (intArray[0] * 1) + 
 		   (intArray[1] * 256) + 
@@ -2120,6 +2209,23 @@ function hexString2IntArray(hexString) {
 	return intArray;
 }
 
+function processInputRaw(inputData) {
+	packets = [[]];
+	var width = parseInt(document.getElementById('rawInitialWidth').value);
+	var x = 0;
+	var packetNumber = 0;
+	
+	while (x < inputData.length) {
+		packets[0].push( [ [], packetNumber] );
+		packets[0][packetNumber][0].push( ...inputData.slice(x, x+width) );
+		packetNumber++;
+		x+=width;
+	}
+	
+	populatePacketView();
+	loadingPage.style.visibility = 'hidden';
+}
+
 function processInput(inputData) {
 	packets = [[]];
 
@@ -2139,7 +2245,20 @@ function processInput(inputData) {
 	
 }
 
+function readInputRaw() {
+	inputType = readInputRaw;
+	loadingPage.style.visibility = 'unset';
+	var fr = new FileReader();
+    fr.onloadend = function () {
+    	var result = this.result;
+   	 	processInputRaw(new Uint8Array(result));
+    };
+    file = document.getElementById('browseOpenRaw').files[0]
+    fr.readAsArrayBuffer(file);
+}
+
 function readInput() {
+	inputType = readInput;
 	loadingPage.style.visibility = 'unset';
 	var fr = new FileReader();
     fr.onloadend = function () {
@@ -2147,12 +2266,34 @@ function readInput() {
    	 	processInput(new Uint8Array(result));
     };
     file = document.getElementById('browseOpen').files[0]
-    fr.readAsArrayBuffer(this.files[0]);
+    fr.readAsArrayBuffer(file);
 }
 
+storedInput = null;
+function buildFromHex(hexInput) {
+	inputType = buildFromHex
+	if(!hexInput) {hexInput=storedInput}
+	storedInput = hexInput; 
+	
+	var inputArray = [];
+	var inputPackets = hexInput.split('\n');
+	var i = 0;
+	inputPackets.forEach( function(inputPacket) {
+		inputPacket = inputPacket.split(' ');
+		inputPacket = hexArray2intArray(inputPacket);
+		inputArray.push([inputPacket, i]);
+		i++;
+	});	
+	packets[0] = inputArray;
+	populatePacketView();
+	populateStreamsView();
+	populateFieldsView();
+}
+
+inputType = null;
 function reset() {
 	clearData();
-	readInput();
+	inputType();
 }
 
 function clearData() {
@@ -2178,22 +2319,7 @@ function clearData() {
 	windowNames = ['ASCII', 'Hex', 'PlotView'];
 }
 
-function buildFromHex(hexInput) {
-	clearData();
-	var inputArray = [];
-	var inputPackets = hexInput.split('\n');
-	var i = 0;
-	inputPackets.forEach( function(inputPacket) {
-		inputPacket = inputPacket.split(' ');
-		inputPacket = hexArray2intArray(inputPacket);
-		inputArray.push([inputPacket, i]);
-		i++;
-	});	
-	packets[0] = inputArray;
-	populatePacketView();
-	populateStreamsView();
-	populateFieldsView();
-}
+
 
 
 // Next Gen PCAP File Parser
@@ -2838,6 +2964,7 @@ button:hover, input::file-selector-button:hover{
 <button id="dropBytesButton" onclick="openToolbox(&#39;dropBytes&#39;);">Drop Bytes</button>
 <button id="xorBytesButton" onclick="openToolbox(&#39;xorBytes&#39;);">XOR Bytes</button>
 <button id="reverseBytesButton" onclick="openToolbox(&#39;reverseBytes&#39;);">Reverse Bytes</button>
+<button id="splitButton" onclick="openToolbox(&#39;split&#39;);">Split</button>
 |
 <button id="plotViewButton" onclick="openToolbox(&#39;plotView&#39;);">Plot View</button>
 <button id="extractButton" onclick="openToolbox(&#39;extract&#39;);">Extract</button>
@@ -2849,23 +2976,20 @@ button:hover, input::file-selector-button:hover{
 <div id="inputMenu" class="closedToolbox">
 <table>
 <tr>
-	<td class="toolboxCell">File Open:</td><td class="toolboxCell"><input id="browseOpen" type="file"/></td>
+	<td class="toolboxCell">Open PCAP/CAP:</td><td class="toolboxCell"><input id="browseOpen" type="file"/></td>
 </tr>
 
 <tr><td class="toolboxCell">&nbsp;</td></tr>
 <tr style='border-top: 1px solid var(--borderColor);'><td class="toolboxCell">&nbsp;</td></tr>
 
 <tr>
-	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
+	<td class="toolboxCell">Open Raw:</td><td class="toolboxCell"><input id="browseOpenRaw" type="file"/></td>
 </tr>
 <tr>
-	<td class="toolboxCell">Link Type:</td><td class="toolboxCell"><select style="width: 100%;" id="outputLinkType"></select></td>
+	<td class="toolboxCell">Raw initial width:</td><td class="toolboxCell"><input id="rawInitialWidth" type="number" minimum=0/></td>
 </tr>
 <tr>
-	<td class="toolboxCell"></td><td class="toolboxCell"><button id="outputGenerateButton" style="width: 100%;" onclick="generateOutput();">Export</button></td>
-</tr>
-<tr>
-	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="readInputRaw();">Open</button></td>
 </tr>
 
 <tr><td class="toolboxCell">&nbsp;</td></tr>
@@ -2883,6 +3007,26 @@ button:hover, input::file-selector-button:hover{
 <tr>
 	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="help('buildFromHex');">Help</button></td>
 </tr>
+
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr style='border-top: 1px solid var(--borderColor);'><td class="toolboxCell">&nbsp;</td></tr>
+
+
+
+<tr>
+	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
+</tr>
+<tr>
+	<td class="toolboxCell">Link Type:</td><td class="toolboxCell"><select style="width: 100%;" id="outputLinkType"></select></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button id="outputGenerateButton" style="width: 100%;" onclick="generateOutput();">Export</button></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
+</tr>
+
+
 
 
 </table>
@@ -2982,6 +3126,31 @@ button:hover, input::file-selector-button:hover{
 	<tr>
 	<td class="toolboxCell"></td>
 	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="help('find');">Help</button></td>
+	</tr>
+	</table>
+	
+</div>
+
+<div id="split" class="closedToolbox">
+	<table>
+	<tr>
+	<td class="toolboxCell">Split On Value:</td>
+	<td class="toolboxCell"><input type='text' id='splitValue'></td>
+	</tr>
+
+	<tr>
+	<td class="toolboxCell">Offset:</td>
+	<td class="toolboxCell"><input type='text' id='splitOffset'></td>
+	</tr>
+
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_splitPackets();">Split</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="help('split');">Help</button></td>
 	</tr>
 	</table>
 	
