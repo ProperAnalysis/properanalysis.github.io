@@ -1,43 +1,50 @@
 
 <html>
-<title>bitView</title>
 <style>
 
 :root {
-
     --backgroundLight: #ffffff;
-    --midgroundLight: #d5d5d5;
+    --midgroundLight: #efefef;
     --borderColorLight: #8d8d8d;
     --buttonbgLight: #e5e5e5;
     --entrybgLight: #efefef;
-    --buttonbgHoverLight: #fdffd0;
-    --buttonbgSelectedLight: #fffac6;
+    --backgroundLight: #e2fcff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #2c2c2c;
+    --buttonbgLight: #e2fcff;
+    --entrybgLight: #ffffff;
+    --buttonbgHoverLight: #54fff5;
+    --buttonbgSelectedLight: #54fff5;
+    --buttonfgSelectedLight: #000;
     --textColorLight: #000;
-    --tableHeadColorLight: #001279;
-    --tableHighlightColorLight: #aa0000;
-    --tableHighlightColorLight2: #008c00;
-    --cellColorLight: #e6e6e6;
+    --tableHeadColorLight: #005861;
+    --tableHighlightColorLight: #910000;
+    --tableHighlightColorLight2: #84006c;
+    --cellColorLight: #ffffff;
     --cellBorderLight: #9e9e9e;
     --cellBorderStrongLight: #666;
-    --shadowColorLight: #aaa;
-    --tableTopLeftLight: #aaa;
+    --shadowColorLight: #fff;
+    --tableTopLeftLight: #fff;
+    --bitRasterBgLight: #efefef;
     
-    --backgroundDark: #303030;
-    --midgroundDark: #111111;
-    --borderColorDark: #4d4d4d;
-    --entrybgDark: #151515;
-    --buttonbgDark: #333333;
-    --buttonbgHoverDark: #a28f75;
-    --buttonbgSelectedDark: #818181;
-    --textColorDark: #fff;
-    --tableHeadColorDark: #ffa400;
-    --tableHighlightColorDark: #ff0000;
-    --tableHighlightColorDark2: #00ff00;
+    --backgroundDark: #092a30;
+    --midgroundDark: #000;
+    --borderColorDark: #bafbff;
+    --entrybgDark: #222;
+    --buttonbgDark: #003a2f;
+    --buttonbgHoverDark: #009a85;
+    --buttonbgSelectedDark: #00ffd1;
+    --buttonfgSelectedDark: #000;
+    --textColorDark: #ccfff8;
+    --tableHeadColorDark: #4bffc5;
+    --tableHighlightColorDark: #ff8383;
+    --tableHighlightColorDark2: #e78bff;
     --cellColorDark: #050505;
     --cellBorderDark: #606060;
     --cellBorderStrongDark: #777;
     --shadowColorDark: #000;
     --tableTopLeftDark: #484848;
+    --bitRasterBgDark: #222;
     
     --background: var(--backgroundDark);
     --midground: var(--midgroundDark);
@@ -46,6 +53,7 @@
     --entrybg: var(--entrybgDark);
     --buttonbgHover: var(--buttonbgHoverDark);
     --buttonbgSelected: var(--buttonbgSelectedDark);
+    --buttonfgSelected: var(--buttonfgSelectedDark);
     --textColor: var(--textColorDark);
     --tableHeadColor: var(--tableHeadColorDark);
     --tableHighlightColor: var(--tableHighlightColorDark);
@@ -55,29 +63,32 @@
     --cellBorderStrong: var(--cellBorderStrongDark);
     --shadowColor: var(--shadowColorDark);
     --tableTopLeft: var(--tableTopLeftDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --bitRasterBg: var(--bitRasterBgDark);
 }
 
 *::-webkit-scrollbar {
     -webkit-appearance: none;
 }
 *::-webkit-scrollbar:vertical {
-    width: 11px;
+    width: 5px;
 }
 *::-webkit-scrollbar:horizontal {
-    height: 11px;
+    height: 5px;
 }
 *::-webkit-scrollbar-thumb {
-    border-radius: 8px;
-    border: 2px solid var(--midground); /* should match background, can't be transparent */
-    background-color: rgba(255, 255, 255, 0.1);
+	border-radius: 3px;
+    border: 1px solid var(--borderColor);
+    background-Color: var(--buttonbg);
 }
 *::-webkit-scrollbar-track { 
-    background-color: var(--midground); 
-    border-radius: 8px; 
+	border-radius: 3px;
+    border: none;
+    background-Color: var(--midground);
 } 
 
 ::-webkit-scrollbar-corner {
-    background-color: var(--midground); 
+    background-Color: var(--midground); 
 }
 
 html, body {
@@ -105,28 +116,28 @@ div {
 
 
 #topMenu {
-    height: auto;
-    width: 100%;
-    margin-bottom: 5px;
-    display: inline-block;
+	height: auto;
+    width: calc(100% - 23px);
+    margin-top: 10px;
+    display: block;
     flex-shrink: 0;
     flex-grow: 0;
     z-index: 1;
+    margin-left: 10px;
+    background: var(--midground);
+    border-radius: 4px;
+    border: 1px solid var(--borderColor);
 }
 
 .topMenuItem {
-	background-color: var(--midground);
-	border-radius: 5px;
-	height: 20px;
-	width: auto;
-	float: left;
-	margin: 5px;
-	margin-right: 0px;
-	margin-bottom: 0px;
-	padding: 5px;
-	border: 1px var(--borderColor) solid;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
-	z-index: 1;
+    float: left;
+    margin: 5px;
+    padding: 5px;
+    padding-right: 15px;
+    border-right: 1px var(--borderColor) solid;
+    z-index: 1;
+    padding-top: 2px;
+    padding-bottom: 0px;
 }
 
 .closedToolbox {
@@ -137,31 +148,35 @@ div {
 }
 
 .openToolbox {
-	visibility: unset;
-	width: 100%;
-	height: auto;
-	margin-top: 5px;
-	padding-top: 5px;
-	max-height: 9001;
-	z-index: 1;
-	border: 1px solid var(--borderColor);
+    visibility: unset;
+    width: calc(100% - 5px);
+    height: auto;
+    margin: 0px;
+    padding: 5px;
+    padding-left: 0px;
+    max-height: 9001;
+    z-index: 1;
+    border-top: 1px solid var(--borderColor);
+    margin-top: 5px;
+    padding-bottom: 0px;
 }
 
 #bitRasterOuter {
-	background-color: var(--midground);
-	width: calc(100% - 33px);
-	padding: 10px;
-	margin: 5px;
-	margin-top: 0px;
-	margin-bottom: 5px;
-	border-radius: 5px;
-	border: 1px var(--borderColor) solid;
-	flex-shrink: 1;
-	flex-grow: 1;
-	display: flex;
-	flex-direction: column;
-	max-height: 100%;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
+    background-color: var(--midground);
+    width: calc(100% - 42px);
+    padding: 10px;
+    margin: 10px;
+    margin-top: 10px;
+    margin-bottom: 5px;
+    border-radius: 5px;
+    border: 1px var(--borderColor) solid;
+    flex-shrink: 1;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    margin-bottom: -10px;
+    padding-bottom: 20px;
 }
 
 #bitRasterInner {
@@ -176,18 +191,19 @@ div {
 
 #bottomMenuContainer {
 	background-color: var(--midground);
-	width: calc(100% - 33px);
-	height: fit-content;
-	padding: 5px;
-	margin: 5px;
-	margin-bottom: 0px;
-	border-radius: 5px;
-	overflow: hidden;
-	border: 1px var(--borderColor) solid;
-	flex-shrink: 0;
-	flex-grow: 0;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
-	z-index: 1;
+    width: calc(100% - 43px);
+    height: fit-content;
+    padding: 10px;
+    margin: 10px;
+    margin-bottom: 0px;
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px var(--borderColor) solid;
+    flex-shrink: 0;
+    flex-grow: 0;
+    z-index: 1;
+    margin-top: -10px;
+    padding-top: 20px;
 }
 
 #bottomMenu {
@@ -197,21 +213,27 @@ div {
 
 
 button, input::file-selector-button, input[type="number"], input[type="text"], select{
-	background-color: var(--buttonbg);
-	border: 0px;
+	background-Color: var(--entrybg);
+	border: 1px var(--borderColor) solid;
 	border-radius: 2px;
-	color: var(--textColor);
-	margin: 2px;
-	font-family: monospace;
-	font-size: 12pt;
+    Color: var(--textColor);
+    margin: 0px;
+    font-family: Monospace;
+    outline: none;
+    margin-bottom: 3px;
+}
+
+button {
+	background-Color: var(--buttonbg);
 }
 
 input[type="number"], input[type="text"], select {
-	width: 60pt;
+	width: 6em;
+	font-family: Monospace;
 }
 
 button:hover, input::file-selector-button:hover{
-	background-color: var(--buttonbgHover);
+	background-Color: var(--buttonbgHover);
 }
 
 .opsConfig {
@@ -224,6 +246,15 @@ button:hover, input::file-selector-button:hover{
 
 .opsConfigHidden {
 	display: none;
+}
+
+textArea {
+	resize: none;
+    background: var(--midground);
+    Color: var(--textColor);
+    border: none;
+    padding: 0px;
+    outline: none;
 }
 
 </style>
@@ -243,6 +274,7 @@ button:hover, input::file-selector-button:hover{
 <button id="binaryViewButton" onclick="openToolbox(&#39;binaryView&#39;); updateBinaryView();">Binary View</button>
 <button id="operationsButton" onclick="openToolbox(&#39;operations&#39;)" style="">Operations</button>
 <button id="outputMenuButton" onclick="openToolbox(&#39;outputMenu&#39;);">Output</button>
+<button id="outputMenuButton" onclick="toggleColorMode();">Light/Dark</button>
 </div>
 
 
@@ -271,7 +303,7 @@ Bits to Test: <input type="number" id="testBitsInput" value="100000">
 <div id="columnBias" class="closedToolbox">
 <canvas id="columnBiasGraph" width="1" height="155" style="border:0px; position: absolute; left: 20; z-index: 0; visibility: hidden; margin-bottom: 10px;"></canvas>
 <div id="spacer" style="width: 100%; height: 165px;"></div>
-<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: #fff; width: 100%; height: 100px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: auto; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 <div style="padding-top: 5px; padding-right: 10px;">
 Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button id="goColumnBiasButton" onclick="runColumnBias();">Go</button>
@@ -280,21 +312,20 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 
 <div id="asciiView" class="closedToolbox">
-<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: #fff; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled id="asciiViewOutput" style="font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="hexView" class="closedToolbox">
-<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: #fff; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E 7E
-</textarea>
+<textarea disabled id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="binaryView" class="closedToolbox">
-<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: #fff; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="operations" class="closedToolbox" style="overflow-y: hidden; overflow-x: hidden; display: -webkit-box;">
 
-<div id="operationTypes" style="width: 20%; height: 270px; padding-right: 5px; overflow-y: scroll;">
+<div id="operationTypes" style="width: 20%; overflow-y: scroll; height: 270px; padding-right: 5px; margin-right: 5px;">
 <p style="text-align: center;">Operations Menu</p>
 <button style="width: 100%;" onclick="addOperation(&#39;additiveScramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;, &#39;1&#39;, &#39;0&#39;, &#39;0&#39;]);">additiveScramble</button>
 <button style="width: 100%;" onclick="addOperation(&#39;feedThruScramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;]);">feedThruScramble</button>
@@ -309,16 +340,17 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
 </div>
 
-<div style="width 1px; height 1px; border: 1px solid var(--borderColor);"></div>
+<div style="width: 1px; background: var(--borderColor);"></div>
 
-<div id="operationsListContainer" style="width: 20%; height: 270px; overflow-y: scroll;">
+<div id="operationsListContainer" style="width: 20%; height: 270px; overflow-y: scroll; margin-left: 10px; margin-right: 5px;">
 <p style="text-align: center;">Applied Operations</p>
 <div id="operationsList"></div>
 </div>
 
-<div style="width 1px; height 1px; border: 1px solid var(--borderColor);"></div>
+<div style="width: 1px; background: var(--borderColor);"></div>
 
-<div id="operationsConfig" style="#0000aa; width: 60%; height: 270px;">
+
+<div id="operationsConfig" style="width: calc(60% - 15px); height: 270px;">
 <p style="text-align: center;">Operation Configuration</p>
 
 <div id="applyDeltaConfig" class="opsConfigHidden">
@@ -458,7 +490,7 @@ Column: <input type="text" id="cursorColumn" value="0">
 Row: <input type="text" id="cursorRow" value="0">
 </div>
 
-<div class="topMenuItem">
+<div class="topMenuItem" style="border: none;">
 Bit: <input type="text" id="cursorBit" value="0">
 </div>
 
@@ -466,8 +498,8 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 <div id="bitRasterOuter">
 <div id="bitRasterInner">
-<div id="outputSpacer" style="width: 1024px; height: 15720px;"></div>
-<canvas id="output" width="1389" height="600" style="border: 0px; position: absolute; z-index: 0; top: 126.5px; left: 21px;" onmousemove="getBitLocation(event)"></canvas>
+<div id="outputSpacer" style="width: 1024px; height: 42px;"></div>
+<canvas id="output" width="1396" height="669" style="border: 0px; position: absolute; z-index: 0; top: 94.5px; left: 16px;" onmousemove="getBitLocation(event)"></canvas>
 </div>
 </div>
 
@@ -476,6 +508,71 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 
 <script>
+
+var colorMode = 'dark';
+var styleDocs = [];
+var bitRasterBg = getComputedStyle(document.body).getPropertyValue('--bitRasterBg');
+var lineColor = getComputedStyle(document.body).getPropertyValue('--textColor');
+function toggleColorMode() {
+	styleDocs = [document.documentElement.style];
+	if (colorMode == 'dark') { UI_lightMode(); return null; }
+	if (colorMode == 'light') { UI_darkMode(); return null; }
+}
+
+function UI_lightMode () {
+	colorMode = 'light'
+	styleDocs.forEach( function(style) {
+	style.setProperty('--background', 'var(--backgroundLight)');
+	style.setProperty('--midground', 'var(--midgroundLight)');
+	style.setProperty('--borderColor', 'var(--borderColorLight)');
+	style.setProperty('--buttonbg', 'var(--buttonbgLight)');
+	style.setProperty('--entrybg', 'var(--entrybgLight)');
+	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverLight)');
+	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedLight)');
+	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedLight)');
+	style.setProperty('--textColor', 'var(--textColorLight)');
+	style.setProperty('--tableHeadColor', 'var(--tableHeadColorLight)');
+	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorLight)');
+	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorLight2)');
+	style.setProperty('--cellColor', 'var(--cellColorLight)');
+	style.setProperty('--cellBorder', 'var(--cellBorderLight)');
+	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongLight)');
+	style.setProperty('--shadowColor', 'var(--shadowColorLight)');
+	style.setProperty('--tableTopLeft', 'var(--tableTopLeftLight)');
+	style.setProperty('--bitRasterBg', 'var(--bitRasterBgLight)');
+	});
+	bitRasterBg = getComputedStyle(document.body).getPropertyValue('--bitRasterBg');
+	lineColor = getComputedStyle(document.body).getPropertyValue('--textColor');
+	updateBitRaster();
+}
+
+function UI_darkMode () {
+	colorMode = 'dark';
+	styleDocs.forEach( function(style) {
+	style.setProperty('--background', 'var(--backgroundDark)');
+	style.setProperty('--midground', 'var(--midgroundDark)');
+	style.setProperty('--borderColor', 'var(--borderColorDark)');
+	style.setProperty('--buttonbg', 'var(--buttonbgDark)');
+	style.setProperty('--entrybg', 'var(--entrybgDark)');
+	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverDark)');
+	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedDark)');
+	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedDark)');
+	style.setProperty('--textColor', 'var(--textColorDark)');
+	style.setProperty('--tableHeadColor', 'var(--tableHeadColorDark)');
+	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorDark)');
+	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorDark2)');
+	style.setProperty('--cellColor', 'var(--cellColorDark)');
+	style.setProperty('--cellBorder', 'var(--cellBorderDark)');
+	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongDark)');
+	style.setProperty('--shadowColor', 'var(--shadowColorDark)');
+	style.setProperty('--tableTopLeft', 'var(--tableTopLeftDark)');
+	style.setProperty('--bitRasterBg', 'var(--bitRasterBgDark)');
+	});
+	bitRasterBg = getComputedStyle(document.body).getPropertyValue('--bitRasterBg');
+	lineColor = getComputedStyle(document.body).getPropertyValue('--textColor');
+	updateBitRaster();
+}
+
 
 String.prototype.replaceAll = function(str1, str2, ignore) 
 {
@@ -708,12 +805,16 @@ document.onmousemove = function(event) {
         mouseY = event.pageY;
     };
 
-document.addEventListener("wheel", function(e){
-  // prevent the default scrolling event
+
+document.addEventListener("wheel", function(e) {
   var bounds = output.getBoundingClientRect()
   if (mouseY > bounds['top'] && mouseY < bounds['bottom'] && mouseX > bounds['left'] && mouseX < bounds['right']) {
-		output.parentElement.scrollBy(e.deltaX, e.deltaY);
-	}
+		if (event.shiftKey) {
+			output.parentElement.scrollBy(e.deltaY, 0);
+				} else {
+			output.parentElement.scrollBy(0, e.deltaY);
+				}
+		}
 });
 
 output.parentElement.onscroll = function (e) {  
@@ -1021,10 +1122,14 @@ function configureOperation(index) {
 	
 	for (let a=0; a < operationsList.length; a++) {
 		document.getElementById('configureButton' + a).style.backgroundColor = '';
+		document.getElementById('configureButton' + a).style.color = '';
+		
 	}
 	
 	document.getElementById('configureButton' + index).style.backgroundColor = 'var(--buttonbgSelected)';
+	document.getElementById('configureButton' + index).style.color = 'var(--buttonfgSelected)';
 	
+
 	var type = operationsList[index][0];
 	var args = operationsList[index][1];
 	var configObject = document.getElementById(type + 'Config');
@@ -1054,7 +1159,7 @@ function addToOpsListDisplay(item, index) {
 	"<button id='configureButton" + index  + "' style='width: calc(85% - 4px);'" +
 	"onclick='configureOperation(" + index + ")'" +
 	">" + item[0] + "</button>" +
-	"<button style='width: calc(15% - 4px);'" + 
+	"<button style='width: calc(10% - 4px); text-align: center; padding-left: 0px; padding-right: 0px; margin-left: 1px;'" + 
 	"onclick='removeOperation(" + index + ")'" +
 	">X</button>";
 }
@@ -1397,7 +1502,7 @@ function runColumnBias() {
 	
 	var ctx = graph.getContext("2d");
 	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.strokeStyle = "#fff";
+	ctx.strokeStyle = lineColor;
 	ctx.beginPath();feedThruScramble
 	for (var i = 0; i < results.length; i++) {
 		ctx.lineTo(i*pixPerResult, graph.height-(results[i][1]*graph.height));
@@ -1432,7 +1537,7 @@ function runFindWidth() {
 	
 	var ctx = graph.getContext("2d");
 	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.strokeStyle = "#fff";
+	ctx.strokeStyle = lineColor
 	ctx.beginPath();
 	for (var i = 0; i < widthResults.length; i++) {
 		ctx.lineTo(i*pixPerResult, graph.height-(widthResults[i][1]*pixPerScore)+floor);
@@ -1455,6 +1560,7 @@ function closeToolbox(item) {
 	}
 	
 	document.getElementById(item+"Button").style.backgroundColor = "";
+	document.getElementById(item+"Button").style.color = "";
 	document.getElementById(item).className = "closedToolbox";
 	//document.getElementById("bitRaster").className = "withClosedToolbox";
 	openBox = "none";
@@ -1468,6 +1574,7 @@ function openToolbox(item) {
 		if (openBox != "none") {closeToolbox(openBox);}
 		openBox = item;
 		document.getElementById(item+"Button").style.backgroundColor = "var(--buttonbgSelected)";
+		document.getElementById(item+"Button").style.color = "var(--buttonfgSelected)";
 		document.getElementById(item).className = "openToolbox";
 		//document.getElementById("bitRaster").className = "withOpenToolbox";
 		if (item == "findWidth") {
@@ -1514,17 +1621,20 @@ function updateBitRaster() {
 		runColumnBias();
 	}
 	
+	var width = parseInt(widthInput.value)
+	var scale = parseInt(scaleInput.value)
 	var maxWidth = output.parentElement.clientWidth;
 	var maxHeight = output.parentElement.clientHeight;
+	if (width * scale < maxWidth) {maxHeight+=15;}
+	if ( ((bits.length * scale) / width) < maxHeight ) {maxWidth+=5;}
+	
 	
 	var startX = output.parentElement.scrollLeft;
 	var startY = output.parentElement.scrollTop;
 	
 	var endX = startX + maxWidth;
 	var endY = startY + maxHeight;
-		
-		var width = parseInt(widthInput.value)
-		var scale = parseInt(scaleInput.value)
+
 		spacer.style.width = width * scale;
 		spacer.style.height = (parseInt(bits.length / width) * scale) + scale + scale;
 		output.width = maxWidth;
@@ -1553,7 +1663,8 @@ function updateBitRaster() {
 		}
 		ctx.fill();
 		
-		ctx.fillStyle = '#222';
+		
+		ctx.fillStyle = bitRasterBg;
 		ctx.fillRect(maxX, 0, output.width, output.height);
 		ctx.fillRect(0, y-startY+scale, output.width, output.height);
 		ctx.fillRect(x-startX+scale, y-startY, output.width, output.height); 
@@ -1613,6 +1724,5 @@ document.getElementById('offsetInput').addEventListener('change', event => {
 }
 
 </script>
-
 
 </body></html>
