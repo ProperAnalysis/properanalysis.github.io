@@ -1093,6 +1093,7 @@ function UI_lightMode () {
 	style.setProperty('--entrybg', 'var(--entrybgLight)');
 	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverLight)');
 	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedLight)');
+	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedLight)');
 	style.setProperty('--textColor', 'var(--textColorLight)');
 	style.setProperty('--tableHeadColor', 'var(--tableHeadColorLight)');
 	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorLight)');
@@ -1117,6 +1118,7 @@ function UI_darkMode () {
 	style.setProperty('--entrybg', 'var(--entrybgDark)');
 	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverDark)');
 	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedDark)');
+	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedDark)');
 	style.setProperty('--textColor', 'var(--textColorDark)');
 	style.setProperty('--tableHeadColor', 'var(--tableHeadColorDark)');
 	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorDark)');
@@ -1138,6 +1140,7 @@ var openBox = "none";
 
 function closeToolbox(item) {
 	document.getElementById(item+"Button").style.backgroundColor = "";
+	document.getElementById(item+"Button").style.color = "";
 	document.getElementById(item).className = "closedToolbox";
 	openBox = "none";
 }
@@ -1150,6 +1153,7 @@ function openToolbox(item) {
 		if (openBox != "none") {closeToolbox(openBox);}
 		openBox = item;
 		document.getElementById(item+"Button").style.backgroundColor = "var(--buttonbgSelected)";
+		document.getElementById(item+"Button").style.color = "var(--buttonfgSelected)";
 		document.getElementById(item).className = "openToolbox";
 	}
 	packetTable.drawTable();
@@ -1844,7 +1848,7 @@ function streamRow(i, depth) {
 
 	var text = streamIndex[i].split('_$_').slice(1,).join(': ') + ' (' + packets[i].length + ')';
 	var button = '<button onclick="switchStream(\'' + streamIndex[i] + '\');\">' + text + '</button>';
-	var selectedButton = '<button onclick="switchStream(\'' + streamIndex[i] + '\');" style="background: var(--buttonbgSelected);">' + text + '</button>';
+	var selectedButton = '<button onclick="switchStream(\'' + streamIndex[i] + '\');" style="background: var(--buttonbgSelected); color: var(--buttonfgSelected);">' + text + '</button>';
 	var deleteButton = '<button onclick="deleteStream(\'' + streamIndex[i] + '\');">X</button>';
 	var deleteChildrenButton = '<button onclick="deleteStreamChildren(\'' + streamIndex[i] + '\');">X&#x2193;</button>';
 	var mergeButton = '<button onclick="mergeIntoStream(\'' + streamIndex[i] + '\');">Y</button>';
@@ -2631,39 +2635,48 @@ function onLoad() {
 <style>
 
 :root {
-	--backgroundLight: #ffffff;
-    --midgroundLight: #d5d5d5;
+    --backgroundLight: #ffffff;
+    --midgroundLight: #efefef;
     --borderColorLight: #8d8d8d;
     --buttonbgLight: #e5e5e5;
     --entrybgLight: #efefef;
-    --buttonbgHoverLight: #fdffd0;
-    --buttonbgSelectedLight: #fffac6;
+    --backgroundLight: #e2fcff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #2c2c2c;
+    --buttonbgLight: #e2fcff;
+    --entrybgLight: #ffffff;
+    --buttonbgHoverLight: #54fff5;
+    --buttonbgSelectedLight: #54fff5;
+    --buttonfgSelectedLight: #000;
     --textColorLight: #000;
-    --tableHeadColorLight: #001279;
-    --tableHighlightColorLight: #aa0000;
-    --tableHighlightColorLight2: #008c00;
-    --cellColorLight: #e6e6e6;
+    --tableHeadColorLight: #005861;
+    --tableHighlightColorLight: #910000;
+    --tableHighlightColorLight2: #84006c;
+    --cellColorLight: #ffffff;
     --cellBorderLight: #9e9e9e;
     --cellBorderStrongLight: #666;
-    --shadowColorLight: #aaa;
-    --tableTopLeftLight: #aaa;
+    --shadowColorLight: #fff;
+    --tableTopLeftLight: #fff;
+    --bitRasterBgLight: #efefef;
     
-    --backgroundDark: #303030;
-    --midgroundDark: #111111;
-    --borderColorDark: #4d4d4d;
-    --entrybgDark: #151515;
-    --buttonbgDark: #333333;
-    --buttonbgHoverDark: #a28f75;
-    --buttonbgSelectedDark: #818181;
-    --textColorDark: #fff;
-    --tableHeadColorDark: #ffa400;
-    --tableHighlightColorDark: #ff0000;
-    --tableHighlightColorDark2: #00ff00;
+    --backgroundDark: #092a30;
+    --midgroundDark: #000;
+    --borderColorDark: #bafbff;
+    --entrybgDark: #222;
+    --buttonbgDark: #003a2f;
+    --buttonbgHoverDark: #009a85;
+    --buttonbgSelectedDark: #00ffd1;
+    --buttonfgSelectedDark: #000;
+    --textColorDark: #ccfff8;
+    --tableHeadColorDark: #4bffc5;
+    --tableHighlightColorDark: #ff8383;
+    --tableHighlightColorDark2: #e78bff;
     --cellColorDark: #050505;
     --cellBorderDark: #606060;
     --cellBorderStrongDark: #777;
     --shadowColorDark: #000;
     --tableTopLeftDark: #484848;
+    --bitRasterBgDark: #222;
     
     --background: var(--backgroundDark);
     --midground: var(--midgroundDark);
@@ -2672,6 +2685,7 @@ function onLoad() {
     --entrybg: var(--entrybgDark);
     --buttonbgHover: var(--buttonbgHoverDark);
     --buttonbgSelected: var(--buttonbgSelectedDark);
+    --buttonfgSelected: var(--buttonfgSelectedDark);
     --textColor: var(--textColorDark);
     --tableHeadColor: var(--tableHeadColorDark);
     --tableHighlightColor: var(--tableHighlightColorDark);
@@ -2681,25 +2695,28 @@ function onLoad() {
     --cellBorderStrong: var(--cellBorderStrongDark);
     --shadowColor: var(--shadowColorDark);
     --tableTopLeft: var(--tableTopLeftDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --bitRasterBg: var(--bitRasterBgDark);
 }
 
 *::-webkit-scrollbar {
     -webkit-appearance: none;
 }
 *::-webkit-scrollbar:vertical {
-    width: 1em;
+    width: 5px;
 }
 *::-webkit-scrollbar:horizontal {
-    height: 1em;
+    height: 5px;
 }
 *::-webkit-scrollbar-thumb {
-    border-radius: 8px;
-    border: 2px solid var(--midground); /* should match background, can't be transparent */
-    background-Color: var(--borderColor);
+	border-radius: 3px;
+    border: 1px solid var(--borderColor);
+    background-Color: var(--buttonbg);
 }
 *::-webkit-scrollbar-track { 
-    background-Color: var(--midground); 
-    border-radius: 8px; 
+	border-radius: 3px;
+    border: none;
+    background-Color: var(--midground);
 } 
 
 ::-webkit-scrollbar-corner {
@@ -2757,19 +2774,20 @@ textArea {
 
 
 #topMenuContainer {
-	background-Color: var(--midground);
-	width: calc(100% - 22px);
-	height: fit-content;
-	padding: 5px;
-	margin: 5px;
-	margin-bottom: 0px;
-	border-radius: 5px;
-	overflow: hidden;
-	border: 1px var(--borderColor) solid;
-	flex-shrink: 0;
-	flex-grow: 0;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
-	z-index: 1;
+    background-Color: var(--midground);
+    width: calc(100% - 43px);
+    height: fit-content;
+    padding: 10px;
+    margin: 0px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--borderColor);
+    flex-shrink: 0;
+    flex-grow: 0;
+    z-index: 1;
+    margin-top: -10px;
+    padding-top: 20px;
+    margin-left: 10px;
 }
 
 #topMenu {
@@ -2779,18 +2797,19 @@ textArea {
 
 
 #packetDisplayOuter {
-	background-Color: var(--midground);
-	width: calc(100% - 22px);
-	padding: 5px;
-	margin: 5px;
-	border-radius: 5px;
-	border: 1px var(--borderColor) solid;
-	flex-shrink: 1;
-	flex-grow: 1;
-	display: flex;
-	flex-direction: column;
-	max-height: 100%;
-	box-shadow: 0px 0px 5px 3px var(--shadowColor);
+    background-Color: var(--midground);
+    width: calc(100% - 29px);
+    padding: 3px;
+    margin: 10px;
+    border-radius: 4px;
+    border: 1px var(--borderColor) solid;
+    flex-shrink: 1;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    margin-bottom: -10px;
+    padding-bottom: 10px;
 }
 
 #packetDisplayInner {
@@ -2824,14 +2843,17 @@ textArea {
 }
 
 .openToolbox {
-	visibility: unset;
-	width 100%;
-	height: auto;
-	margin-top: 5px;
-	padding-top: 5px;
-	max-height: 9001;
-	z-index: 1;
-	border-top: 1px solid var(--borderColor);
+    visibility: unset;
+    width: calc(100% - 5px);
+    height: auto;
+    margin: 0px;
+    padding: 5px;
+    padding-left: 0px;
+    max-height: 9001;
+    z-index: 1;
+    border-top: 1px solid var(--borderColor);
+    margin-top: 5px;
+    padding-bottom: 0px;
 }
 
 html, body {
@@ -2869,7 +2891,6 @@ p {
 
 table {
 	text-wrap: nowrap;
-	font-size: 12pt;
 	position: relative;
 	border-collapse: collapse;
 	font-family: monospace;
@@ -2917,10 +2938,11 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
 	background-Color: var(--entrybg);
 	border: 1px var(--borderColor) solid;
 	border-radius: 2px;
-	Color: var(--textColor);
-	margin: 2px;
-	font-family: Monospace;
-	outline: none;
+    Color: var(--textColor);
+    margin: 0px;
+    font-family: Monospace;
+    outline: none;
+    margin-bottom: 3px;
 }
 
 button {
@@ -3402,7 +3424,7 @@ button:hover, input::file-selector-button:hover{
 	
 	<td style="width: 50%;" class="toolboxCell">
 	<p>Console:</p>
-	<p><textArea disabled style="width: 100%; height: 20em; border: 1px solid var(--borderColor);" id='consoleOutput'></textArea></p>
+	<p><textArea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" disabled style="width: 100%; height: 20em; border: 1px solid var(--borderColor);" id='consoleOutput'></textArea></p>
 	<p><input type="text" style="width: 100%; border: 1px solid var(--borderColor); margin-left: 0px;" id='consoleInput'></input></p>
 	</td>
 	</tr>
