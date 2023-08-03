@@ -471,7 +471,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <div id="topMenu">
 
 <div class="topMenuItem">
-Width: <input type="number" id="widthInput" value="512">
+Width: <input type="number" id="widthInput" value="1016">
 </div>
 
 <div class="topMenuItem">
@@ -795,7 +795,9 @@ const positionOutput = document.getElementById('position');
 const operationsListHTML = document.getElementById('operationsList');
 var operationsList = [];
 
-var bits = Array(10000).fill(0);
+var bits = Array(400000).fill(0);
+additiveScramble("0,1,8","No","1","0","0");
+feedThruScramble("0,1,7","No");
 var bitsNoOp = [...bits];
 
 var mouseX = 0;
