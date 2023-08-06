@@ -1,5 +1,7 @@
 
 <html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <style>
 
 :root {
@@ -312,15 +314,15 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 
 <div id="asciiView" class="closedToolbox">
-<textarea disabled id="asciiViewOutput" style="font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="hexView" class="closedToolbox">
-<textarea disabled id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="binaryView" class="closedToolbox">
-<textarea disabled id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="operations" class="closedToolbox" style="overflow-y: hidden; overflow-x: hidden; display: -webkit-box;">
@@ -471,7 +473,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <div id="topMenu">
 
 <div class="topMenuItem">
-Width: <input type="number" id="widthInput" value="1016">
+Width: <input type="number" id="widthInput" value="256">
 </div>
 
 <div class="topMenuItem">
@@ -498,8 +500,8 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 <div id="bitRasterOuter">
 <div id="bitRasterInner">
-<div id="outputSpacer" style="width: 1024px; height: 42px;"></div>
-<canvas id="output" width="1396" height="669" style="border: 0px; position: absolute; z-index: 0; top: 94.5px; left: 16px;" onmousemove="getBitLocation(event)"></canvas>
+<div id="outputSpacer" style="width: 2032px; height: 790px;"></div>
+<canvas id="output" width="1878" height="840" style="border: 0px; position: absolute; z-index: 0; top: 113px; left: 21px;" onmousemove="getBitLocation(event)"></canvas>
 </div>
 </div>
 
@@ -781,8 +783,6 @@ ByteReader.prototype = {
 
 };
 
-
-
 const status = document.getElementById('status');
 const output = document.getElementById('output');
 const spacer = document.getElementById('outputSpacer');
@@ -795,9 +795,8 @@ const positionOutput = document.getElementById('position');
 const operationsListHTML = document.getElementById('operationsList');
 var operationsList = [];
 
-var bits = Array(400000).fill(0);
-additiveScramble("0,1,8","No","1","0","0");
-feedThruScramble("0,1,7","No");
+var bits = Array(10000).fill(0);
+additiveScramble("0,1,7","No","1","0","0");
 var bitsNoOp = [...bits];
 
 var mouseX = 0;
@@ -876,7 +875,6 @@ function applyXOR(binaryString, offset) {
 	
 	if (offset < 0) {offset = binaryString.length - (offset % binaryString.length);}	
 	newBits = new Array(bits.length);
-	//console.log(binaryString, offset);
 	
 	for (let i = 0; i < bits.length; i++) {
 		newBits[i] = (bits[i] + binaryString[(i+offset) % binaryString.length]) % 2;
@@ -887,7 +885,6 @@ function applyXOR(binaryString, offset) {
 }
 
 function additiveScramble(taps, reversed, fill, length, rotation) {
-	//console.log(taps, reversed, fill, length, rotation);
 	taps = taps.split(',').map(makeInt);
 	var tapsRev = [];
 	var lastTap = taps.slice(-1)[0];
@@ -941,11 +938,8 @@ function additiveScramble(taps, reversed, fill, length, rotation) {
 	
 	}
 	
-	//console.log(output);
-	
 	rotation = parseInt(rotation);
 	if (rotation < 0) {rotation = output.length - (rotation % output.length);}	
-	//newBits = new Array(bits.length);
 	
 	for (let i = 0; i < bits.length; i++) {
 		bits[i] = (bits[i] + scramble[(i+rotation) % scramble.length]) % 2;
@@ -972,8 +966,6 @@ function feedThruScramble(taps, reversed) {
 	for (let a = 0; a < taps.length; a++) {
 		taps[a] = Math.abs(taps[a] - lastTap);
 	}
-	
-	//console.log(taps);
    
 	var bit = 0;
 	var offset = 0;
@@ -1191,7 +1183,6 @@ function runOperation(operation) {
 }
 
 function applyDelta(offset) {
-	//console.log(offset);
 	newBits = new Array(bits.length);
 	for (let i = 0; i < bits.length-1; i++) { 
 		newBits[i] = (bits[i] + bits[i+parseInt(offset)]) % 2;
@@ -1339,7 +1330,6 @@ function takeSkip(commandString) {
 
 
 function columnBias(width, checkBits) {
-	//var values = [];
 	var bias = 0;
 	var count = 0;
 	var total = 0;
@@ -1363,8 +1353,6 @@ function columnBias(width, checkBits) {
 	
 	delta = delta / width;
 	return delta / 0.5;
-	////console.log(delta);
-	//columnBiasArray = values;
 }
 
 function findWidth() {
@@ -1606,23 +1594,7 @@ function showColumnBiasGraph() {
 // function to update the bit raster
 
 function updateBitRaster() {
-	
-	if (document.getElementById('hexView').className == 'openToolbox') {
-		updateHexView();
-	}
-	
-	if (document.getElementById('asciiView').className == 'openToolbox') {
-		updateAsciiView();
-	}
-	
-	if (document.getElementById('binaryView').className == 'openToolbox') {
-		updateBinaryView();
-	}
-	
-	if (document.getElementById('columnBias').className == 'openToolbox') {
-		runColumnBias();
-	}
-	
+
 	var width = parseInt(widthInput.value)
 	var scale = parseInt(scaleInput.value)
 	var maxWidth = output.parentElement.clientWidth;
@@ -1703,6 +1675,7 @@ fileSelector.addEventListener('change', event => {
 		
 		bitsNoOp = [...bits]
 		updateBitRaster();
+		updateOtherDisplays();
 		
 	});
 	
@@ -1712,21 +1685,33 @@ fileSelector.addEventListener('change', event => {
 // change width
 document.getElementById('widthInput').addEventListener('change', event => {
 	updateBitRaster();
+	updateOtherDisplays();
 });
 
 // change scale
 document.getElementById('scaleInput').addEventListener('change', event => {
 	updateBitRaster();
+	updateOtherDisplays();
 });
 
 // change offset
 document.getElementById('offsetInput').addEventListener('change', event => {
 	updateBitRaster();
+	updateOtherDisplays();
 });
+
+}
+
+function updateOtherDisplays() {
+	if (document.getElementById('hexView').className == 'openToolbox') { updateHexView(); }
+	if (document.getElementById('asciiView').className == 'openToolbox') { updateAsciiView(); }
+	if (document.getElementById('binaryView').className == 'openToolbox') { updateBinaryView(); }
+	if (document.getElementById('columnBias').className == 'openToolbox') { runColumnBias(); }
 }
 
 document.onload = updateBitRaster();
 
 </script>
+
 
 </body></html>
