@@ -2,7 +2,2638 @@
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>bitView</title>
+<script>
+// Encapsulation functions:
+// Take each packet and encapsulate it within a protocol
+// Each function should work on packets[currentStream]
+// There is no way to run these through the UI - they are run through the console.
+// Not intended for most users, used for building up simulated packets.
+
+
+function escapeHDLCBytes(packet) {
+	escaped = [];
+	
+	packet.forEach( function (bite) {
+		if (bite == 126) { escaped.push( ...[125, 94] ); }
+		else if (bite == 125) { escaped.push( ...[125, 93] ); }
+		else { escaped.push(bite); }
+	});
+	
+	return escaped
+}
+
+function encap_HDLC_byteStuff(maxIdle) {
+	var result = [];
+	
+	packets[currentStream].forEach( function(packet) {
+		result.push( ...Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+		result.push( ...escapeHDLCBytes( packet[0]) );
+		result.push( ...crc16( packet[0]) );
+		result.push( ...Array( parseInt( Math.random() * maxIdle ) ).fill(126) );
+	});
+	
+	return decArray2bin(result);
+}
+
+function escapeHDLCBits(packet) {
+	return packet.replaceAll('11111', '111110');
+}
+
+function encap_HDLC_bitStuff(maxIdle) {
+	var result = [];
+
+	packets[currentStream].forEach( function(packet) {
+		binaryPacket = escapeHDLCBits( decArray2bin( packet[0] ) );
+		binaryCRC = decArray2bin( crc16( packet[0] ) );
+		preAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill( 126 ) );
+		postAmble = decArray2bin( Array( parseInt( Math.random() * maxIdle ) ).fill( 126 ) );
+		result.push( preAmble );
+		result.push( binaryPacket );
+		result.push( binaryCRC );
+		result.push( postAmble );
+	});
+	
+	return result.join('');
+}
+
+function encap_IP_MLPPP(MTU) {
+	pppHeader = hexString2IntArray('ff03003d');
+	ipHeader = hexString2IntArray('21');
+	
+	n = 0;
+	MTU = MTU - 8; // deduct header and FCS from MTU
+	
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+	// 128 64 32 16 8 4 2 1	
+		
+	if (packet[0].length > MTU) {
+		bytesLeft = packet[0].length;
+			
+		newPacket = [];
+		newPacket.push( ...pppHeader );
+		newPacket.push( 128 + (n % 64) );
+		newPacket.push( ...ipHeader );
+		newPacket.push( ...packet[0].slice(0, MTU) );
+		newPacket.push( ...crc16(newPacket) ); //Dummy CRC - need to fix this
+		newPackets.push( [newPacket, n] );
+		n++;
+			
+		position = MTU;
+		bytesLeft = packet[0].length - MTU;
+		while(bytesLeft > MTU) {
+			newPacket = [];
+			newPacket.push( ...pppHeader );
+			newPacket.push( (n % 64) ); // 00 + sequence
+			newPacket.push( ...packet[0].slice(position, position+MTU+1) );
+			newPacket.push( ...crc16(newPacket) ); //Dummy CRC - need to fix this
+			newPackets.push( [newPacket, n] );
+			n++;
+			position+=MTU+1; // Saved a byte by not putting the PPP number in each frame
+			bytesLeft-=(MTU+1);
+		}
+			
+		newPacket = [];
+		newPacket.push( ...pppHeader );
+		newPacket.push( 64 + (n % 64) ); // 01 + sequence
+		newPacket.push( ...packet[0].slice(position,) );
+		newPacket.push( ...crc16(newPacket) ); //Dummy CRC - need to fix this
+		newPackets.push( [newPacket, n] );
+		n++;
+			
+	} else {
+		newPacket = [];
+		newPacket.push( ...pppHeader );
+		newPacket.push( 192 + (n % 64) );
+		newPacket.push( ...ipHeader );
+		newPacket.push( ...packet[0] );
+		newPacket.push( ...crc16(newPacket) ); // Dummy CRC - need to fix this
+		newPackets.push( [newPacket, n] );
+		n++;
+	}
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+}
+
+// CRC function for use with the MLPPP encapsulator
+// buffer is a Uint8Array or just an array of integers
+// returns an integer array representing the CRC result
+function crc16(buffer) {
+    var crc = 0xFFFF;
+    var odd;
+
+    for (var i = 0; i < buffer.length; i++) {
+        crc = crc ^ buffer[i];
+
+        for (var j = 0; j < 8; j++) {
+            odd = crc & 0x0001;
+            crc = crc >> 1;
+            if (odd) {
+                crc = crc ^ 0x8408;
+            }
+        }
+    }
+    return hexString2IntArray(crc.toString(16));
+};
+
+function encap_IP_Frelay() {
+	// DLCI Mask is 1111 1100 1111 0000
+	// 102 is 1861  0001 1000 0110 0001
+	// 101 is 1851  0001 1000 0101 0001
+	ip2DLCI = {}
+	ip2DLCI['192.168.1.140'] = hexString2IntArray('1861');
+	ip2DLCI['192.168.1.194'] = hexString2IntArray('1851');
+	etherType = hexString2IntArray('0800');
+	
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+
+		destIP = packet[0].slice(16, 20).join('.');
+		
+		newPacket = [ ...ip2DLCI[destIP] ];
+		newPacket.push( ...etherType );
+		
+		newPacket.push( ...packet[0] );
+		newPackets.push( [ newPacket, packet[1] ] );
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+	
+}
+
+function encap_IP_Ethernet() {
+	ip2MAC = {}
+	ip2MAC['192.168.1.140'] = hexString2IntArray('11223300aaaa');
+	ip2MAC['192.168.1.194'] = hexString2IntArray('11223300bbbb');
+	etherType = hexString2IntArray('0800');
+
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+
+		sourceIP = packet[0].slice(12, 16).join('.');
+		destIP = packet[0].slice(16, 20).join('.');
+		
+		newPacket = [ ...ip2MAC[destIP] ];
+		newPacket.push( ...ip2MAC[sourceIP] );
+		newPacket.push( ...etherType );
+		
+		newPacket.push( ...packet[0] );
+		newPackets.push( [ newPacket, packet[1] ] );
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+}
+
+function encap_Ethernet() {
+	newPackets = [];
+	packets[currentStream].forEach( function (packet) {
+		sourceMAC = 'AABBCCDDEEFF';
+		destMAC = '001122334455'; 
+		etherType = '0800';
+		header = destMAC + sourceMAC + etherType;
+		newPacket = hexString2IntArray(header);
+		newPacket.push( ...packet[0] );
+		newPackets.push( [newPacket, packet[1]] )
+		
+	});
+	packets[currentStream] = newPackets;
+	updateUI();
+}
+
+
+// Field Functions:
+// Each function should take an array of fields (1 or more), and return array:
+// [display, raw]
+// display is the value to display on the screen.
+// raw is the value of the item for sorting purposes, an int if possible.
+// ----------------------------------------------------------------------------
+
+function ipv4Address(bytes) {	
+	result = bytes.join('.')
+	return [result, result];
+}
+
+function ipv6Address(bytes) {
+      [bytes, x]=hexField(bytes);
+      var interim=[];
+    var joined=[];
+      for (var i = 0; i < (bytes.length); i+=4) {
+      joined=[bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]];
+        interim.push(joined.join(''));
+      }
+    results=interim.join(':');
+    return[results, results];
+}
+
+function decimalMSBF(bytes) {
+	var result = 0;
+	bytes = bytes.reverse();
+	for (var i=0; i<bytes.length; i++) {
+		result += bytes[i] * (2 ** (8*i));
+	}
+	return [result.toString(), result];
+}
+
+function decimalLSByteF(bytes) {
+	var result = 0;
+	for (var i=0; i<bytes.length; i++) {
+		result += bytes[i] * (2 ** (8*i));
+	}
+	return [result.toString(), result];
+}
+
+function binaryJoin(bits) {
+	return bits.join('');
+}
+
+function binary(bytes) {
+	var result = '';
+	for (var i=0; i<bytes.length; i++) {
+		result += ('00000000' + bytes[i].toString(2)).substr(-8)
+	}
+	return [result, result];
+}
+
+function binary_NoPad(fields) {
+	var result = '';
+	fields.forEach (function (f) {
+		result += f.toString(2);
+	})
+	return [result, result];
+}
+
+function binaryVisual(bytes) {
+	var binary = '';
+	for (var i=0; i<bytes.length; i++) {
+		binary += ('00000000' + bytes[i].toString(2)).substr(-8)
+	}
+	result = binary.replaceAll('0','.').replaceAll('1','X');
+	return [result, binary];
+}
+
+function ascii(bytes) {
+	var result = '';
+	for (var i=0; i<bytes.length; i++) {
+		result += String.fromCharCode(bytes[i]);
+	}
+	return [result, result];
+}
+
+function macAddress(bytes) {
+	result = bytes.map( function (e) { return ('0'+e.toString(16)).substr(-2); });
+	result = result.join(':')
+	return [result, result];
+}
+
+function hexField(bytes) {
+	result = bytes.map( function (e) { return ('0'+e.toString(16)).substr(-2); });
+	result = result.join('');
+	return [result, result];
+}
+
+function decimalMSBF_fromBinary(bits) {
+	result = 0;
+	i = 0;
+	bits = bits.reverse();
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	return [result, result];
+}
+
+function decimalLSBF_fromBinary(bits) {
+	result = 0;
+	i = 0;
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	return [result, result];
+}
+
+function hexFieldFromBinary(bits) {
+	result = 0;
+	i = 0;
+	bits = bits.reverse();
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	string = ('0'.repeat(bits.length/4) + result.toString(16)).substr(bits.length / -4);
+	string = '0x' + string;
+	return [string, result];
+}
+
+function hexFieldFromBinary_NoPad(bits) {
+	result = 0;
+	i = 0;
+	bits = bits.reverse();
+	bits.forEach( function(b) {
+		result += (b * (2 ** i));
+		i++;
+	});
+	return [result.toString(16), result];
+}
+
+// Add all of the field functions to the fieldFunctions list.
+// This list is used to populate the UI.
+// ----------------------------------------------------------------------------
+
+fieldFunctions = [];
+fieldFunctions.push(ipv4Address);
+
+fieldFunctions.push(decimalMSBF);
+fieldFunctions.push(decimalLSByteF);
+fieldFunctions.push(binary);
+fieldFunctions.push(binary_NoPad);
+fieldFunctions.push(binaryVisual);
+fieldFunctions.push(macAddress);
+fieldFunctions.push(hexField);
+
+fieldFunctions.push(ascii);
+fieldFunctions.push(ipv6Address);
+fieldFunctions.push(hexFieldFromBinary);
+fieldFunctions.push(hexFieldFromBinary_NoPad);
+fieldFunctions.push(decimalMSBF_fromBinary);
+fieldFunctions.push(decimalLSBF_fromBinary);
+
+// Templates:
+// Each function should take a offset, the byte to start the template.
+// The template can then call any functions, using the offset to change
+// the starting point.
+// ----------------------------------------------------------------------------
+
+function template_Ethernet_802_3(offset) {
+	addField(0+offset, 6, macAddress, 'MAC Dest', true);
+	addField(6+offset, 6, macAddress, 'MAC Source', true);
+	addField(12+offset, 2, hexField, 'Ethertype', true);
+	updateUI();
+}
+
+function template_IPv4(offset) {
+	Byte_To_Bits_NoUpdate(offset);
+	Byte_To_Bits_NoUpdate(8+offset);
+	Byte_To_Bits_NoUpdate(20+offset);
+	Byte_To_Bits_NoUpdate(28+offset);
+	
+	addField(0+offset, 4, hexFieldFromBinary_NoPad, 'Ver', true);
+	addField(4+offset, 4, hexFieldFromBinary_NoPad, 'IHL', true);
+	addField(8+offset, 6, hexFieldFromBinary_NoPad, 'TOS', true);
+	addField(14+offset, 2, hexFieldFromBinary_NoPad, 'ECN', true);
+	
+	addField(16+offset, 2, decimalMSBF, 'Len', true);
+	addField(18+offset, 2, decimalMSBF, 'Id', true);
+	addField(20+offset, 1, binary_NoPad, '0', true);
+	addField(21+offset, 1, binary_NoPad, 'DF', true);
+	addField(22+offset, 1, binary_NoPad, 'MF', true);
+	addField(23+offset, 13, decimalMSBF, 'Frag Offset', true);
+	addField(36+offset, 1, decimalMSBF, 'TTL', true);
+	addField(37+offset, 1, decimalMSBF, 'PID', true);
+	addField(38+offset, 2, hexField, 'Checksum', true);
+	addField(40+offset, 4, ipv4Address, 'Source IP', true);
+	addField(44+offset, 4, ipv4Address, 'Dest IP', true);
+	updateUI();
+}
+
+function template_IPv4_with_protocols(offset) {
+	Byte_To_Bits_NoUpdate(offset);
+	Byte_To_Bits_NoUpdate(8+offset);
+	Byte_To_Bits_NoUpdate(20+offset);
+	Byte_To_Bits_NoUpdate(28+offset);
+	
+	addField(0+offset, 4, hexFieldFromBinary_NoPad, 'Ver', true);
+	addField(4+offset, 4, hexFieldFromBinary_NoPad, 'IHL', true);
+	addField(8+offset, 6, hexFieldFromBinary_NoPad, 'TOS', true);
+	addField(14+offset, 2, hexFieldFromBinary_NoPad, 'ECN', true);
+	
+	addField(16+offset, 2, decimalMSBF, 'Len', true);
+	addField(18+offset, 2, decimalMSBF, 'Id', true);
+	addField(20+offset, 1, binary_NoPad, '0', true);
+	addField(21+offset, 1, binary_NoPad, 'DF', true);
+	addField(22+offset, 1, binary_NoPad, 'MF', true);
+	addField(23+offset, 13, decimalMSBF, 'Frag Offset', true);
+	addField(36+offset, 1, decimalMSBF, 'TTL', true);
+	addField(37+offset, 1, protocolFromIpNumber, 'PID', true);
+	addField(38+offset, 2, hexField, 'Checksum', true);
+	addField(40+offset, 4, ipv4Address, 'Source IP', true);
+	addField(44+offset, 4, ipv4Address, 'Dest IP', true);
+	updateUI();
+}
+
+function template_TCP(offset) {
+	Byte_To_Bits_NoUpdate(8+offset);
+	Byte_To_Bits_NoUpdate(16+offset);
+
+	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+offset, 4, decimalMSBF, 'Sequence Number', true);
+	
+	addField(8+offset, 4, decimalMSBF_fromBinary, 'Len', true); //4 bits
+	addField(12+offset, 4, binaryJoin, '0000', true); //4 buts
+	
+	addField(16+offset, 1, binary_NoPad, 'CWR', true);
+	addField(17+offset, 1, binary_NoPad, 'ECE', true);
+	addField(18+offset, 1, binary_NoPad, 'URG', true);
+	addField(19+offset, 1, binary_NoPad, 'ACK', true);
+	addField(20+offset, 1, binary_NoPad, 'PSH', true);
+	addField(21+offset, 1, binary_NoPad, 'RST', true);
+	addField(22+offset, 1, binary_NoPad, 'SYN', true);
+	addField(23+offset, 1, binary_NoPad, 'FIN', true);
+	addField(24+offset, 2, decimalMSBF, 'Window Size', true);
+	addField(26+offset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+function template_TCP_Ack(offset) {
+	Byte_To_Bits_NoUpdate(12+offset);
+	Byte_To_Bits_NoUpdate(20+offset);
+
+	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+offset, 4, decimalMSBF, 'Sequence Number', true);
+	addField(8+offset, 4, decimalMSBF, 'Ack Number', true);
+	addField(12+offset, 4, decimalMSBF_fromBinary, 'Len', true); //4 bits
+	addField(16+offset, 4, binary_NoPad, '0000', true); //4 bits
+	addField(20+offset, 1, binary_NoPad, 'CWR', true);
+	addField(21+offset, 1, binary_NoPad, 'ECE', true);
+	addField(22+offset, 1, binary_NoPad, 'URG', true);
+	addField(23+offset, 1, binary_NoPad, 'ACK', true);
+	addField(24+offset, 1, binary_NoPad, 'PSH', true);
+	addField(25+offset, 1, binary_NoPad, 'RST', true);
+	addField(26+offset, 1, binary_NoPad, 'SYN', true);
+	addField(27+offset, 1, binary_NoPad, 'FIN', true);
+	addField(28+offset, 2, decimalMSBF, 'Window Size', true);
+	addField(30+offset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+function template_TCP_Option_Header(offset) {
+	addField(0+offset, 1, hexField, 'Opt Kind', true);
+	addField(1+offset, 1, hexField, 'Opt Len', true);
+	updateUI();
+}
+
+function template_ARP(offset) {
+	addField(0+offset, 2, decimalMSBF, 'HTYPE', true);
+	addField(2+offset, 2, hexField, 'PTYPE', true);
+	addField(4+offset, 1, decimalMSBF, 'HLEN', true);
+	addField(5+offset, 1, decimalMSBF, 'PLEN', true);
+	addField(6+offset, 2, decimalMSBF, 'OPER', true);
+	addField(8+offset, 6, macAddress, 'SHA', true);
+	addField(14+offset, 4, ipv4Address, 'SPA', true);
+	addField(18+offset, 6, macAddress, 'THA', true);
+	addField(24+offset, 4, ipv4Address, 'TPA', true);
+	updateUI();
+}
+
+function template_UDP(offset) {
+	addField(0+offset, 2, decimalMSBF, 'Source Port', true);
+	addField(2+offset, 2, decimalMSBF, 'Dest Port', true);
+	addField(4+offset, 2, decimalMSBF, 'Len', true);
+	addField(6+offset, 2, hexField, 'Checksum', true);
+	updateUI();
+}
+
+function template_DNS(offset) {
+	Byte_To_Bits_NoUpdate(2+offset);
+	Byte_To_Bits_NoUpdate(10+offset);
+
+	addField(0+offset, 2, hexField, 'ID', true);
+	addField(2+offset, 1, binary_NoPad, 'QR', true); 					// 1 bit
+	addField(3+offset, 4, decimalMSBF_fromBinary, 'OPCODE', true);		// 4 bits
+	addField(7+offset, 1, binary_NoPad, 'AA', true);					// 1 bit
+	addField(8+offset, 1, binary_NoPad, 'TC', true);					// 1 bit
+	addField(9+offset, 1, binary_NoPad, 'RD', true);					// 1 bit
+	addField(10+offset, 1, binary_NoPad, 'RA', true);					// 1 bit
+	addField(11+offset, 3, binary_NoPad, '000', true);					// 3 bits
+	addField(14+offset, 4, decimalMSBF_fromBinary, 'RCODE', true);		// 4 bits
+	addField(18+offset, 2, decimalMSBF, 'QDCOUNT', true);				// -------------
+	addField(20+offset, 2, decimalMSBF, 'ANCOUNT', true);				// total 16 bits
+	addField(22+offset, 2, decimalMSBF, 'NSCOUNT', true);
+	addField(24+offset, 2, decimalMSBF, 'ARCOUNT', true);
+	updateUI();
+	
+}
+
+function template_IPv6(offset) {
+      Byte_To_Bits_NoUpdate(offset);
+      Byte_To_Bits_NoUpdate(8+offset);
+      Byte_To_Bits_NoUpdate(16+offset);
+      Byte_To_Bits_NoUpdate(24+offset);
+      
+      addField(offset, 4, decimalMSBF_fromBinary, 'Ver', true);					// 4 bits
+      addField(4+offset, 6, hexFieldFromBinary_NoPad, 'DS', true);				// 6 bits
+      addField(10+offset, 2, hexFieldFromBinary_NoPad, 'ECN', true);			// 2 bits
+      addField(12+offset, 20, hexFieldFromBinary, 'Flow Label', true);			// 20 bits
+      addField(32+offset, 2, decimalMSBF, 'Len', true);					  // -------------
+      addField(34+offset, 1, hexField, 'Next Header', true);			  // total 32 bits
+      addField(35+offset, 1, decimalMSBF, 'Hop Lim', true);
+      addField(36+offset, 16, ipv6Address, 'Source IPv6', true);
+      addField(52+offset, 16, ipv6Address, 'Dest IPv6', true);
+      updateUI();
+}
+
+function Byte_To_Bits_NoUpdate(offset) {
+	newByte(offset+1, offset, 1, "01", "right", true);
+	newByte(offset+1, offset, 1, "02", "right", true);
+	newByte(offset+1, offset, 1, "04", "right", true);
+	newByte(offset+1, offset, 1, "08", "right", true);
+	newByte(offset+1, offset, 1, "10", "right", true);
+	newByte(offset+1, offset, 1, "20", "right", true);
+	newByte(offset+1, offset, 1, "40", "right", true);
+	newByte(offset+1, offset, 1, "80", "right", true);
+	dropBytes(offset, 1, false, true);
+	
+	addField(offset, 1, decimalMSBF, 'b0', true);
+	addField(offset+1, 1, decimalMSBF, 'b1', true);
+	addField(offset+2, 1, decimalMSBF, 'b2', true);
+	addField(offset+3, 1, decimalMSBF, 'b3', true);
+	addField(offset+4, 1, decimalMSBF, 'b4', true);
+	addField(offset+5, 1, decimalMSBF, 'b5', true);
+	addField(offset+6, 1, decimalMSBF, 'b6', true);
+	addField(offset+7, 1, decimalMSBF, 'b7', true);
+	
+}
+
+function template_Byte_To_Bits(offset) {
+	Byte_To_Bits_NoUpdate(offset)
+	updateUI();
+}
+
+function template_Frame_Relay_2_Byte(offset) {
+	newByte(offset, offset, 2, "FCF0", "right", true);
+	dropBytes(offset+2, 2, false, true);
+	addField(offset, 2, decimalMSBF, 'DLCI', true);
+	addField(offset+2, 2, hexField, 'Ethertype', true);
+	updateUI();
+}
+
+// Add all of the template functions to the templates list.
+// This list is used to populate the UI.
+// ----------------------------------------------------------------------------
+var templates = [];
+templates.push(template_Ethernet_802_3);
+templates.push(template_IPv4);
+templates.push(template_IPv4_with_protocols);
+templates.push(template_TCP);
+templates.push(template_TCP_Ack);
+templates.push(template_TCP_Option_Header);
+templates.push(template_ARP);
+templates.push(template_UDP);
+templates.push(template_DNS);
+templates.push(template_IPv6);
+templates.push(template_Byte_To_Bits);
+templates.push(template_Frame_Relay_2_Byte);
+
+// Help functions
+// Displays a message for the user depending on the help button pressed. 
+// ----------------------------------------------------------------------------
+
+messages = {}
+messages['find'] = 'Will find and highlight all values within the packet view table which match the value to be found. Note that spaces are interpreted as byte/field boundaries. For example: 08 00 45 will find three byte sequences matching those values.'
+messages['buildFromHex'] = 'Builds a packet capture from a hex input. New line characters (\\n) are interpreted as breaks between packets. Spaces are interpreted as breaks between bytes. For example: AA BB CC\\nDD EE FF will produce two packets, each three bytes long.'
+messages['split'] = 'Joins every packet in the current stream together, then splits them up into new packets based on a hex value. The offset is used to either advance or rewind the split. For example: 08 00 45 would split on an Ethernet/IPv4 transition, to have 0x45 in byte zero, an offset of 2 would be needed. To instead rewind and keep the 12 bytes of MAC addresses, an offset of -12 would be needed.' 
+
+function help(type) {
+	alert(messages[type]);
+}
+
+// ----------------------------------------------------------------------------
+
+class megaTable {
+
+	constructor() {
+		this.running = false;
+		this.container = null;
+		this.tableSpacer = null;
+		this.canvas = null;
+		
+		this.tableFontFace = "Monospace";
+		this.tableFont = "";
+		this.tableScaleY = 18;
+		this.tableScaleX = 11;
+		this.tablePadding = 5;
+		this.tableBorder = 2;
+		this.tableDataFontColor = '#FFF'
+		this.tableHeaderFontColor = '#ffa400';
+		this.tableCellColor = '#050505';
+		this.tableBorderColor = '#131313';
+		this.tableBorderColorStrong = '#202020';
+		this.tableTopLeftColor = '#131313';
+		
+		this.table = [];
+		this.columnHeaders = [];
+		this.rowHeaders = [];
+		this.columnWidths = [];
+		this.colorMask = [];
+		
+		this.rowHeaderWidth = 0;
+		this.tableWidth = 0;
+		this.tableHeight = 0;
+		this.mouseX = 0;
+		this.mouseY = 0;
+
+		this.id = Math.floor(Math.random() * 1990 ).toString(16)
+	}
+	
+	calculate() {
+		this.container.style = 'overflow: scroll;'
+		var HTML = '<div id="tableSpacer' + this.id + '">';
+		HTML += '<canvas width="1" height="1" id="tableView' + this.id + '" style="position: absolute; z-index: 0; filter: contrast(2)">';
+		HTML += '</canvas></div>';
+		
+		this.container.innerHTML = HTML;
+		this.tableFont = this.tableScaleY + 'px ' +  this.tableFontFace;
+		this.canvas = document.getElementById('tableView' + this.id);
+		this.tableSpacer = document.getElementById('tableSpacer' + this.id);
+		this.columnWidths = this.getColumnWidths();
+		this.rowHeaderWidth = this.getRowHeaderWidth();
+		this.tableWidth = this.getTableWidth() + this.getRowHeaderWidthPx();
+		this.tableHeight = this.getTableHeight() + this.getColumnHeaderHeightPx();
+		this.tableSpacer.style.width = this.tableWidth; 
+		this.tableSpacer.style.height = this.tableHeight;
+	}
+
+	getRowHeaderWidth() {
+		var rowHeaderWidth = 0;
+		for (var y=0; y<this.rowHeaders.length; y++) {
+			var width = this.rowHeaders[y].join(' ').length;
+			if (width > rowHeaderWidth) {rowHeaderWidth = width;}
+		}
+		return rowHeaderWidth;
+	}
+
+	getRowHeaderWidthPx() {
+		return (this.tablePadding*4) + (this.rowHeaderWidth * this.tableScaleX)
+	}
+
+	getColumnHeaderHeightPx() {
+		return (this.tablePadding*2) + (this.tableScaleY*2) + this.tableBorder;
+	}
+	
+	getColumnWidths() {
+		var columnWidths = [];
+
+		for (var x=0; x<this.columnHeaders.length; x++) {
+			if (this.columnHeaders[x][0].length > this.columnHeaders[x][1].length) {
+				columnWidths[x] = this.columnHeaders[x][0].length * this.tableScaleX;
+			} else {
+				columnWidths[x] = this.columnHeaders[x][1].length * this.tableScaleX;
+			}
+		}
+
+
+		for (var y=0; y<this.table.length; y++) {
+			for (var x=0; x<this.table[y].length; x++) {
+				if (this.table[y][x].length * this.tableScaleX > columnWidths[x] ) { columnWidths[x] = this.table[y][x].length * this.tableScaleX; }
+			}
+		}
+		return columnWidths;
+	}
+
+	drawTableRow(row, xOffset, yOffset, colorMaskRow) {
+
+		var ctx = this.canvas.getContext("2d");
+		ctx.font = this.tableFont;
+		ctx.textAlign = "center";
+
+		// draw cells
+		var xL = 0 + xOffset + this.tableBorder;
+		var yT = 0 + yOffset + this.tableBorder;
+		var xWidth = (this.tablePadding*2) + (this.rowHeaderWidth * this.tableScaleX);
+		var yHeight = this.tableScaleY + (this.tablePadding * 2);
+		ctx.fillStyle = this.tableCellColor;
+
+		for (var i=0; i<row.length; i++) {
+			xWidth = (this.columnWidths[i]) + (this.tablePadding * 2);
+			ctx.fillRect(xL, yT, xWidth, yHeight);
+			xL += (this.columnWidths[i]) + (this.tablePadding * 2) + this.tableBorder;
+		}
+
+		// draw text
+		var x = xOffset + 0 + this.tableBorder;
+		var y = yOffset + this.tablePadding + this.tableBorder;
+		y += this.tablePadding;
+		y += this.tableScaleY * 0.5;
+
+		for (var i=0; i<row.length; i++) {
+			x += this.tablePadding;
+			x += this.columnWidths[i] * 0.5;
+
+			if (colorMaskRow[i]) {
+				ctx.fillStyle = colorMaskRow[i];
+			} else {
+				ctx.fillStyle = this.tableDataFontColor;
+			}
+
+			ctx.fillText(row[i], x, y);
+			x += this.columnWidths[i] * 0.5;
+			x += this.tablePadding + this.tableBorder;
+			if (x > this.canvas.width) {break}
+		}
+		return yHeight + yOffset + this.tableBorder;
+	}
+
+	drawTableData(xOffset, yOffset, startRow, startColumn) {
+		yOffset = yOffset + ((this.tableScaleY + (this.tablePadding * 2) + this.tableBorder) * startRow);
+		for (var i=startRow; i<this.table.length; i++) {
+			yOffset = this.drawTableRow(this.table[i], xOffset, yOffset, this.colorMask[i]);
+			if (yOffset > this.canvas.height) {break}
+		}
+		return yOffset + this.tableBorder;
+	}
+
+	drawRowHeader(xOffset, yOffset, startRow) {
+		yOffset = yOffset + ((this.tableScaleY + (this.tablePadding * 2) + this.tableBorder) * startRow);
+		var ctx = this.canvas.getContext("2d");
+		ctx.font = this.tableFont;
+
+		// draw cells
+
+		var xL = 0 + xOffset;
+		var yT = 0 + yOffset + this.tableBorder;
+		var xWidth = (this.tablePadding*4) + (this.rowHeaderWidth * this.tableScaleX);
+		var yHeight = this.tableScaleY + (this.tablePadding * 2);
+		ctx.fillStyle = this.tableCellColor;
+
+		for (var i=startRow; i<this.rowHeaders.length; i++) {
+			ctx.fillRect(xL, yT, xWidth, yHeight);
+			yT += (this.tableScaleY) + (this.tablePadding * 2) + this.tableBorder;
+		}
+
+		// draw text
+
+		var y = yOffset + this.tablePadding + this.tableBorder;
+		var x0 = xOffset + this.tablePadding + this.tableBorder;
+		var x1 = xOffset + xWidth - this.tablePadding;
+		ctx.fillStyle = this.tableHeaderFontColor;
+
+		for (var i=startRow; i<this.rowHeaders.length; i++) {
+			y += this.tablePadding;
+			y += this.tableScaleY * 0.5;
+			ctx.textAlign = "left";
+			ctx.fillText(this.rowHeaders[i][0], x0, y);
+			ctx.textAlign = "right";
+			ctx.fillText(this.rowHeaders[i][1], x1, y);
+			y += this.tableScaleY * 0.5;
+			y += this.tablePadding + this.tableBorder;
+			if (y > this.canvas.height) {break}
+		}
+	}
+
+	drawColumnHeader(xOffset, yOffset) {
+		var ctx = this.canvas.getContext("2d");
+		ctx.font = this.tableFont;
+		ctx.textAlign = "center";
+		
+		// draw cells
+
+		var xL = xOffset + 0 + this.tableBorder;
+		var yT = yOffset + 0;
+		var xWidth = 0;
+		var yHeight = (this.tablePadding*2) + (this.tableScaleY*2);
+		ctx.fillStyle = this.tableCellColor;
+
+		for (var i=0; i<this.columnHeaders.length; i++) {
+			xWidth = (this.columnWidths[i]) + (this.tablePadding * 2);
+			ctx.fillRect(xL, yT, xWidth, yHeight);
+			xL += (this.columnWidths[i]) + (this.tablePadding * 2) + this.tableBorder;
+		}
+
+		// draw text
+
+		var x = xOffset + 0 + this.tableBorder;
+		var y0 = yOffset + (this.tablePadding * 2) + this.tableBorder + (this.tableScaleY/2);
+		var y1 = y0 + this.tableScaleY;
+		ctx.fillStyle = this.tableHeaderFontColor;
+
+		for (var i=0; i<this.columnHeaders.length; i++) {
+			x += this.tablePadding;
+			x += this.columnWidths[i] * 0.5;
+			ctx.fillText(this.columnHeaders[i][0], x, y0);
+			ctx.fillText(this.columnHeaders[i][1], x, y1);
+			x += this.columnWidths[i] * 0.5;
+			x += this.tablePadding + this.tableBorder;
+			if (x > this.canvas.width) {break}
+		}
+	}
+
+	getTableWidth() {
+		var width = 0;
+		for (var i=0; i<this.columnWidths.length; i++) {
+			width += (this.columnWidths[i]) + (this.tablePadding * 2) + this.tableBorder;
+		}
+		width += this.tableBorder;
+		return width;
+	}
+
+	getTableHeight() {
+		var height = 0;
+		height += this.tablePadding;
+		height += this.tableScaleY;
+		height += this.tablePadding + this.tableBorder;
+		height = height * this.rowHeaders.length
+		return height;
+	}
+	
+	drawTable() {
+		var maxWidth = this.container.clientWidth;
+		var maxHeight = this.container.clientHeight;
+		this.canvas.width = maxWidth;
+		this.canvas.height = maxHeight;
+		this.canvas.top = this.container.getBoundingClientRect()['y'];
+		this.canvas.left = this.container.getBoundingClientRect()['x'];
+
+		var ctx = this.canvas.getContext("2d");
+
+		var xOffset = (this.rowHeaderWidth * this.tableScaleX) + (this.tablePadding * 4);
+		var yOffset = (this.tablePadding*2) + (this.tableScaleY*2);
+
+		var blockTLwidth = xOffset + 0;
+		var blockTLheight = yOffset + 0;
+
+
+		var dataXoffset = xOffset - parseInt(this.container.scrollLeft);
+		var dataYoffset = yOffset - parseInt(this.container.scrollTop);
+
+		var startRow = -1 * parseInt((dataYoffset / this.tableHeight) * this.table.length) - 5;
+		var startColumn = -1 * parseInt(dataXoffset / this.tableWidth) - 5;
+
+		if (startRow < 0) {startRow = 0;}
+		if (startColumn < 0) {startColumn = 0;}
+
+		ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+		ctx.fillStyle = this.tableBorderColor;
+		ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+		yOffset = this.drawTableData(dataXoffset, dataYoffset, startRow, startColumn);
+
+		this.drawColumnHeader(dataXoffset, 0);
+		this.drawRowHeader(0, dataYoffset, startRow);
+
+		ctx.fillStyle = this.tableTopLeftColor;
+
+		ctx.fillRect(0,0, blockTLwidth, blockTLheight);
+		ctx.fillRect(0, yOffset, this.canvas.width, this.canvas.height);
+		
+		ctx.fillStyle = this.tableBorderColorStrong;
+		ctx.fillRect(blockTLwidth, 0, this.tableBorder, this.canvas.height) 
+		
+		ctx.fillStyle = this.tableBorderColorStrong;
+		ctx.fillRect(0, blockTLheight, this.canvas.width, this.tableBorder)
+		this.running = true;
+	}
+}
+
+var packetTable = false;
+var fields = [];
+var currentStream = 0;
+var streamIndex = ['0_$_Input_$_Packets'];
+var streamChildren = [[]];
+var formattedPackets = [];
+var formattedPacketsRaw = [];
+var packets = [[]];
+var asciiOn = false;
+var decimalOn = false;
+var fieldOn = false;
+var highlightConst = false;
+
+// Global list of windows and containers so that functions know where to find them.
+// Also so that the UI knows how to update them if dark/light mode is activated.
+var windows = {};
+windows['ASCII'] = false;
+windows['Hex'] = false;
+windows['PlotView'] = false;
+windows['ASCIIContainer'] = false;
+windows['HexContainer'] = false;
+windows['PlotViewContainer'] = false;
+windowNames = ['ASCII', 'Hex', 'PlotView'];
+
+// List of link types for the CAP file export function to use.
+linkTypes = ["NULL","ETHERNET","EXP_ETHERNET","AX25","PRONET","CHAOS","IEEE802_5","ARCNET_BSD","SLIP","PPP","FDDI","PPP_HDLC","PPP_ETHER","SYMANTEC_FIREWALL","ATM_RFC1483","RAW","C_HDLC","IEEE802_11","ATM_CLIP","FRELAY","LOOP","ENC","NETBSD_HDLC","LINUX_SLL","LTALK","PFLOG","IEEE802_11_PRISM","IP_OVER_FC","SUNATM","IEEE802_11_RADIOTAP","TZSP","ARCNET_LINUX","JUNIPER_MLPPP","JUNIPER_MLFR","JUNIPER_ES","JUNIPER_GGSN","JUNIPER_MFR","JUNIPER_ATM2","JUNIPER_SERVICES","JUNIPER_ATM1","APPLE_IP_OVER_IEEE1394","MTP2_WITH_PHDR","MTP2","MTP3","SCCP","DOCSIS","LINUX_IRDA","IBM_SP","IBM_SN","USER0","USER1","USER2","USER3","USER4","USER5","USER6","USER7","USER8","USER9","USER10","USER11","USER12","USER13","USER14","USER15","IEEE802_11_AVS","JUNIPER_MONITOR","BACNET_MS_TP","PPP_PPPD","JUNIPER_PPPOE","JUNIPER_PPPOE_ATM","GPRS_LLC","GPF_T","GPF_F","GCOM_T1E1","GCOM_SERIAL","JUNIPER_PIC_PEER","ERF_ETH","ERF_POS","LINUX_LAPD","JUNIPER_ETHER","JUNIPER_PPP","JUNIPER_FRELAY","JUNIPER_CHDLC","MFR","JUNIPER_VP","A429","A653_ICM","USB_FREEBSD","BLUETOOTH_HCI_H4","IEEE802_16_MAC_CPS","USB_LINUX","CAN20B","IEEE802_15_4_LINUX","PPI","IEEE802_16_MAC_CPS_RADIO","JUNIPER_ISM","IEEE802_15_4_WITHFCS","SITA","ERF","RAIF1","IPMB_KONTRON","JUNIPER_ST","BLUETOOTH_HCI_H4_WITH_PHDR","AX25_KISS","LAPD","PPP_WITH_DIR","C_HDLC_WITH_DIR","FRELAY_WITH_DIR","LAPB_WITH_DIR","IPMB_LINUX","FLEXRAY","MOST","LIN","X2E_SERIAL","X2E_XORAYA","IEEE802_15_4_NONASK_PHY","LINUX_EVDEV","GSMTAP_UM","GSMTAP_ABIS","MPLS","USB_LINUX_MMAPPED","DECT","AOS","WIHART","FC_2","FC_2_WITH_FRAME_DELIMS","IPNET","CAN_SOCKETCAN","IPV4","IPV6","IEEE802_15_4_NOFCS","DBUS","JUNIPER_VS","JUNIPER_SRX_E2E","JUNIPER_FIBRECHANNEL","DVB_CI","MUX27010","STANAG_5066_D_PDU","JUNIPER_ATM_CEMIC","NFLOG","NETANALYZER","NETANALYZER_TRANSPARENT","IPOIB","MPEG_2_TS","NG40","NFC_LLCP","PFSYNC","INFINIBAND","SCTP","USBPCAP","RTAC_SERIAL","BLUETOOTH_LE_LL","WIRESHARK_UPPER_PDU","NETLINK","BLUETOOTH_LINUX_MONITOR","BLUETOOTH_BREDR_BB","BLUETOOTH_LE_LL_WITH_PHDR","PROFIBUS_DL","PKTAP","EPON","IPMI_HPM_2","ZWAVE_R1_R2","ZWAVE_R3","WATTSTOPPER_DLM","ISO_14443","RDS","USB_DARWIN","OPENFLOW","SDLC","TI_LLN_SNIFFER","LORATAP","VSOCK","NORDIC_BLE","DOCSIS31_XRA31","ETHERNET_MPACKET","DISPLAYPORT_AUX","LINUX_SLL2","SERCOS_MONITOR","OPENVIZSLA","EBHSCR","VPP_DISPATCH","DSA_TAG_BRCM","DSA_TAG_BRCM_PREPEND","IEEE802_15_4_TAP","DSA_TAG_DSA","DSA_TAG_EDSA","ELEE","Z_WAVE_SERIAL","USB_2_0","ATSC_ALP","ETW","NETANALYZER_NG","ZBOSS_NCP","USB_2_0_LOW_SPEED","USB_2_0_FULL_SPEED","USB_2_0_HIGH_SPEED","AUERSWALD_LOG","ZWAVE_TAP","SILABS_DEBUG_CHANNEL","FIRA_UCI"]
+linkTypeNumbers = [0,1,2,3,4,5,6,7,8,9,10,50,51,99,100,101,104,105,106,107,108,109,112,113,114,117,119,122,123,127,128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,164,165,166,167,168,169,170,171,172,173,174,175,176,177,178,179,180,181,182,183,184,185,186,187,188,189,190,191,192,193,194,195,196,197,198,199,200,201,202,203,204,205,206,207,209,210,211,212,213,214,215,216,217,218,219,220,221,222,223,224,225,226,227,228,229,230,231,232,233,234,235,236,237,238,239,240,241,242,243,244,245,246,247,248,249,250,251,252,253,254,255,256,257,258,259,260,261,262,263,264,265,266,267,268,269,270,271,272,273,274,275,276,277,278,279,280,281,282,283,284,285,286,287,288,289,290,291,292,293,294,295,296,297,298,299]
+
+// UI functions - takes input from the UI and passes them to other functions.
+// Functions that should only be called by the UI are prefixed with UI_
+// All other functions can be called by the console and should work as expected.
+// ------------------------------------------------------------------------------------------------
+
+function UI_buildFromHex() {
+	var hexInput = document.getElementById('hexInput').value;
+	buildFromHex(hexInput);
+}
+
+function UI_reverseBytes() {
+	var start = parseInt(document.getElementById('reverseBytesStart').value);
+	var length = parseInt(document.getElementById('reverseBytesLength').value);
+	var type = document.getElementById('reverseBytesType').value;
+	var overwriteStream = eval(document.getElementById('reverseBytesOverwrite').value);
+	reverseBytes(start, length, type, overwriteStream);
+}
+
+function UI_xorBytes() {
+	var start = parseInt(document.getElementById('xorBytesStart').value);
+	var length = parseInt(document.getElementById('xorBytesLength').value);
+	var value = document.getElementById('xorBytesValue').value;
+	var overwriteStream = eval(document.getElementById('xorBytesOverwrite').value);
+	value = value.split('0x').join('');
+	xorBytes(start, length, value, overwriteStream);
+}
+
+function UI_dropBytes() {
+	var start = parseInt(document.getElementById('dropBytesStart').value);
+	var length = parseInt(document.getElementById('dropBytesLength').value);
+	var overwriteStream = eval(document.getElementById('dropBytesOverwrite').value);
+	var packetNumber = parseInt(document.getElementById('dropBytesPacketNumber').value);
+
+	if (packetNumber == -1) {
+		packetNumber = false;
+	}
+	
+	dropBytes(start, length, packetNumber, overwriteStream);
+}
+
+function UI_newByte() {
+	var at = parseInt(document.getElementById('newByteAt').value);
+	var start = parseInt(document.getElementById('newByteFromStart').value);
+	var length = parseInt(document.getElementById('newByteFromLength').value);
+	var mask = document.getElementById('newByteMask').value;
+	var align = document.getElementById('newByteAlign').value;
+	var overwriteStream = eval(document.getElementById('newByteOverwrite').value);
+	mask = mask.split('0x').join('');
+	newByte(at, start, length, mask, align, overwriteStream);
+}
+
+function UI_find() {
+	var value = document.getElementById('findValue').value;
+	find(value);
+}
+
+function UI_addField() {
+	var start = parseInt(document.getElementById('fieldStartByte').value);
+	var length = parseInt(document.getElementById('fieldLength').value);
+	var type = eval(document.getElementById('fieldType').value);
+	var label = document.getElementById('fieldLabel').value;
+	addField(start, length, type, label);
+}
+
+function UI_applyTemplate () {
+	var template = eval(document.getElementById('templateId').value);
+	var byteOffset = parseInt(document.getElementById('templateStartByte').value);
+	template(byteOffset);
+}
+
+function UI_sortOnField(direction) {
+	var field = parseInt(document.getElementById('sortField').value);
+	var mask = document.getElementById('sortMask').value;
+	mask = mask.split('0x').join('');
+	sortField(field, mask, direction);
+}
+
+function UI_divideOnField() {
+	var field = parseInt(document.getElementById('divideField').value);
+	var mask = document.getElementById('divideMask').value
+	divideField(field, mask);
+}
+
+function UI_changeView() {
+	var view = document.getElementById('viewType').value
+	if (view == 'Hexadecimal') { hexView(); }
+	else if (view == 'Decimal') { decimalView(); }
+	else if (view == 'ASCII') { asciiView(); }
+}
+
+function UI_extractASCII() {
+	var start = parseInt(document.getElementById('extractStart').value);
+	var length = parseInt(document.getElementById('extractLength').value);
+	var packet = parseInt(document.getElementById('extractPacket').value);
+	extractASCII(start, length, packet);
+}
+
+function UI_extractHex() {
+	var start = parseInt(document.getElementById('extractStart').value);
+	var length = parseInt(document.getElementById('extractLength').value);
+	var packet = parseInt(document.getElementById('extractPacket').value);
+	extractHex(start, length, packet);
+}
+
+function UI_plotField() {
+	var field = parseInt(document.getElementById('plotField').value);
+	var format = parseInt(document.getElementById('plotFormat').value);
+	plotField(field, format);
+}
+
+function UI_splitPackets() {
+	var splitValue = document.getElementById('splitValue').value
+	var splitOffset = parseInt( document.getElementById('splitOffset').value )
+	splitPackets(splitValue, splitOffset);
+}
+
+function hexView(){
+	asciiOn = false;
+	decimalOn = false;
+	processFields();
+	populatePacketView();
+}
+
+function decimalView() {
+	asciiOn = false;
+	decimalOn = true;
+	processFields();
+	populatePacketView();
+}
+
+function asciiView() {
+	decimalOn = false;
+	asciiOn = true;
+	processFields();
+	populatePacketView();
+}
+
+function fieldView() {
+	if (fieldOn) { fieldOn = false;} else {fieldOn = true;}
+	processFields();
+	populatePacketView();	
+}
+
+function toggleHighlightConstants() {
+	if (highlightConst) { highlightConst = false; } else { highlightConst = true; }
+	populatePacketView();
+}
+
+var colorMode = 'dark';
+var styleDocs = [];
+function toggleColorMode() {
+
+	styleDocs = [document.documentElement.style];
+	
+	windowNames.forEach( function(e) {
+		if (windows[e]) {
+			try {
+				styleDocs.push(windows[e].document.documentElement.style);
+			} catch {
+			
+			}
+		} 
+	});
+
+	if (colorMode == 'dark') { UI_lightMode(); return null; }
+	if (colorMode == 'light') { UI_darkMode(); return null; }
+}
+
+function UI_lightMode () {
+	colorMode = 'light'
+	styleDocs.forEach( function(style) {
+	style.setProperty('--background', 'var(--backgroundLight)');
+	style.setProperty('--midground', 'var(--midgroundLight)');
+	style.setProperty('--borderColor', 'var(--borderColorLight)');
+	style.setProperty('--buttonbg', 'var(--buttonbgLight)');
+	style.setProperty('--entrybg', 'var(--entrybgLight)');
+	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverLight)');
+	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedLight)');
+	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedLight)');
+	style.setProperty('--textColor', 'var(--textColorLight)');
+	style.setProperty('--tableHeadColor', 'var(--tableHeadColorLight)');
+	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorLight)');
+	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorLight2)');
+	style.setProperty('--cellColor', 'var(--cellColorLight)');
+	style.setProperty('--cellBorder', 'var(--cellBorderLight)');
+	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongLight)');
+	style.setProperty('--shadowColor', 'var(--shadowColorLight)');
+	style.setProperty('--tableTopLeft', 'var(--tableTopLeftLight)');
+	});
+	if (packetTable.running) {populatePacketView();}
+	if (windows['PlotViewContainer']) {try {drawPlot();} catch {}}
+}
+
+function UI_darkMode () {
+	colorMode = 'dark';
+	styleDocs.forEach( function(style) {
+	style.setProperty('--background', 'var(--backgroundDark)');
+	style.setProperty('--midground', 'var(--midgroundDark)');
+	style.setProperty('--borderColor', 'var(--borderColorDark)');
+	style.setProperty('--buttonbg', 'var(--buttonbgDark)');
+	style.setProperty('--entrybg', 'var(--entrybgDark)');
+	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverDark)');
+	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedDark)');
+	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedDark)');
+	style.setProperty('--textColor', 'var(--textColorDark)');
+	style.setProperty('--tableHeadColor', 'var(--tableHeadColorDark)');
+	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorDark)');
+	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorDark2)');
+	style.setProperty('--cellColor', 'var(--cellColorDark)');
+	style.setProperty('--cellBorder', 'var(--cellBorderDark)');
+	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongDark)');
+	style.setProperty('--shadowColor', 'var(--shadowColorDark)');
+	style.setProperty('--tableTopLeft', 'var(--tableTopLeftDark)');
+	});
+	if (packetTable.running) {populatePacketView();}
+	if (windows['PlotViewContainer']) { try {drawPlot();} catch {}}
+}
+
+// Toolbox handlers
+// ------------------------------------------------------------------------------------------------
+
+var openBox = "none";
+
+function closeToolbox(item) {
+	document.getElementById(item+"Button").style.backgroundColor = "";
+	document.getElementById(item+"Button").style.color = "";
+	document.getElementById(item).className = "closedToolbox";
+	openBox = "none";
+}
+
+
+function openToolbox(item) {
+	if (openBox == item) {
+		closeToolbox(openBox);
+	} else {
+		if (openBox != "none") {closeToolbox(openBox);}
+		openBox = item;
+		document.getElementById(item+"Button").style.backgroundColor = "var(--buttonbgSelected)";
+		document.getElementById(item+"Button").style.color = "var(--buttonfgSelected)";
+		document.getElementById(item).className = "openToolbox";
+	}
+	packetTable.drawTable();
+}
+
+// Helper functions
+// ------------------------------------------------------------------------------------------------
+
+ipNumbers = ['HOPOPT','ICMP','IGMP','GGP','IPv4','ST','TCP','CBT','EGP','IGP','BBN-RCC-MON','NVP-II','PUP','ARGUS (deprecated)','EMCON','XNET','CHAOS','UDP','MUX','DCN-MEAS','HMP','PRM','XNS-IDP','TRUNK-1','TRUNK-2','LEAF-1','LEAF-2','RDP','IRTP','ISO-TP4','NETBLT','MFE-NSP','MERIT-INP','DCCP','3PC','IDPR','XTP','DDP','IDPR-CMTP','TP++','IL','IPv6','SDRP','IPv6-Route','IPv6-Frag','IDRP','RSVP','GRE','DSR','BNA','ESP','AH','I-NLSP','SWIPE (deprecated)','NARP','MOBILE','TLSP','SKIP','IPv6-ICMP','IPv6-NoNxt','IPv6-Opts','','CFTP','','SAT-EXPAK','KRYPTOLAN','RVD','IPPC','','SAT-MON','VISA','IPCV','CPNX','CPHB','WSN','PVP','BR-SAT-MON','SUN-ND','WB-MON','WB-EXPAK','ISO-IP','VMTP','SECURE-VMTP','VINES','IPTM','NSFNET-IGP','DGP','TCF','EIGRP','OSPFIGP','Sprite-RPC','LARP','MTP','AX.25','IPIP','MICP (deprecated)','SCC-SP','ETHERIP','ENCAP','','GMTP','IFMP','PNNI','PIM','ARIS','SCPS','QNX','A/N','IPComp','SNP','Compaq-Peer','IPX-in-IP','VRRP','PGM','ANY-ZERO-HOP','L2TP','DDX','IATP','STP','SRP','UTI','SMP','SM (deprecated)','PTP','ISIS over IPv4','FIRE','CRTP','CRUDP','SSCOPMCE','IPLT','SPS','PIPE','SCTP','FC','RSVP-E2E-IGNORE','Mobility Header','UDPLite','MPLS-in-IP','manet','HIP','Shim6','WESP','ROHC','Ethernet','AGGFRAG','NSH']
+function protocolFromIpNumber(number) {
+	try { result = ipNumbers[number]; }
+	catch { result = number; }
+	return [result, number]
+}
+
+function decArray2bin(data) {
+	result = ''
+	data.forEach( function(b) { result += decByte2bin(b); });
+	return result;
+}
+
+function bin2decArray(data) {
+	result = [];
+	for (var i=0; i<data.length; i+=8) {
+		result.push( parseInt( data.substr(i, 8), 2) );
+	}
+	return result;
+}
+
+function decByte2bin(data) {
+	return ('00000000' + data.toString(2)).substr(-8);
+}
+
+function pad4(num) {
+    var s = "0000" + num;
+    return s.substr(-4);
+}
+
+function reverse(intByte) {
+	binary = decByte2bin(intByte)
+	binary = binary.split('').reverse().join('')
+	return parseInt(binary, 2);
+}
+
+function hexArray2intArray(hexArray) {
+	return hexArray.map( function(e) { return parseInt(e, 16); })
+}
+
+// ------------------------------------------------------------------------------------------------
+
+function splitPackets(splitValue, splitOffset) {
+    var newPackets = [];
+    var data = getAllData();
+    var splitValueLen = splitValue.length / 2;
+    var splitValue = hexString2IntArray(splitValue).join('');
+    var packetNumber = 0;
+    var startPacket = 0;
+    var packet = [];
+    var x = 0;
+
+    while(x < data.length) {
+        if(data.slice(x, x+splitValueLen).join('') == splitValue) {
+            if(startPacket) {
+                newPackets.push( [data.slice(startPacket+splitOffset, x+splitOffset) , packetNumber] );
+                packetNumber++;
+            } 
+            startPacket = x
+        }
+        x++
+    }
+
+    packets[currentStream] = newPackets;
+    updateUI();
+}
+
+function find(value) {
+	// Value is a string
+	// Written to find matches as displayed in the UI.
+	// Spaces are interpreted as field boundaries.
+	findValue = value;
+	if (value == '') { findOn = false } else { findOn = true; }
+	populatePacketView();
+}
+
+function reverseBytes(start, length, type, overwrite) {
+	if (!overwrite) {
+		var streamName = currentStream + '_$_Reverse_$_' + start + '-' + (start + length);
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+	for (var i=0; i<packets[currentStream].length; i++) {
+		newBytes = packets[currentStream][i][0].slice(start, start+length);
+
+		if (type == 'each byte') {
+			for (var x=0; x<newBytes.length; x++) {
+				newBytes[x] = reverse(newBytes[x]);
+			}
+		} else {
+			newBytes = newBytes.reverse();
+		}
+
+		packet = packets[currentStream][i][0].slice(0, start);
+		packet.push(...newBytes);
+		packet.push(...packets[currentStream][i][0].slice(start+length,));
+		
+		newPackets.push([packet, packets[currentStream][i][1]]);
+	}
+
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function xorBytes(start, length, value, overwrite) {
+	if (!overwrite) {
+		var streamName = currentStream + '_$_XOR_$_' + value;
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+	var mask = [];
+	for (var i=0; i<length; i++) {
+		mask.push( parseInt( value.substr( (i*2) % value.length, 2 ), 16 ) );
+	}
+	console.log(mask);
+
+	for (var i=0; i<packets[currentStream].length; i++) {
+		newBytes = packets[currentStream][i][0].slice(start, start+length);
+
+		for (var x=0; x<newBytes.length; x++) {
+			newBytes[x] = newBytes[x] ^ mask[x];
+		}
+
+		packet = packets[currentStream][i][0].slice(0, start);
+		packet.push(...newBytes);
+		packet.push(...packets[currentStream][i][0].slice(start+length,));
+		
+		newPackets.push([packet, packets[currentStream][i][1]]);
+	}
+	
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function specialMask(mask, data, align) {
+	if (mask.length != data.length) { return data; }
+	
+	if (align == 'none') {
+		var result = [];
+		for (var i=0; i<mask.length; i++) {
+			result.push(data[i] &  mask[i]);		
+		}
+		return result;
+	}
+
+	binaryMask = decArray2bin(mask);
+	binaryData = decArray2bin(data);
+	result = '';
+
+	for (var x=0; x<binaryMask.length; x++) {
+		if (binaryMask.substr(x,1) == 1) {
+			result += binaryData.substr(x,1);
+		}
+	}
+
+	if (align == 'left') {
+		result = (result + '0'.repeat(binaryMask.length)).substr(binaryMask.length*-1)
+	}
+
+	if (align == 'right') {
+		result = ('0'.repeat(binaryMask.length) + result).substr(binaryMask.length*-1)
+	}
+
+	return bin2decArray(result);
+}
+
+
+function dropBytes(start, length, packetNumber, overwriteStream) {
+	if (!overwriteStream) {
+		var streamName = currentStream + '_$_Drop Bytes_$_' + start + '-' + (start+length);
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	var newPackets = [];
+	for (var i=0; i<packets[currentStream].length; i++) {
+		if (packetNumber === false || packetNumber == packets[currentStream][i][1]) {
+
+			integer = packets[currentStream][i][0].slice(0, start);
+			integer.push(...packets[currentStream][i][0].slice(start+length,));
+			
+			newPackets.push([integer, packets[currentStream][i][1]]);
+		} else {
+			newPackets.push(packets[currentStream][i]);
+		}
+	}
+
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function newByte(at, start, length, mask, align, overwriteStream) {
+	if (!overwriteStream) {
+		var streamName = currentStream + '_$_New Byte_$_' + at;
+		var parentStream = streamChildren[currentStream];
+		streamIndex.push(streamName);
+		streamChildren.push([]);
+		parentStream.push(streamName);
+	} else {
+		var streamName = streamIndex[currentStream];
+	}
+
+	maskArray = [];
+	for (var i=0; i<mask.length; i+=2) {
+		maskArray.push( parseInt(mask.substr(i, 2), 16) );
+	}
+	mask = maskArray;
+	
+	var newPackets = [];
+
+	for (var i=0; i<packets[currentStream].length; i++) {
+		if (start > -1) {
+			newBytes = packets[currentStream][i][0].slice(start, start+length);
+		} else {
+			newBytes = Array(length).fill(255);
+		}
+		
+		newBytesArray = specialMask(mask, newBytes, align);
+
+		packet = packets[currentStream][i][0].slice(0, at);
+		packet.push(...newBytesArray);
+		packet.push(...packets[currentStream][i][0].slice(at,));
+		
+		newPackets.push([packet, packets[currentStream][i][1]]);
+	}
+	packets[streamIndex.indexOf(streamName)] = newPackets;
+	
+	if (overwriteStream) { 
+		//processFields();
+		return null;
+	}
+	
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+function sortOnLength(direction) {
+	var parentStream = streamChildren[currentStream]
+	var streamName = currentStream + "_$_Sort_$_Length";
+
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+
+	var sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  		if (a[0].length < b[0].length) return -1 * direction;
+   		if (a[0].length > b[0].length) return 1 * direction;
+   		return 0;
+	});
+
+	packets[streamIndex.indexOf(streamName)] = sortedPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function sortField(field, mask, direction) {
+	var parentStream = streamChildren[currentStream];
+	var streamName = currentStream + "_$_Sort_$_" + field;
+	var sortedPackets = [];
+	
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+	
+	if (fieldOn) {
+		var numberedFormattedPackets = [...formattedPacketsRaw];
+		var i = 0;
+		numberedFormattedPackets.forEach( function(a) { a.push(i); i++; } );
+		sortedFormattedPackets = [...numberedFormattedPackets].sort(function(a, b) {
+  			if (a[field] < b[field]) return -1 * direction;
+   			if (a[field] > b[field]) return 1 * direction;
+   			return 0;
+		});
+		var x = 0;
+		sortedFormattedPackets.forEach( function(a) {
+			sortedPackets.push(packets[currentStream][a.at(-1)]);
+		});
+	} else {
+		if (mask == 'ff') {
+			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  				if (a[0][field] < b[0][field]) return -1 * direction;
+   				if (a[0][field] > b[0][field]) return 1 * direction;
+   				return 0;
+   			});
+   		} else {
+   			mask = parseInt(mask, 16);
+			sortedPackets = [...packets[currentStream]].sort(function(a, b) {
+  				if ((a[2][field] & mask) < (b[2][field] & mask)) { return -1 * direction; }
+  				else { return 1 * direction; }
+   			});
+   		}
+	}
+
+	packets[streamIndex.indexOf(streamName)] = sortedPackets;
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+
+function divideOnLength() {
+	var lastStream = '';
+	var streamName = '';
+	var type = '';
+	var length = '';
+	var parentStream = streamChildren[currentStream];
+	var x = packets[currentStream].length + 0;
+
+	for (var i=0; i<x; i++) {
+
+		streamName = packets[currentStream][i][0].length;
+		streamName = currentStream + "_$_Length_$_" + streamName;
+
+		if (streamIndex.includes(streamName)) {
+			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i])
+			lastStream = streamName;
+		} else {
+			streamIndex.push(streamName);
+			streamChildren.push([]);
+			parentStream.push(streamName);
+			packets[streamIndex.indexOf(streamName)] = [];
+			packets[streamIndex.indexOf(streamName)].push(packets[currentStream][i]);
+			if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]]; }
+			lastStream = streamName;
+		}
+	}
+	populateStreamsView();
+	switchStream(lastStream);
+	return null;
+}
+
+
+function divideField(field, mask) {
+	var lastStream = '';
+	var fieldData = '';
+	var end = 0;
+	var start = 0;
+	var type = '';
+	var length = '';
+	var parentStream = streamChildren[currentStream];
+	var mask = parseInt(mask.split('0x').join(''), 16);
+	
+	if (fieldOn) {
+		if (fields[currentStream] && fields[currentStream][field]) {
+			var fieldName = fields[currentStream][field][3]
+			for (var i = 0; i < packets[currentStream].length; i++) {
+				start = fields[currentStream][field][0];
+				end = fields[currentStream][field][0] + fields[currentStream][field][1];
+				type = fields[currentStream][field][2];
+				length = fields[currentStream][field][1];
+				[fieldData, raw] = type(packets[currentStream][i][0].slice(start, end));
+				fieldData = currentStream + "_$_" + fieldName + "_$_" + fieldData;
+				if (streamIndex.includes(fieldData)) {
+					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
+					lastStream = fieldData;
+				} else {
+					streamIndex.push(fieldData);
+					streamChildren.push([]);
+					parentStream.push(fieldData);
+					packets[streamIndex.indexOf(fieldData)] = [];
+					packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
+					fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]];
+					lastStream = fieldData;
+				}
+			}
+			populateStreamsView();
+			switchStream(lastStream);
+			return null;
+		}
+	}
+
+	var x = packets[currentStream].length + 0;
+
+	for (var i=0; i<x; i++) {
+		fieldData = packets[currentStream][i][0][field] & mask;
+		fieldData = fieldData.toString(16);
+		fieldData = currentStream + "_$_" + field + "_$_" + fieldData;
+
+		if (streamIndex.includes(fieldData)) {
+			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i])
+			lastStream = fieldData;
+		} else {
+			streamIndex.push(fieldData);
+			streamChildren.push([]);
+			parentStream.push(fieldData);
+			packets[streamIndex.indexOf(fieldData)] = [];
+			packets[streamIndex.indexOf(fieldData)].push(packets[currentStream][i]);
+			if (fields[currentStream]) { fields[streamIndex.indexOf(fieldData)] = [...fields[currentStream]]; }
+			lastStream = fieldData;
+		}
+	}
+	populateStreamsView();
+	switchStream(lastStream);
+	return null;
+}
+
+function extractASCII(start, length, packet) {
+	var output = [];
+	
+	if (packet == -1) {
+		for (var i=0; i < packets[currentStream].length; i++) {
+			output.push(...packets[currentStream][i][0].slice(start, start+length));
+		}
+	} else {
+			output.push(...packets[currentStream][packet][0].slice(start, start+length));
+	}
+	
+	output = output.map( function (e) { return String.fromCharCode(e); });
+	output = output.join('');
+
+	output = '<textarea readonly>' + output + '</textarea>'
+	openNewWindow('ASCII');
+	windows['ASCIIContainer'].innerHTML = output;
+}
+
+
+function extractHex(start, length, packet) {
+	var output = [];
+
+	if (packet == -1) {
+		for (var i=0; i < packets[currentStream].length; i++) {
+			output.push(...packets[currentStream][i][0].slice(start, start+length));
+		}
+	} else {
+			output.push(...packets[currentStream][packet][0].slice(start, start+length));
+	}
+	
+	output = intArray2hexArray(output);
+	output = output.join(' ');
+	output = '<textarea readonly>' + output + '</textarea>'
+	openNewWindow('Hex');
+	windows['HexContainer'].innerHTML = output;
+}
+
+
+function populateFieldTypes() {
+	while (document.getElementById('fieldType').options.length > 0) {
+		document.getElementById('fieldType').options.remove(0);
+	}
+
+	fieldFunctions.forEach( function (e) {
+	document.getElementById('fieldType').options.add(new Option(e.name))
+	});
+}
+
+
+function populateTemplates() {
+	while (document.getElementById('templateId').options.length > 0) {
+		document.getElementById('templateId').options.remove(0);
+	}
+
+	templates.forEach( function (e) {
+	document.getElementById('templateId').options.add(new Option(e.name))
+	});
+}
+
+function populateLinkTypes() {
+	while (document.getElementById('outputLinkType').options.length > 0) {
+		document.getElementById('outputLinkType').options.remove(0);
+	}
+
+	linkTypes.forEach( function (e) {
+	document.getElementById('outputLinkType').options.add(new Option(e))
+	});
+}
+
+function populateStreamsView() {
+	var streamTable = streamRow(0, 0);
+	document.getElementById('streamsContainer').innerHTML = streamTable;
+}
+
+function populateFieldsView() {
+	var button = '';
+	var text = '<table style="width: 100%;"><tr><th>Field</th><th>Length</th><th>Type</th><th>Label</th><th>Delete</th></tr>';
+
+	if (fields[currentStream]) {
+		for (var i=0; i < fields[currentStream].length; i++) {
+			if (fields[currentStream][i]) {
+				text += '<tr>'
+				text += '<td>' + fields[currentStream][i][0] + '</td>';
+				text += '<td>' + fields[currentStream][i][1] + '</td>';
+				text += '<td>' + fields[currentStream][i][2].name + '</td>';
+				text += '<td>' + fields[currentStream][i][3] + '</td>';
+				text += '<td><button onclick="deleteField(' + i + ');">Delete</button></td>';
+				text += '</tr>';
+			}
+		}
+	}
+	text += '</table>';
+	document.getElementById('fieldsContainer').innerHTML = text;
+}
+
+// Plot View functions
+// ----------------------------------------------------------------------------
+
+function drawPlot() {
+	canvas = windows['PlotViewContainer'].children[0]
+	canvas.width = windows['PlotViewContainer'].parentElement.clientWidth - 15;
+	canvas.height = windows['PlotViewContainer'].parentElement.clientHeight - 40;
+	
+	minY = plotDataMin;
+	maxY = plotDataMax;
+	
+	scaleX = canvas.width / plotData.length;
+	scaleY = canvas.height / (maxY - minY);
+	offsetY = scaleY * minY
+	
+	var style = getComputedStyle(document.body);
+	
+	background = style.getPropertyValue('--background');
+	line = style.getPropertyValue('--textColor');
+	text = style.getPropertyValue('--textColor');
+	
+	ctx = canvas.getContext('2d');
+	ctx.clearRect(0,0,canvas.width, canvas.height);
+	ctx.fillStyle = background;
+	ctx.fillRect(0,0,canvas.width, canvas.height);
+	ctx.strokeStyle = line;
+	
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	for (var x=0; x<plotData.length; x++) {
+		ctx.lineTo(x*scaleX, offsetY+canvas.height-(plotData[x]*scaleY));
+	}
+	ctx.stroke();
+}
+
+plotData = null;
+plotDataMax = 0;
+plotDataMin = 9999999999999999;
+function plotField(field, format) {
+	plotDataMax = 0;
+	plotDataMin = 9999999999999999;
+	
+	openNewWindow('PlotView');
+	var plot = '<canvas id="plotCanvas">'
+
+	windows['PlotViewContainer'].innerHTML = plot;
+	
+	plotData = [];
+	if (fieldOn && fields[currentStream] && fields[currentStream][field]) {
+		packets[currentStream].forEach( function(packet) {
+			start = fields[currentStream][field][0];
+			end = fields[currentStream][field][0] + fields[currentStream][field][1];
+			type = fields[currentStream][field][2];
+			length = fields[currentStream][field][1];
+			[fieldData, raw] = type(packet[0].slice(start, end));
+			value = parseInt(raw, format);
+			plotData.push( value );
+			if (value > plotDataMax) { plotDataMax = value; }
+			if (value < plotDataMin) { plotDataMin = value; }
+		});
+	} else {
+		packets[currentStream].forEach( function(packet) {
+			plotData.push( packet[0][field] );
+			if (packet[0][field] > plotDataMax) { plotDataMax = packet[0][field]; }
+			if (packet[0][field] < plotDataMin) { plotDataMin = packet[0][field]; }
+		});
+	}
+	windows['PlotView'].addEventListener('resize', function(event) { drawPlot(); }, true);
+	
+	var textArea = '<p id="plotText">';
+	textArea += 'X-Min: 0 | ';
+	textArea += 'X-Max: ' + plotData.length + ' | ';
+	textArea += 'Y-Min: ' + plotDataMin + ' | ';
+	textArea += 'Y-Max: ' + plotDataMax + ' | ';
+	textArea += '</p>'
+	
+	windows['PlotViewContainer'].innerHTML += textArea;
+	drawPlot();
+	
+}
+
+function updateUI() {
+	processFields();
+	fieldOn = true;
+	populatePacketView();
+	populateFieldsView();
+}
+
+function addField(start, length, type, title, noUpdateUI) {
+	if (fields[currentStream]) {
+		fields[currentStream][start] = [start, length, type, title];
+	} else {
+		fields[currentStream] = [];
+		fields[currentStream][start] = [start, length, type, title];
+	}
+	if (noUpdateUI) { return null; }
+	updateUI();
+}
+
+function deleteField(index) {
+	delete fields[currentStream][index];
+	processFields();
+	fieldOn = true;
+	populatePacketView();
+	populateFieldsView();
+}
+
+function switchStream(stream) {
+	currentStream = streamIndex.indexOf(stream);
+	processFields();
+	populatePacketView();
+	populateFieldsView();
+	populateStreamsView();
+}
+
+function deleteStream(streamName) {
+	deleteStreamChildren(streamName);
+
+	if (streamIndex.indexOf(streamName) == 0) {return null;}
+	if (streamIndex.indexOf(streamName) == currentStream) { switchStream('0_$_Input_$_Packets'); }
+	var streamNumber = streamIndex.indexOf(streamName)
+
+	delete packets[streamNumber];
+	delete streamIndex[streamNumber];
+
+	for (var i=0; i<streamChildren.length; i++) {
+		streamChildren[i] = streamChildren[i].filter(e => e !== streamName);
+	}
+	populateStreamsView();
+}
+
+function deleteStreamChildren(streamName) {
+	var streamNumber = streamIndex.indexOf(streamName)
+	streamChildren[streamNumber].forEach(deleteStream);
+}
+
+function mergeIntoStream(mergeStream) {
+	var streamNumber = streamIndex.indexOf(mergeStream);
+	
+	var parentStream = streamChildren[currentStream];
+	var streamName = currentStream + "_$_Merge_$_" + mergeStream.split('_$_').join('-');
+	
+	streamIndex.push(streamName);
+	streamChildren.push([]);
+	parentStream.push(streamName);
+
+	var mergedPackets = [];
+	mergedPackets.push(...packets[currentStream]);
+	mergedPackets.push(...packets[streamNumber]);
+	
+	mergedPackets = mergedPackets.sort( function(a, b) { if (a[3] > b[3]) {return 1;} else {return -1;} })
+	
+	packets[streamIndex.indexOf(streamName)] = mergedPackets;
+
+	if (fields[currentStream]) { fields[streamIndex.indexOf(streamName)] = [...fields[currentStream]] };
+
+	populateStreamsView();
+	switchStream(streamName);
+}
+
+function streamRow(i, depth) {
+	if (!streamIndex[i]) {return '';}
+
+	var text = streamIndex[i].split('_$_').slice(1,).join(': ') + ' (' + packets[i].length + ')';
+	var button = '<button onclick="switchStream(\'' + streamIndex[i] + '\');\">' + text + '</button>';
+	var selectedButton = '<button onclick="switchStream(\'' + streamIndex[i] + '\');" style="background: var(--buttonbgSelected); color: var(--buttonfgSelected);">' + text + '</button>';
+	var deleteButton = '<button onclick="deleteStream(\'' + streamIndex[i] + '\');">X</button>';
+	var deleteChildrenButton = '<button onclick="deleteStreamChildren(\'' + streamIndex[i] + '\');">X&#x2193;</button>';
+	var mergeButton = '<button onclick="mergeIntoStream(\'' + streamIndex[i] + '\');">Y</button>';
+	var row = '<p class="stream">'
+	row += '&nbsp;&nbsp;|'.repeat(depth);
+	row += '__';
+
+	if (i == currentStream) {
+		row += selectedButton;
+	} else {
+		row += button;
+	}
+
+	row += deleteButton;
+	row += deleteChildrenButton;
+	row += mergeButton;
+	row += '</p>';
+	var sortedChildren = streamChildren[i].sort();	
+	for (var x=0; x < sortedChildren.length; x++) {
+		row += streamRow(streamIndex.indexOf(sortedChildren[x]), depth+1);
+	}
+	return row;
+}
+
+function processFields() {
+	formattedPackets = [];
+	formattedPacketsRaw = [];
+	var formmatedPacket = [];
+	var end = 0;
+	var start = 0;
+	var type = '';
+	var length = '';
+	var formatter = function (e) { return HEX[e]; };
+	if (asciiOn) { formatter = function (e) { return String.fromCharCode(e); }; }
+	if (decimalOn) { formatter = function (e) { return e; }; }
+
+	for (var i=0; i<packets[currentStream].length; i++) {
+		formattedPacket = [];
+		formattedPacketRaw = [];
+
+		for (var f=0; f<packets[currentStream][i][0].length; f++) {
+
+			if (fields[currentStream] && fields[currentStream][f]) {
+				start = fields[currentStream][f][0];
+				end = fields[currentStream][f][0] + fields[currentStream][f][1];
+				type = fields[currentStream][f][2];
+				length = fields[currentStream][f][1];
+				[fieldData, raw] = type(packets[currentStream][i][0].slice(start, end));
+				formattedPacketRaw[f] = raw;
+				formattedPacket.push(fieldData);
+				f += fields[currentStream][f][1]-1;
+			} else {
+				formattedPacket.push(formatter( packets[currentStream][i][0][f] ));
+				formattedPacketRaw[f] = packets[currentStream][i][0][f];
+			}
+		}
+
+		formattedPackets.push(formattedPacket);
+		formattedPacketsRaw.push(formattedPacketRaw);
+	}
+}
+
+function findConstants() {
+	var constantValues = [];
+	var constantFields = [];
+
+	if (fieldOn) {
+		constantValues = [...formattedPackets[0]];
+		constantFields = [...Array(formattedPackets[0].length).keys()];
+		for (var i=1; i<formattedPackets.length; i++) {
+			for (var x=0; x<constantValues.length; x++) {
+				if (formattedPackets[i][x] != constantValues[x]) {
+					delete constantValues[x];
+					delete constantFields[x];
+		}}}
+		return constantFields;
+	}
+
+	constantValues = [...packets[currentStream][0][0]]
+	constantFields = [...Array(packets[currentStream][0][0].length).keys()];
+	for (var i=1; i<packets[currentStream].length; i++) {
+		for (var x=0; x<constantValues.length; x++) {
+			if (packets[currentStream][i][0][x] != constantValues[x]) {
+				constantValues[x] = null;
+				constantFields[x] = null;
+	}}}
+	return constantFields;
+}
+
+var findOn = false
+var findValue = '';
+function runFind(dataTableRow) {
+	result = [];
+	len = findValue.split(' ').length
+	
+	for (var i=0; i<dataTableRow.length-len+1; i++) {
+		if (dataTableRow.slice(i, i+len).join(' ') == findValue) {
+			result[i] = i;
+			for (var x=1; x<len; x++) {
+				i++;
+				result[i] = i;
+			}
+		}
+	}
+	
+	return result;
+}
+
+function populatePacketView() {
+
+	var dataTable = [];
+	var rowHeaders = [];
+	var longestPacket = 0;
+	var colorMask = [];
+	var findResults = [];
+
+	for (var i = 0; i < packets[currentStream].length; i++) {
+	
+		colorMask.push([]);
+		findResults.push([]);
+
+		if (packets[currentStream][i][0].length > longestPacket) {
+			longestPacket = packets[currentStream][i][0].length;
+		}
+
+		rowHeaders.push([packets[currentStream][i][1], packets[currentStream][i][0].length]);
+
+		if (fieldOn) {
+			dataTable.push(formattedPackets[i]);
+		} else if (asciiOn) {
+			dataTable.push( intArray2asciiArray( packets[currentStream][i][0] ));
+		} else if (decimalOn) {
+			dataTable.push( packets[currentStream][i][0] );
+		} else {
+			dataTable.push( intArray2hexArray( packets[currentStream][i][0] ));
+		}
+	}
+		
+
+	if (highlightConst) {
+		var highlightColor = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor');
+		var constants = findConstants();
+		for (var i=0; i<packets[currentStream].length; i++) {
+			constants.forEach( function (e) { 
+				colorMask[i][e] = highlightColor;
+			});			
+		}
+	}
+	
+	if (findOn) {
+		var highlightColor2 = getComputedStyle(document.body).getPropertyValue('--tableHighlightColor2');
+		for (var i=0; i<dataTable.length; i++) {
+			findResults = runFind( dataTable[i] );
+			findResults.forEach( function (e) {
+				colorMask[i][e] = highlightColor2;
+			});
+		
+		}
+		findOn = false;
+	}
+
+	columnHeaders = [];
+
+	if (fieldOn) {
+		var x = 0;
+		for (var x=0; x < longestPacket; x++) {
+			if (fields[currentStream] && fields[currentStream][x]) {
+				columnHeaders.push([x.toString(), fields[currentStream][x][3]]);
+				x += fields[currentStream][x][1]-1;
+			} else {
+				text = pad4(x);
+				columnHeaders.push([text.substring(0,2), text.substring(2,)]);
+			}
+		}
+	} else {
+		for (var x=0; x < longestPacket; x++) {
+			text = pad4(x);
+			columnHeaders.push([text.substring(0,2), text.substring(2,)]);
+		}
+	}
+
+	packetTable.table = dataTable;
+	packetTable.columnHeaders = columnHeaders;
+	packetTable.rowHeaders = rowHeaders;
+	packetTable.colorMask = colorMask;
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;
+	packetTable.calculate();
+	reDrawTable();
+}
+
+tableFontHeight = 18;
+tableFontSpread = 11;
+function increaseTableFontSize() {
+	tableFontHeight++;
+	tableFontSpread = tableFontHeight * (11/18);
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;
+	packetTable.calculate();
+	reDrawTable();
+}
+
+function decreaseTableFontSize() {
+	tableFontHeight--;
+	tableFontSpread = tableFontHeight * (11/18);
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;
+	packetTable.calculate();
+	reDrawTable();
+}
+
+function reDrawTable() {
+	var style = getComputedStyle(document.body) 
+	packetTable.tableDataFontColor = style.getPropertyValue('--textColor');
+	packetTable.tableHeaderFontColor = style.getPropertyValue('--tableHeadColor');
+	packetTable.tableCellColor = style.getPropertyValue('--cellColor');
+	packetTable.tableBorderColor = style.getPropertyValue('--cellBorder');
+	packetTable.tableBorderColorStrong = style.getPropertyValue('--cellBorderStrong');
+	packetTable.tableTopLeftColor = style.getPropertyValue('--tableTopLeft');
+	packetTable.tableScaleY = tableFontHeight;
+	packetTable.tableScaleX = tableFontSpread;	
+    packetTable.drawTable();	
+}
+
+function binaryWindow(data) {
+	openNewWindow('Binary');
+	
+	html = '<textarea style="height: calc(100% - 2em);" readonly>' + data + '</textarea>'
+	
+	windows['BinaryContainer'].innerHTML = html;
+	
+	var d = new Date();
+	let time = d.getTime();
+
+	let link = document.createElement('a');
+	link.innerHTML = time + '_HDLC.cap';
+	link.download = time + '_HDLC.cap';
+	link.style = 'color: white;'
+	let bytes = binaryString2bytes(data);
+	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
+	link.href = URL.createObjectURL(blob);
+	windows['BinaryContainer'].appendChild(link);
+}
+
+function binaryString2bytes(binaryString) {
+	var output = [];
+	var x = 0;
+	
+	while(x+8 < binaryString.length) {
+		output.push( parseInt( binaryString.substring(x,x+8),2) );
+		x+=8;
+	}
+	
+	padding = 8 - (binaryString.length - x);
+	if (padding > 0) {
+		output.push( parseInt( binaryString.substring(x,x+8) + ('0'.repeat(padding)) ,2) );
+		console.log( binaryString.substring(x,x+8) + ('0'.repeat(padding)) );
+	}
+	
+	return new Uint8Array(output);
+}
+
+function openNewWindow(name) {
+	if (!windows[name]) {
+		try {
+			windows[name] = window.open("_blank", name + "Window", "width=400,height=400");
+			windows[name].name = name + "Window"
+		} catch (error) {
+			windows[name].close();
+			windows[name] = false;
+			openNewWindow(name);
+			return null;
+		}
+		
+		windows[name].document.write("<div id='" + name +"ContainerOuter' class='containerOuter'>");
+		windows[name].document.write("<div id='" + name +"Container' class='container'></div></div>");
+		windows[name + 'Container'] = windows[name].document.getElementById(name + "Container");
+		document.head.querySelectorAll('link, style').forEach(htmlElement => {
+  		  	windows[name].document.head.appendChild(htmlElement.cloneNode(true));
+		});
+		
+		windows[name].document.title = name + " Window";
+		if (colorMode == 'light') { colorMode = 'dark'; toggleColorMode();}
+		if (colorMode == 'dark') { colorMode = 'light'; toggleColorMode();}
+
+	} else {
+		if (windows[name].closed) {
+			windows[name] = false;
+			openNewWindow(name);
+		} else {
+			windows[name].focus();
+		}
+	}
+}
+
+
+// Input / Output Processing
+// ---------------------------------------------------------------------------------------
+
+// Pre-build an array of hex values for lookup, faster than generating each value for
+// every byte:
+HEX = [];
+for (var i=0; i<256; i++) {
+	HEX.push( ( '0' + i.toString(16) ).substr(-2) );
+}
+
+function getAllDataAsBinary() {
+	return intArray2BinaryArray( getAllData() );
+}
+
+function intArray2BinaryArray(intArray) {
+	result = [];
+	intArray.forEach( function(bite) {
+		result.push( ...('00000000' + bite.toString(2)).substr(-8).split('') );
+	})
+	return result;
+}
+
+function getAllData() {
+	result = [];
+	packets[currentStream].forEach( function(packet) {
+		result.push( ...packet[0] )
+	})
+	return result
+}
+
+function readLSBFLength(intArray) {
+	return (intArray[0] * 1) + 
+		   (intArray[1] * 256) + 
+		   (intArray[2] * 65536) + 
+		   (intArray[3] * 16777216);
+}
+
+function intArray2hexString(intArray) {
+	result = '';
+	intArray.forEach( function(b) { result += HEX[b]; } );
+	return result;
+}
+
+function intArray2hexArray(intArray) {
+	return intArray.map( function (e) { return HEX[e]; } );
+}
+
+function intArray2asciiArray(intArray) {
+	return intArray.map( function (e) { return String.fromCharCode(e); } );
+}
+
+function number2LSFBArray(number, length) {
+	result = []
+	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
+	for (var i=0; i<number.length; i+=2) {
+		result.push( parseInt(number.substr(i,2), 16) );
+	}
+	return result.reverse();
+}
+
+function hexString2IntArray(hexString) {
+	var intArray = []
+	for (var i=0; i<hexString.length; i+=2) {
+		intArray.push( parseInt(hexString.substr(i,2), 16) );
+	}
+	return intArray;
+}
+
+function processInputRaw(inputData) {
+	packets = [[]];
+	var width = parseInt(document.getElementById('rawInitialWidth').value);
+	var x = 0;
+	var packetNumber = 0;
+	
+	while (x < inputData.length) {
+		packets[0].push( [ [], packetNumber] );
+		packets[0][packetNumber][0].push( ...inputData.slice(x, x+width) );
+		packetNumber++;
+		x+=width;
+	}
+	
+	populatePacketView();
+	loadingPage.style.visibility = 'hidden';
+}
+
+function processInput(inputData) {
+	packets = [[]];
+
+	if (intArray2hexString(inputData.slice(0,4)) == 'd4c3b2a1') {
+		processInput_CAP(inputData);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+	
+	if (intArray2hexString(inputData.slice(0,4)) == '0a0d0d0a') {
+		processInput_NextGen(inputData);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+	
+}
+
+function readInputRaw() {
+	inputType = readInputRaw;
+	loadingPage.style.visibility = 'unset';
+	var fr = new FileReader();
+    fr.onloadend = function () {
+    	var result = this.result;
+   	 	processInputRaw(new Uint8Array(result));
+    };
+    file = document.getElementById('browseOpenRaw').files[0]
+    fr.readAsArrayBuffer(file);
+}
+
+function readInput() {
+	inputType = readInput;
+	loadingPage.style.visibility = 'unset';
+	var fr = new FileReader();
+    fr.onloadend = function () {
+    	var result = this.result;
+   	 	processInput(new Uint8Array(result));
+    };
+    file = document.getElementById('browseOpen').files[0]
+    fr.readAsArrayBuffer(file);
+}
+
+storedInput = null;
+function buildFromHex(hexInput) {
+	inputType = buildFromHex
+	if(!hexInput) {hexInput=storedInput}
+	storedInput = hexInput; 
+	
+	var inputArray = [];
+	var inputPackets = hexInput.split('\n');
+	var i = 0;
+	inputPackets.forEach( function(inputPacket) {
+		inputPacket = inputPacket.split(' ');
+		inputPacket = hexArray2intArray(inputPacket);
+		inputArray.push([inputPacket, i]);
+		i++;
+	});	
+	packets[0] = inputArray;
+	populatePacketView();
+	populateStreamsView();
+	populateFieldsView();
+}
+
+inputType = null;
+function reset() {
+	clearData();
+	inputType();
+}
+
+function clearData() {
+	fields = [];
+	currentStream = 0;
+	streamIndex = ['0_$_Input_$_Packets'];
+	streamChildren = [[]];
+	formattedPackets = [];
+	formattedPacketsRaw = [];
+	packets = [[]];
+	asciiOn = false;
+	decimalOn = false;
+	fieldOn = false;
+	highlightConst = false;
+	
+	windows = {};
+	windows['ASCII'] = false;
+	windows['Hex'] = false;
+	windows['PlotView'] = false;
+	windows['ASCIIContainer'] = false;
+	windows['HexContainer'] = false;
+	windows['PlotViewContainer'] = false;
+	windowNames = ['ASCII', 'Hex', 'PlotView'];
+}
+
+
+
+
+// Next Gen PCAP File Parser
+// ---------------------------------------------------------------------------------------
+
+function processInput_NextGen(inputData) {
+	var s = 0;
+	var n = 0;
+	var maxPackets = 1000000;
+	while (s >= 0 && n < maxPackets) {
+		[s, packet] = processNextGenBlock(s, inputData);
+		if (packet) {
+			packets[currentStream].push([packet, n]);
+			n++;
+		}
+	}
+}
+
+function processNextGenEnhancedPacket(s, inputData) {
+	var capLen = readLSBFLength(inputData.slice(s+20,s+24));
+	return Array.from(inputData.slice(s+28,s+28+capLen));
+}
+
+function processNextGenSimplePacket(s, inputData) {
+	var capLen = readLSBFLength(inputData.slice(s+8,s+12));
+	return Array.from(inputData.slice(s+12,s+12+capLen));
+}
+
+function processNextGenBlock(s, inputData) {
+	var blockType = intArray2hexString(inputData.slice(s+0,s+4));
+	var blockLength = readLSBFLength(inputData.slice(s+4,s+8));
+	var packet = false;
+	
+	if ( blockType == '06000000' ) { packet = processNextGenEnhancedPacket(s, inputData); }
+	if ( blockType == '03000000' ) { packet = processNextGenSimplePacket(s, inputData); }
+	
+	if ( s+blockLength == inputData.length ) { s = -1; } 
+	else { s += blockLength }
+	
+	return [s, packet];
+}
+
+
+// CAP File Parser
+// ---------------------------------------------------------------------------------------
+
+function processCapBlock(inputData, s) {
+	packetLength = readLSBFLength(inputData.slice(s+8, s+12));
+	packet = Array.from(inputData.slice(s+16, s+16+packetLength));
+	if ( s+packetLength+16 == inputData.length ) { s = -1; }
+	else { s = s+packetLength+16 }
+	
+	return [s, packet]
+}
+
+function processInput_CAP(inputData) {
+	var maxPackets = 1000000;
+	var n = 0;
+	var s = 24;
+	while (s >= 0 && n < maxPackets) {
+		[s, packet] = processCapBlock(inputData, s);
+		packets[currentStream].push([packet, n]);
+		n++;
+	}
+}
+
+// CAP File Writer
+// ---------------------------------------------------------------------------------------
+
+function generateOutputBytes(linkType) {
+	linkNumber = linkTypes.indexOf(linkType);
+	linkNumber = linkTypeNumbers[linkNumber];
+	output = [];
+	output.push( ...[212, 195, 178, 161] );
+	output.push( ...[2, 0, 4, 0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...[0,0,0,0] );
+	output.push( ...number2LSFBArray(linkNumber, 4) );
+	packets[currentStream].forEach( function (packet) {
+		output.push( ...[0,0,0,0] );
+		output.push( ...[0,0,0,0] );
+		output.push( ...number2LSFBArray(packet[0].length, 4) );
+		output.push( ...number2LSFBArray(packet[0].length, 4) );
+		output.push( ...packet[0] );
+	});
+	return new Uint8Array(output);
+}
+
+function generateOutput() {
+	list = document.getElementById("outputList");
+	linkType = document.getElementById("outputLinkType").value;
+
+	while (list.hasChildNodes()) {
+		list.removeChild(list.firstChild);
+	}
+
+	var d = new Date();
+	let time = d.getTime();
+
+	let link = document.createElement('a');
+	link.innerHTML = time + '_export.cap';
+	link.download = time + '_export.cap';
+	link.style = 'color: white;'
+	let bytes = generateOutputBytes(linkType);
+	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
+	link.href = URL.createObjectURL(blob);
+	list.appendChild(link);
+}
+
+// ---------------------------------------------------------------------------------------
+
+
+function log(input) {
+	if(!input) {return null;}
+	outputArea = document.getElementById("consoleOutput");
+	outputArea.innerHTML += input;
+	outputArea.innerHTML += '\n';
+	outputArea.scrollTo(0, outputArea.scrollHeight);
+}
+
+function matchHighlight(matches) {
+	highlightBox = document.getElementById('highlightBox');
+	highlightBoxSelection = -1;
+	if (matches.length > 0) {
+		consolePosition = document.getElementById('consoleInput').getBoundingClientRect();
+		highlightBox.style.visibility = 'unset';
+		highlightBox.innerHTML = '<p style="border: 1px solid var(--borderColor)">' + matches.join('</p><p style="border: 1px solid var(--borderColor)">') + '</p>'	
+		highlightBox.style.top = consolePosition.bottom;
+		highlightBox.style.left = consolePosition.left + 3;
+	} else {
+		highlightBox.innerHTML = '';
+		highlightBox.style.visibility = 'hidden';
+	}
+}
+
+highlightBoxSelection = -1;
+function changeHighlightBoxSelection(direction) {
+	highlightBoxSelection += direction;
+	if(highlightBoxSelection < -1) { highlightBoxSelection = -1; }
+	for (var i=0; i<highlightBox.children.length; i++) {
+		if (i == highlightBoxSelection) {
+			highlightBox.children[i].style.background = 'var(--buttonbgHover)';
+		} else {
+			highlightBox.children[i].style.background = 'var(--buttonbg)';
+		}
+	}
+}
+
+consoleMemory = [];
+consoleMemoryPos = 0;
+function consoleInput(event) {
+	inputArea = document.getElementById("consoleInput");
+
+	if (event.keyCode === 9) {
+		event.preventDefault();
+		return null;
+	}
+
+	if (event.key === 'ArrowUp') {
+		if (highlightBox.style.visibility == 'unset') {
+			changeHighlightBoxSelection(-1)
+			return null;
+		}
+	
+		consoleMemoryPos++;
+		x = consoleMemory.length - consoleMemoryPos;
+		if (consoleMemory[x]) {
+			inputArea.value = consoleMemory[x];
+			inputArea.setSelectionRange(consoleMemory[x].length, consoleMemory[x].length);
+		} else {
+			consoleMemoryPos--;
+		}
+		return null;
+	}
+	
+	if (event.key === 'ArrowDown') {
+		if (highlightBox.style.visibility == 'unset') {
+			changeHighlightBoxSelection(1)
+			return null;
+		}
+	
+		consoleMemoryPos--;
+		x = consoleMemory.length - consoleMemoryPos;
+		if (consoleMemory[x]) {
+			inputArea.value = consoleMemory[x];
+		} else {
+			consoleMemoryPos = 0;
+			inputArea.value = '';
+		}
+		return null;
+	}
+
+	if (event.key === 'Enter') {
+		if (highlightBox.style.visibility == 'unset') {
+			try {
+				inputArea.value = highlightBox.children[highlightBoxSelection].innerHTML;
+				matchHighlight([]);
+				return null;
+			} catch (e) {}
+		}
+		
+		matchHighlight([]);
+	
+		geval = eval; // forces global scope for eval
+	
+		consoleMemory.push(inputArea.value);
+		log('> ' + inputArea.value);
+	
+		try { result = eval( inputArea.value );}
+		catch ( e ) { result = e; }
+	
+		log(result);
+		inputArea.value = '';
+		return null;
+	}
+	
+	input = inputArea.value;
+	matches = [];
+	if (input.length > 1) {
+		for (name in window) {
+			if (name.indexOf(input) === 0) {
+				matches.push(name);
+			}
+		}
+	}
+	matchHighlight(matches);
+}
+
+function evaluateCode() {
+	log('Evaluating Code:')
+	code = document.getElementById('codeAreaInput').value;
+	geval = eval; // forces global scope for eval
+	try { 
+		log( geval(code) );
+		log('Complete')
+	} catch ( e ) { 
+		log( e );
+	}
+}
+
+function catchTabKey(event) {
+	codeArea = document.getElementById('codeAreaInput');
+	consoleInput = document.getElementById('consoleInput');
+	if (document.activeElement == consoleInput) {
+		if (event.keyCode === 9 & highlightBox.style.visibility == 'unset') {
+			event.preventDefault();
+			try { inputArea.value = highlightBox.children[highlightBoxSelection].innerHTML; }
+			catch (e) { inputArea.value = highlightBox.children[0].innerHTML; }
+			matchHighlight([]);
+			return null;
+		}
+	}
+	
+	if (document.activeElement != codeArea) {
+		return null;
+	}
+	if (event.keyCode === 9) {
+		event.preventDefault();
+		start = codeArea.selectionStart;
+		end = codeArea.selectionEnd
+		codeArea.value = codeArea.value.substring(0,start) + '    ' + codeArea.value.substring(end,);
+		codeArea.setSelectionRange(end+4, end+4);
+	}
+}
+
+var loadingPage = null;
+var loadingText = null;
+function onLoad() {
+	populateFieldTypes();
+	populateTemplates();
+	populateLinkTypes();
+	document.getElementById("browseOpen").onchange = readInput;
+	document.getElementById("viewType").onchange = UI_changeView;
+	document.getElementById("consoleInput").addEventListener("keyup", consoleInput);
+	document.addEventListener("keydown", catchTabKey);
+	
+	loadingPage = document.getElementById('loadingPage');
+	loadingText = document.getElementById('loadingText2');
+	
+	container = document.getElementById("packetDisplayInner");
+	packetTable = new megaTable();
+	packetTable.container = container;
+	packetTable.calculate();
+	
+	container.onscroll = function (e) { packetTable.drawTable(); };
+	window.addEventListener('resize', function(event) { packetTable.drawTable(); }, true);
+		
+	document.onmousemove = function(event) {
+		packetTable.mouseX = event.pageX;
+		packetTable.mouseY = event.pageY;
+	};
+
+	document.addEventListener("wheel", function(e) {
+		var bounds = packetTable.canvas.getBoundingClientRect()
+			if (packetTable.mouseY > bounds['top'] && packetTable.mouseY < bounds['bottom'] && packetTable.mouseX > bounds['left'] && packetTable.mouseX < bounds['right']) {
+				if (event.shiftKey) {
+					container.scrollBy(e.deltaY, 0);
+				} else {
+					container.scrollBy(0, e.deltaY);
+				}
+			}
+	});
+}
+
+</script>
+
+<title>packetView</title>
 <style>
 
 :root {
@@ -94,54 +2725,117 @@
     background-Color: var(--midground); 
 }
 
-html, body {
-	margin: 0; 
-	height: 100%; 
-	overflow: hidden;
-	background-color: var(--background);
+#loadingPage {
+    z-index: 100;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #555555cc;
+    color: var(--textColor);
+	visibility: hidden;
 }
 
+#loadingText {
+	text-align: center;
+    width: 100%;
+    top: 50%;
+    position: absolute;
+}
 
-div {
-	transition: max-height 0s;
+#loadingText2 {
+	text-align: center;
+    width: 100%;
+    top: calc(50% + 1em);
+    position: absolute;
+}
+
+textArea {
+	resize: none;
+    width: calc(100% + 10px);
+    height: 100%;
+    background: var(--midground);
+    Color: var(--textColor);
+    border: none;
+    padding: 0px;
+    outline: none;
 }
 
 #container {
 	width: 100%;
 	height: 100%;
-	font-family: monospace;
+	font-family: helvetica;
 	font-size: 12pt;
-	color: var(--textColor);
+	Color: var(--textColor);
 	position: absolute;
 	display: flex;
 	flex-direction: column;
+	
 }
 
 
-#topMenu {
-	height: auto;
-    width: calc(100% - 23px);
-    margin-top: 10px;
-    display: block;
+#topMenuContainer {
+    background-Color: var(--midground);
+    width: calc(100% - 43px);
+    height: fit-content;
+    padding: 10px;
+    margin: 0px;
+    border-radius: 4px;
+    overflow: hidden;
+    border: 1px solid var(--borderColor);
     flex-shrink: 0;
     flex-grow: 0;
     z-index: 1;
+    margin-top: -10px;
+    padding-top: 20px;
     margin-left: 10px;
-    background: var(--midground);
-    border-radius: 4px;
-    border: 1px solid var(--borderColor);
 }
 
-.topMenuItem {
-    float: left;
-    margin: 5px;
-    padding: 5px;
-    padding-right: 15px;
-    border-right: 1px var(--borderColor) solid;
-    z-index: 1;
-    padding-top: 2px;
-    padding-bottom: 0px;
+#topMenu {
+	width: 100%;
+	z-index: 1;
 }
+
+
+#packetDisplayOuter {
+    background-Color: var(--midground);
+    width: calc(100% - 29px);
+    padding: 3px;
+    margin: 10px;
+    border-radius: 4px;
+    border: 1px var(--borderColor) solid;
+    flex-shrink: 1;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    max-height: 100%;
+    margin-bottom: -10px;
+    padding-bottom: 10px;
+}
+
+#packetDisplayInner {
+	overflow: hidden;
+    height: 1;
+    width: 100%;
+    flex-shrink: 1;
+    flex-grow: 1
+}
+
+
+.container {
+	display: block;
+}
+
+.containerOuter {
+	background-Color: var(--midground);
+    width: -webkit-fill-available;
+    padding: 10px;
+    margin: 0px;
+    height: -webkit-fill-available;
+    overflow: scroll;
+}
+
 
 .closedToolbox {
 	visibility: hidden;
@@ -164,56 +2858,83 @@ div {
     padding-bottom: 0px;
 }
 
-#bitRasterOuter {
-    background-color: var(--midground);
-    width: calc(100% - 42px);
+html, body {
+	margin: 0; 
+	height: 100%; 
+	overflow: hidden;
+	background-Color: var(--background);
+	Color: var(--textColor);
+	font-family: Monospace;
+}
+
+
+p {
+	margin: 0px;
+}
+
+.stream {
+	margin: 0px;
+	margin-top: -8px;
+    font-size: 23px;
+    Color: var(--borderColor);
+    text-wrap: nowrap;
+    font-family: sans-serif;
+}
+
+.packets {
+  position: relative;
+  Color:  var(--textColor);
+  width: 100%;
+  overflow: scroll;
+  height: 100%;
+  font-family: monospace;
+  white-space: nowrap;
+}
+
+table {
+	text-wrap: nowrap;
+	position: relative;
+	border-collapse: collapse;
+	font-family: monospace;
+}
+
+.toolboxCell {
+	border: none;
+    text-align: left
+}
+
+th {
+	background: var(--midground);
+	position: sticky;
+	top: 0;
+	Color: var(--tableHeadColor);
+	border-style: solid;
+    border-Color: var(--borderColor);
+    border-top: none;
     padding: 10px;
-    margin: 10px;
-    margin-top: 10px;
-    margin-bottom: 5px;
-    border-radius: 5px;
-    border: 1px var(--borderColor) solid;
-    flex-shrink: 1;
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    max-height: 100%;
-    margin-bottom: -10px;
-    padding-bottom: 20px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    Color: var(--tableHeadColor);
 }
 
-#bitRasterInner {
-    overflow: scroll;
-    height: 1;
-    width: 100%;
-    flex-shrink: 1;
-    flex-grow: 1
+td {
+	padding-top: 0px;
+	padding-bottom: 0px;
+	padding-left: 5px;
+	padding-right: 5px;
+	border-style: solid;
+    border-Color: var(--borderColor);
+    text-align: center;
+    Color: var(--textColor);
 }
 
-
-
-#bottomMenuContainer {
-	background-color: var(--midground);
-    width: calc(100% - 43px);
-    height: fit-content;
-    padding: 10px;
-    margin: 10px;
-    margin-bottom: 0px;
-    border-radius: 5px;
-    overflow: hidden;
-    border: 1px var(--borderColor) solid;
-    flex-shrink: 0;
-    flex-grow: 0;
-    z-index: 1;
-    margin-top: -10px;
-    padding-top: 20px;
+.padTop {
+	padding-top: 10px;
 }
 
-#bottomMenu {
-	width: 100%;
-	z-index: 1;
+.padBot {
+	padding-bottom: 10px;
 }
-
 
 button, input::file-selector-button, input[type="number"], input[type="text"], select{
 	background-Color: var(--entrybg);
@@ -231,7 +2952,7 @@ button {
 }
 
 input[type="number"], input[type="text"], select {
-	width: 6em;
+	width: calc(100% - 4px);
 	font-family: Monospace;
 }
 
@@ -239,1480 +2960,497 @@ button:hover, input::file-selector-button:hover{
 	background-Color: var(--buttonbgHover);
 }
 
-.opsConfig {
-	margin: 10px;
-	overflow-y: scroll;
-	width: auto;
-	height: calc(100% - 40pt);
-	font-size: 10pt;
-}
-
-.opsConfigHidden {
-	display: none;
-}
-
-textArea {
-	resize: none;
-    background: var(--midground);
-    Color: var(--textColor);
-    border: none;
-    padding: 0px;
-    outline: none;
-}
 
 </style>
 </head>
 
 <body>
-<canvas width="1920" height="969" id="background" style="position: absolute; z-index: 0;"></canvas>
+
+<canvas width="1" height="1" id="background" style="position: absolute; z-index: 0;"></canvas>
+
 <div id="container">
 
-<div id="bottomMenuContainer">
-<div id="bottomMenu">
-<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);" style="">Input Select</button>
-<button id="findWidthButton" onclick="openToolbox(&#39;findWidth&#39;);">Find Width</button>
-<button id="columnBiasButton" onclick="openToolbox(&#39;columnBias&#39;);">Column Bias</button>
-<button id="asciiViewButton" onclick="openToolbox(&#39;asciiView&#39;); updateAsciiView();">ASCII View</button>
-<button id="hexViewButton" onclick="openToolbox(&#39;hexView&#39;); updateHexView();" style="">Hex View</button>
-<button id="binaryViewButton" onclick="openToolbox(&#39;binaryView&#39;); updateBinaryView();">Binary View</button>
-<button id="operationsButton" onclick="openToolbox(&#39;operations&#39;)" style="">Operations</button>
-<button id="outputMenuButton" onclick="openToolbox(&#39;outputMenu&#39;);">Output</button>
-<button id="outputMenuButton" onclick="toggleColorMode();">Light/Dark</button>
-</div>
+<div id="topMenuContainer">
+<div id="topMenu">
+<!-- tool box selection buttons -->
+<button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);">File</button>
+|
+<button id="viewsButton" onclick="openToolbox(&#39;views&#39;);">Views</button>
+<button id="streamsButton" onclick="openToolbox(&#39;streams&#39;);">Streams</button>
+<button id="fieldsButton" onclick="openToolbox(&#39;fields&#39;);">Fields</button>
+|
+<button id="findButton" onclick="openToolbox(&#39;find&#39;);">Find</button>
+<button id="divideButton" onclick="openToolbox(&#39;divide&#39;);">Divide</button>
+<button id="sortButton" onclick="openToolbox(&#39;sort&#39;);">Sort</button>
+<button id="addFieldsButton" onclick="openToolbox(&#39;addFields&#39;);">Add Field</button>
+<button id="applyTemplateButton" onclick="openToolbox(&#39;applyTemplate&#39;);">Apply Template</button>
+<button id="newByteButton" onclick="openToolbox(&#39;newByte&#39;);">New Byte</button>
+<button id="dropBytesButton" onclick="openToolbox(&#39;dropBytes&#39;);">Drop Bytes</button>
+<button id="xorBytesButton" onclick="openToolbox(&#39;xorBytes&#39;);">XOR Bytes</button>
+<button id="reverseBytesButton" onclick="openToolbox(&#39;reverseBytes&#39;);">Reverse Bytes</button>
+<button id="splitButton" onclick="openToolbox(&#39;split&#39;);">Split</button>
+|
+<button id="plotViewButton" onclick="openToolbox(&#39;plotView&#39;);">Plot View</button>
+<button id="extractButton" onclick="openToolbox(&#39;extract&#39;);">Extract</button>
+<button id="consoleButton" onclick="openToolbox(&#39;console&#39;);">Console</button>
 
+
+</div> <!-- start tool box -->
 
 <div id="inputMenu" class="closedToolbox">
-<input type="file" id="fileSelector">
-</div>
+<table>
+<tbody><tr>
+	<td class="toolboxCell">Open PCAP/CAP:</td><td class="toolboxCell"><input id="browseOpen" type="file"></td>
+</tr>
 
-<div id="outputMenu" class="closedToolbox">
-<div style="display: flex;">
-<button id="outputGenerateButton" onclick="generateOutput();">Generate Output</button><div id="outputList" style="font-size: 8pt; margin-left: 10px; margin-top: 5px;"></div>
-</div>
-</div>
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr style="border-top: 1px solid var(--borderColor);"><td class="toolboxCell">&nbsp;</td></tr>
 
-<div id="findWidth" class="closedToolbox">
-<canvas id="findWidthGraph" width="1" height="265" style="border:0px; position: absolute; left: 20; z-index: 0; visibility: hidden;" "=""></canvas>
-<canvas id="findWidthOverlay" onmousemove="getMousePos(event)" onclick="applyWidth(event)" width="1" height="265" style="visibility: hidden; border:0px; position: absolute; left: 20; z-index: 1;" "=""></canvas>
-<div id="spacer" style="width: 100%; height: 265px;"></div>
-<div style="padding-top: 5px; padding-right: 10px;">
-Min Width: <input type="number" id="minWidthInput" value="0">
-Max Width: <input type="number" id="maxWidthInput" value="1000">
-Bits to Test: <input type="number" id="testBitsInput" value="100000">
-<button id="goFindWidthButton" onclick="findWidth();">Go</button>
-</div>
-</div>
+<tr>
+	<td class="toolboxCell">Open Raw:</td><td class="toolboxCell"><input id="browseOpenRaw" type="file"></td>
+</tr>
+<tr>
+	<td class="toolboxCell">Raw initial width:</td><td class="toolboxCell"><input id="rawInitialWidth" type="number" minimum="0/"></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="readInputRaw();">Open</button></td>
+</tr>
 
-<div id="columnBias" class="closedToolbox">
-<canvas id="columnBiasGraph" width="1" height="155" style="border:0px; position: absolute; left: 20; z-index: 0; visibility: hidden; margin-bottom: 10px;"></canvas>
-<div id="spacer" style="width: 100%; height: 165px;"></div>
-<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: auto; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-<div style="padding-top: 5px; padding-right: 10px;">
-Bits to Test: <input type="number" id="columnBiasInput" value="100000">
-<button id="goColumnBiasButton" onclick="runColumnBias();">Go</button>
-</div>
-</div>
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr style="border-top: 1px solid var(--borderColor);"><td class="toolboxCell">&nbsp;</td></tr>
 
+<tr>
+	<td class="toolboxCell">Build from Hex:</td><td class="toolboxCell"></td>
+</tr>
+<tr>
+	<td class="toolboxCell" colspan="2"><textarea id="hexInput" style="border: 1px solid var(--borderColor); width: calc(100% + 2px);"></textarea></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="UI_buildFromHex();">Build</button></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button style="width: 100%;" onclick="help(&#39;buildFromHex&#39;);">Help</button></td>
+</tr>
 
-<div id="asciiView" class="closedToolbox">
-<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-</div>
-
-<div id="hexView" class="closedToolbox">
-<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-</div>
-
-<div id="binaryView" class="closedToolbox">
-<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
-</div>
-
-<div id="operations" class="closedToolbox" style="overflow-y: hidden; overflow-x: hidden; display: -webkit-box;">
-
-<div id="operationTypes" style="width: 20%; overflow-y: scroll; height: 270px; padding-right: 5px; margin-right: 5px;">
-<p style="text-align: center;">Operations Menu</p>
-<button style="width: 100%;" onclick="addOperation(&#39;additiveScramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;, &#39;1&#39;, &#39;0&#39;, &#39;0&#39;]);">additiveScramble</button>
-<button style="width: 100%;" onclick="addOperation(&#39;feedThruScramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;]);">feedThruScramble</button>
-<button style="width: 100%;" onclick="addOperation(&#39;feedThruDescramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;]);">feedThruDescramble</button>
-<button style="width: 100%;" onclick="addOperation(&#39;applyDelta&#39;, [1]);">applyDelta</button>
-<button style="width: 100%;" onclick="addOperation(&#39;applyXOR&#39;, [&#39;0&#39;, 0]);">applyXOR</button>
-<button style="width: 100%;" onclick="addOperation(&#39;&#39;, []);">frameSync</button>
-<button style="width: 100%;" onclick="addOperation(&#39;takeSkip&#39;, [&#39;t256&#39;]);">takeSkip</button>
-<button style="width: 100%;" onclick="addOperation(&#39;invertBits&#39;, []);">invertBits</button>
-<button style="width: 100%;" onclick="addOperation(&#39;repeatBits&#39;, [0, 1]);">repeatBits</button>
-<button style="width: 100%;" onclick="addOperation(&#39;snipBits&#39;, [0, 0]);">snipBits</button>
-<button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
-</div>
-
-<div style="width: 1px; background: var(--borderColor);"></div>
-
-<div id="operationsListContainer" style="width: 20%; height: 270px; overflow-y: scroll; margin-left: 10px; margin-right: 5px;">
-<p style="text-align: center;">Applied Operations</p>
-<div id="operationsList"></div>
-</div>
-
-<div style="width: 1px; background: var(--borderColor);"></div>
+<tr><td class="toolboxCell">&nbsp;</td></tr>
+<tr style="border-top: 1px solid var(--borderColor);"><td class="toolboxCell">&nbsp;</td></tr>
 
 
-<div id="operationsConfig" style="width: calc(60% - 15px); height: 270px;">
-<p style="text-align: center;">Operation Configuration</p>
 
-<div id="applyDeltaConfig" class="opsConfigHidden">
-<p>Apply Delta</p>
-<p>Used for removing differential encoding. This function takes a bit, compares it with another bit, then returns the result. For example 110 becomes 01, the "delta" between 1 and 1 being 0 and the "delta" between 1 and 0 being 1.</p>Changing the "offset" changes how many bits between delta comparisons. This allows for the delta to be applied down a column for example. At a width of 256, to apply a delta down each column, use an offset of 256.
-<p>Offset: <input type="number" id="applyDelta0" value="0"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="takeSkipConfig" class="opsConfigHidden">
-<p>Take Skip</p>
-<p>Used to skip or change bits based on a 'command string'. Each command must be separated by a comma (,).
-</p><p>Letters for the command string are: Take some bits (t), skip some bits (s), invert some bits (i), insert some zero some bits (z) or reverse some bits (r).
-</p><p>The number after each letter indicates the number of bits to perform the action on. For example: t1,s2 will take one bit, then skip two bits.
-</p><p>Command: <input type="text" id="takeSkip0" value="-"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="repeatBitsConfig" class="opsConfigHidden">
-<p>Repeat Bits</p>
-<p>Used to repeat or duplicate a set of bits a number of times. Note that all bits in the file will be repeated.
-</p><p>"Chunk Size" refers to the number of bits to repeat or duplicate. Set to 0 to repeat the entire file.
-</p><p>"Repeat Count" refers to the number of times to repeat before moving to the next chunk.
-</p><p>Chunk Size: <input type="number" id="repeatBits0" value="0"></p>
-<p>Repeat Count: <input type="number" id="repeatBits1" value="1"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="snipBitsConfig" class="opsConfigHidden">
-<p>Snip Bits: Used to cut down a bit file by dropping bits from the the start and/or end of the file.
-</p><p>"Start" refers to the number of bits to drop at the start of the file. 0 will keep all start bits. Negative numbers will start a number of bits from the end of the file.
-</p><p>"Keep" refers to the number of bits to keep. 0 will keep all all end bits. Negative numbers will keep a number of bits from the end of a file.
-</p><p>Start: <input type="number" id="snipBits0" value="0"> <button onclick="increase(&#39;snipBits0&#39;);">+</button><button onclick="decrease(&#39;snipBits0&#39;);">-</button><input type="number" id="snipBits0Increment" value="0"> <button onclick="useBitRasterScroll(&#39;snipBits0&#39;);">Use Bitraster Scroll</button> </p>
-<p>Keep: <input type="number" id="snipBits1" value="0"> <button onclick="increase(&#39;snipBits1&#39;);">+</button><button onclick="decrease(&#39;snipBits1&#39;);">-</button><input type="number" id="snipBits1Increment" value="0"> <button onclick="useBitRasterScroll(&#39;snipBits1&#39;);">Use Bitraster Scroll</button> </p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="addBitsConfig" class="opsConfigHidden">
-<p>Add Bits: Used to append bits to a bit file, at a given bit position.
-</p><p>Postion 0 is the start of the file, position -1 is the end of the file. Position 1 is 1 bit from the start of the file, etc.
-</p><p>Position: <input type="number" id="addBits0" value="0"> <button onclick="increase(&#39;addBits0&#39;);">+</button><button onclick="decrease(&#39;addBits0&#39;);">-</button><input type="number" id="addBits0Increment" value="0"> <button onclick="useBitRasterScroll(&#39;addBits0);">Use Bitraster Scroll</button> </p>
-<p>Iterations: <input type="number" id="addBits1" value="0"></p>
-<p>Bits: <input type="text" style="width: calc(100% - 3.5em);" id="addBits2" value="0"></p>
-<p><button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</p></div>
-
-<div id="feedThruScrambleConfig" class="opsConfigHidden">
-<p>Feed Through Scrambler: Scrambles bits using the feed through method.</p>
-<p>Described using "taps". For example: 0,1,7 creates a register of length 7, with tap points at the 0th, 1st and 7th bits. As bits move through the register, the tap points are added to create the scrambled output stream.</p>
-<p>Use the "feedThruDescramble" to remove a feed through randomiser.</p>
-<p>Taps: <input type="text" id="feedThruScramble0" value="0"> (First tap point should always be 0) </p>
-<p>Reverse Taps:
-<select id="feedThruScramble1" value="No">
-<option value="No">No</option>
-<option value="Yes">Yes</option>
-</select>
-</p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
- 
-<div id="feedThruDescrambleConfig" class="opsConfigHidden">
-<p>Feed Through Descrambler: Descrambles bits using the feed through method.</p>
-<p>Described using "taps". For example: 0,1,7 creates a register of length 7, with tap points at the 0th, 1st and 7th bits. As bits move through the register, the tap points are added to create the scrambled output stream.</p>
-<p>Taps: <input type="text" id="feedThruDescramble0" value="0"> (First tap point should always be 0) </p>
-<p>Reverse Taps:
-<select id="feedThruDescramble1" value="No">
-<option value="No">No</option>
-<option value="Yes">Yes</option>
-</select>
-</p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="additiveScrambleConfig" class="opsConfigHidden">
-<p>Additive Scrambler: Scrambles (or descrambles) bits using the additive method.</p>
-<p>Generates a pseudorandom binary stream and XORs the data against this stream.</p>
-<o>Note that the reverse of this opperation is just to repeat the operation with the same settings.
-<p>Taps: <input type="text" id="additiveScramble0" value="0"> (First tap point should always be 0) </p>
-<p>Reverse Taps:
-<select id="additiveScramble1" value="No">
-<option value="No">No</option>
-<option value="Yes">Yes</option>
-</select>
-</p>
-<p>Initial Fill: <input type="text" id="additiveScramble2" value="0"> (1 = all 1s, 0 = all 0s)</p>
-<p>Length: <input type="number" id="additiveScramble3" value="0"> (0 = maximal)</p>
-<p>Rotation: <input type="number" id="additiveScramble4" value="0"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</o></div>
-
-<div id="applyXORConfig" class="opsConfigHidden">
-<p>applyXOR: (eXclusive OR) A Boolean logic operation. Compares two input bits and generates one output bit. If the bits are the same, the result is 0. If the bits are different, the result is 1.</p>
-<p>Provide a binary string to "XOR" against and an offset. The string will then be XORed against the bit file and repeated for the entire file.
-</p><p>Binary String: <input type="text" id="applyXOR0" value="0"></p>
-<p>Offset: <input type="number" id="applyXOR1" value="0"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="invertBitsConfig" class="opsConfigHidden">
-<p>Inverts all of the bits. Could also be achieved with XOR "1" or takeSkip "i1", however invertBits is much faster.
-</p></div>
+<tr>
+	<td class="toolboxCell">File Export:</td><td class="toolboxCell"></td>
+</tr>
+<tr>
+	<td class="toolboxCell">Link Type:</td><td class="toolboxCell"><select style="width: 100%;" id="outputLinkType"><option>NULL</option><option>ETHERNET</option><option>EXP_ETHERNET</option><option>AX25</option><option>PRONET</option><option>CHAOS</option><option>IEEE802_5</option><option>ARCNET_BSD</option><option>SLIP</option><option>PPP</option><option>FDDI</option><option>PPP_HDLC</option><option>PPP_ETHER</option><option>SYMANTEC_FIREWALL</option><option>ATM_RFC1483</option><option>RAW</option><option>C_HDLC</option><option>IEEE802_11</option><option>ATM_CLIP</option><option>FRELAY</option><option>LOOP</option><option>ENC</option><option>NETBSD_HDLC</option><option>LINUX_SLL</option><option>LTALK</option><option>PFLOG</option><option>IEEE802_11_PRISM</option><option>IP_OVER_FC</option><option>SUNATM</option><option>IEEE802_11_RADIOTAP</option><option>TZSP</option><option>ARCNET_LINUX</option><option>JUNIPER_MLPPP</option><option>JUNIPER_MLFR</option><option>JUNIPER_ES</option><option>JUNIPER_GGSN</option><option>JUNIPER_MFR</option><option>JUNIPER_ATM2</option><option>JUNIPER_SERVICES</option><option>JUNIPER_ATM1</option><option>APPLE_IP_OVER_IEEE1394</option><option>MTP2_WITH_PHDR</option><option>MTP2</option><option>MTP3</option><option>SCCP</option><option>DOCSIS</option><option>LINUX_IRDA</option><option>IBM_SP</option><option>IBM_SN</option><option>USER0</option><option>USER1</option><option>USER2</option><option>USER3</option><option>USER4</option><option>USER5</option><option>USER6</option><option>USER7</option><option>USER8</option><option>USER9</option><option>USER10</option><option>USER11</option><option>USER12</option><option>USER13</option><option>USER14</option><option>USER15</option><option>IEEE802_11_AVS</option><option>JUNIPER_MONITOR</option><option>BACNET_MS_TP</option><option>PPP_PPPD</option><option>JUNIPER_PPPOE</option><option>JUNIPER_PPPOE_ATM</option><option>GPRS_LLC</option><option>GPF_T</option><option>GPF_F</option><option>GCOM_T1E1</option><option>GCOM_SERIAL</option><option>JUNIPER_PIC_PEER</option><option>ERF_ETH</option><option>ERF_POS</option><option>LINUX_LAPD</option><option>JUNIPER_ETHER</option><option>JUNIPER_PPP</option><option>JUNIPER_FRELAY</option><option>JUNIPER_CHDLC</option><option>MFR</option><option>JUNIPER_VP</option><option>A429</option><option>A653_ICM</option><option>USB_FREEBSD</option><option>BLUETOOTH_HCI_H4</option><option>IEEE802_16_MAC_CPS</option><option>USB_LINUX</option><option>CAN20B</option><option>IEEE802_15_4_LINUX</option><option>PPI</option><option>IEEE802_16_MAC_CPS_RADIO</option><option>JUNIPER_ISM</option><option>IEEE802_15_4_WITHFCS</option><option>SITA</option><option>ERF</option><option>RAIF1</option><option>IPMB_KONTRON</option><option>JUNIPER_ST</option><option>BLUETOOTH_HCI_H4_WITH_PHDR</option><option>AX25_KISS</option><option>LAPD</option><option>PPP_WITH_DIR</option><option>C_HDLC_WITH_DIR</option><option>FRELAY_WITH_DIR</option><option>LAPB_WITH_DIR</option><option>IPMB_LINUX</option><option>FLEXRAY</option><option>MOST</option><option>LIN</option><option>X2E_SERIAL</option><option>X2E_XORAYA</option><option>IEEE802_15_4_NONASK_PHY</option><option>LINUX_EVDEV</option><option>GSMTAP_UM</option><option>GSMTAP_ABIS</option><option>MPLS</option><option>USB_LINUX_MMAPPED</option><option>DECT</option><option>AOS</option><option>WIHART</option><option>FC_2</option><option>FC_2_WITH_FRAME_DELIMS</option><option>IPNET</option><option>CAN_SOCKETCAN</option><option>IPV4</option><option>IPV6</option><option>IEEE802_15_4_NOFCS</option><option>DBUS</option><option>JUNIPER_VS</option><option>JUNIPER_SRX_E2E</option><option>JUNIPER_FIBRECHANNEL</option><option>DVB_CI</option><option>MUX27010</option><option>STANAG_5066_D_PDU</option><option>JUNIPER_ATM_CEMIC</option><option>NFLOG</option><option>NETANALYZER</option><option>NETANALYZER_TRANSPARENT</option><option>IPOIB</option><option>MPEG_2_TS</option><option>NG40</option><option>NFC_LLCP</option><option>PFSYNC</option><option>INFINIBAND</option><option>SCTP</option><option>USBPCAP</option><option>RTAC_SERIAL</option><option>BLUETOOTH_LE_LL</option><option>WIRESHARK_UPPER_PDU</option><option>NETLINK</option><option>BLUETOOTH_LINUX_MONITOR</option><option>BLUETOOTH_BREDR_BB</option><option>BLUETOOTH_LE_LL_WITH_PHDR</option><option>PROFIBUS_DL</option><option>PKTAP</option><option>EPON</option><option>IPMI_HPM_2</option><option>ZWAVE_R1_R2</option><option>ZWAVE_R3</option><option>WATTSTOPPER_DLM</option><option>ISO_14443</option><option>RDS</option><option>USB_DARWIN</option><option>OPENFLOW</option><option>SDLC</option><option>TI_LLN_SNIFFER</option><option>LORATAP</option><option>VSOCK</option><option>NORDIC_BLE</option><option>DOCSIS31_XRA31</option><option>ETHERNET_MPACKET</option><option>DISPLAYPORT_AUX</option><option>LINUX_SLL2</option><option>SERCOS_MONITOR</option><option>OPENVIZSLA</option><option>EBHSCR</option><option>VPP_DISPATCH</option><option>DSA_TAG_BRCM</option><option>DSA_TAG_BRCM_PREPEND</option><option>IEEE802_15_4_TAP</option><option>DSA_TAG_DSA</option><option>DSA_TAG_EDSA</option><option>ELEE</option><option>Z_WAVE_SERIAL</option><option>USB_2_0</option><option>ATSC_ALP</option><option>ETW</option><option>NETANALYZER_NG</option><option>ZBOSS_NCP</option><option>USB_2_0_LOW_SPEED</option><option>USB_2_0_FULL_SPEED</option><option>USB_2_0_HIGH_SPEED</option><option>AUERSWALD_LOG</option><option>ZWAVE_TAP</option><option>SILABS_DEBUG_CHANNEL</option><option>FIRA_UCI</option></select></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><button id="outputGenerateButton" style="width: 100%;" onclick="generateOutput();">Export</button></td>
+</tr>
+<tr>
+	<td class="toolboxCell"></td><td class="toolboxCell"><div id="outputList"></div></td>
+</tr>
 
 
-</div>
-</div>
-</div>
 
 
-<div id="topMenu">
-
-<div class="topMenuItem">
-Width: <input type="number" id="widthInput" value="256">
-</div>
-
-<div class="topMenuItem">
-Offset: <input type="number" id="offsetInput" value="0">
-</div>
-
-<div class="topMenuItem">
-Scale: <input type="number" id="scaleInput" value="2">
-</div>
-
-<div class="topMenuItem">
-Column: <input type="text" id="cursorColumn" value="0">
-</div>
-
-<div class="topMenuItem">
-Row: <input type="text" id="cursorRow" value="0">
-</div>
-
-<div class="topMenuItem" style="border: none;">
-Bit: <input type="text" id="cursorBit" value="0">
-</div>
+</tbody></table>
 
 </div>
 
-<div id="bitRasterOuter">
-<div id="bitRasterInner">
-<div id="outputSpacer" style="width: 2032px; height: 790px;"></div>
-<canvas id="output" width="1878" height="840" style="border: 0px; position: absolute; z-index: 0; top: 113px; left: 21px;" onmousemove="getBitLocation(event)"></canvas>
-</div>
+<div id="views" class="closedToolbox">
+	
+	<select style="width: 14em;" id="viewType">
+		<option>Hexadecimal</option>
+		<option>Decimal</option>
+		<option>ASCII</option>
+	</select>
+	
+	<button type="button" onclick="fieldView()">Fields On/Off</button>
+	<button type="button" onclick="toggleHighlightConstants()">Highlight Constants</button>
+	
+	<button id="modeButton" onclick="toggleColorMode();">Light/Dark</button>
+	<button id="plusButton" onclick="increaseTableFontSize();">+</button>
+	<button id="minusButton" onclick="decreaseTableFontSize();">-</button>
+	
+	
 </div>
 
+<div id="addFields" class="closedToolbox">
+	<table>
+	<tbody><tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="fieldStartByte" min="0"></td></tr>
+	<tr><td class="toolboxCell">Length (bytes):</td><td class="toolboxCell"><input type="number" id="fieldLength" min="0"></td></tr>
+	<tr><td class="toolboxCell">Type:</td><td class="toolboxCell"><select id="fieldType"><option>ipv4Address</option><option>decimalMSBF</option><option>decimalLSByteF</option><option>binary</option><option>binary_NoPad</option><option>binaryVisual</option><option>macAddress</option><option>hexField</option><option>ascii</option><option>ipv6Address</option><option>hexFieldFromBinary</option><option>hexFieldFromBinary_NoPad</option><option>decimalMSBF_fromBinary</option><option>decimalLSBF_fromBinary</option></select></td></tr>
+	<tr><td class="toolboxCell">Label:</td><td class="toolboxCell"><input type="text" id="fieldLabel"></td></tr>
+	<tr><td class="toolboxCell"></td><td class="toolboxCell">
+	<button style="width: calc(100% - 4px);" onclick="UI_addField();">Add</button>
+	</td></tr>
+	</tbody></table>
+</div>
+
+<div id="fields" class="closedToolbox">
+<div style="max-height: 10em; overflow: scroll;" id="fieldsContainer"></div>
 </div>
 
 
+<div id="streams" class="closedToolbox">
+<div style="max-height: 10em; overflow: scroll;" id="streamsContainer"></div>
+</div>
+
+<div id="applyTemplate" class="closedToolbox">
+	<table>
+	<tbody><tr><td class="toolboxCell">Start byte/field:</td><td class="toolboxCell"><input type="number" id="templateStartByte" min="0"></td></tr>
+	<tr><td class="toolboxCell">Template:</td><td class="toolboxCell"><select id="templateId"><option>template_Ethernet_802_3</option><option>template_IPv4</option><option>template_IPv4_with_protocols</option><option>template_TCP</option><option>template_TCP_Ack</option><option>template_TCP_Option_Header</option><option>template_ARP</option><option>template_UDP</option><option>template_DNS</option><option>template_IPv6</option><option>template_Byte_To_Bits</option><option>template_Frame_Relay_2_Byte</option></select></td></tr>
+	<tr><td class="toolboxCell"></td><td class="toolboxCell">
+	<button style="width: calc(100% - 4px);" onclick="UI_applyTemplate();">Apply</button>
+	</td></tr>
+	</tbody></table>
+</div>
+
+<div id="divide" class="closedToolbox">
+	<table>
+	<tbody><tr>
+	<td class="toolboxCell">Divide on byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="divideField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (only on bytes):</td>
+	<td class="toolboxCell"><input type="text" id="divideMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_divideOnField();">Divide</button></td>
+	</tr>
+	
+	<tr><td class="toolboxCell">&nbsp;</td></tr>
+	
+	<tr>
+	<td class="toolboxCell">Divide on Length:</td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="divideOnLength();">Divide on Length</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+
+<div id="find" class="closedToolbox">
+	<table>
+	<tbody><tr>
+	<td class="toolboxCell">Find Value:</td>
+	<td class="toolboxCell"><input type="text" id="findValue"></td>
+	</tr>
+
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_find();">Find</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="help(&#39;find&#39;);">Help</button></td>
+	</tr>
+	</tbody></table>
+	
+</div>
+
+<div id="split" class="closedToolbox">
+	<table>
+	<tbody><tr>
+	<td class="toolboxCell">Split On Value:</td>
+	<td class="toolboxCell"><input type="text" id="splitValue"></td>
+	</tr>
+
+	<tr>
+	<td class="toolboxCell">Offset:</td>
+	<td class="toolboxCell"><input type="text" id="splitOffset"></td>
+	</tr>
+
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_splitPackets();">Split</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="help(&#39;split&#39;);">Help</button></td>
+	</tr>
+	</tbody></table>
+	
+</div>
+
+<div id="sort" class="closedToolbox">
+	<table>
+	<tbody><tr>
+	<td class="toolboxCell">Sort on byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="sortField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (only on bytes):</td>
+	<td class="toolboxCell"><input type="text" id="sortMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_sortOnField(1);">Sort Ascending</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_sortOnField(-1);">Sort Descending</button></td>
+	</tr>
+	
+	<tr><td class="toolboxCell">&nbsp;</td></tr>
+	
+	<tr>
+	<td class="toolboxCell">Sort on length:</td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(1);">Sort on Length Asc</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="sortOnLength(-1);">Sort on Length Desc</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+<div id="newByte" class="closedToolbox">
+	<table>
+	
+	<tbody><tr>
+	<td class="toolboxCell">Insert at byte/field location:</td>
+	<td class="toolboxCell"><input type="number" id="newByteAt" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Derived from bytes start:</td>
+	<td class="toolboxCell"><input type="number" id="newByteFromStart" min="-1"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Derived from bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="newByteFromLength" min="1"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Mask (must match length):</td>
+	<td class="toolboxCell"><input type="text" id="newByteMask" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Align bits:</td>
+	<td class="toolboxCell"><select id="newByteAlign"><option>none</option><option>left</option><option>right</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="newByteOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_newByte();">Create</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+
+<div id="dropBytes" class="closedToolbox">
+	<table>
+	
+	<tbody><tr>
+	<td class="toolboxCell">Drop bytes/fields starting at:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesStart" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Drop bytes/fields length:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesLength" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Drop from packet:</td>
+	<td class="toolboxCell"><input type="number" id="dropBytesPacketNumber" min="-1" value="-1"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="dropBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_dropBytes();">Drop bytes</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+
+<div id="xorBytes" class="closedToolbox">
+	<table>
+	
+	<tbody><tr>
+	<td class="toolboxCell">XOR bytes starting at:</td>
+	<td class="toolboxCell"><input type="number" id="xorBytesStart" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">XOR bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="xorBytesLength" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">XOR value (will repeat to cover bytes):</td>
+	<td class="toolboxCell"><input type="text" id="xorBytesValue" value="0xFF"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="xorBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_xorBytes();">XOR bytes</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+
+<div id="reverseBytes" class="closedToolbox">
+	<table>
+	
+	<tbody><tr>
+	<td class="toolboxCell">Reverse bytes starting at:</td>
+	<td class="toolboxCell"><input type="number" id="reverseBytesStart" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Reverse bytes length:</td>
+	<td class="toolboxCell"><input type="number" id="reverseBytesLength" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Reverse type:</td>
+	<td class="toolboxCell"><select id="reverseBytesType"><option>each byte</option><option>order of bytes</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Overwrite current stream:</td>
+	<td class="toolboxCell"><select id="reverseBytesOverwrite"><option>false</option><option>true</option></select></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_reverseBytes();">Reverse bytes</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+
+<div id="extract" class="closedToolbox">
+	<table>
+	
+	<tbody><tr>
+	<td class="toolboxCell">Extract start byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="extractStart" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Extract length bytes/fields:</td>
+	<td class="toolboxCell"><input type="number" id="extractLength" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Extract packet (-1 for all):</td>
+	<td class="toolboxCell"><input type="number" id="extractPacket" min="-1" value="-1"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_extractASCII();">Extract as ASCII</button></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_extractHex();">Extract as hex</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+<div id="plotView" class="closedToolbox">
+	<table>
+	
+	<tbody><tr>
+	<td class="toolboxCell">Plot byte/field:</td>
+	<td class="toolboxCell"><input type="number" id="plotField" min="0"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell">Plot Format (only for fields):</td>
+	<td class="toolboxCell"><input type="number" id="plotFormat" min="2" value="10"></td>
+	</tr>
+	
+	<tr>
+	<td class="toolboxCell"></td>
+	<td class="toolboxCell"><button style="width: calc(100% - 4px);" onclick="UI_plotField();">Plot</button></td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+<div id="console" class="closedToolbox">
+	<table style="width: 100%;">
+	
+	<tbody><tr>
+	<td style="width: 50%;" class="toolboxCell">
+	<p>Code Area:</p>
+	<p><textarea style="width: 100%; height: 20em; border: 1px solid var(--borderColor); text-wrap: nowrap; overflow: scroll;" id="codeAreaInput"></textarea></p>
+	<p><button style="width: 100%; margin-left: 0px;" onclick="evaluateCode();">Evaluate Code</button></p>
+	</td>
+	
+	<td style="width: 50%;" class="toolboxCell">
+	<p>Console:</p>
+	<p><textarea autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" disabled="" style="width: 100%; height: 20em; border: 1px solid var(--borderColor);" id="consoleOutput"></textarea></p>
+	<p><input type="text" style="width: 100%; border: 1px solid var(--borderColor); margin-left: 0px;" id="consoleInput"></p>
+	</td>
+	</tr>
+	
+	</tbody></table>
+	
+</div>
+
+</div> <!-- end toolbox -->
+
+<div id="packetDisplayOuter">
+	<div id="packetDisplayInner" style="overflow: scroll;"><div id="tableSpacer39d" style="width: 22px; height: 48px;"><canvas width="1" height="1" id="tableView39d" style="position: absolute; z-index: 0; filter: contrast(2)"></canvas></div></div>
+</div>
+
+<div id="loadingPage">
+<p id="loadingText">Loading...</p>
+<p id="loadingText2"></p>
+</div>
+
+<div id="highlightBox" style="position: absolute; z-index: 999; top: 0px; visibility: hidden; font-family: monospace; font-size: 10pt; background: var(--buttonbg);"></div>
 
 <script>
-
-var colorMode = 'dark';
-var styleDocs = [];
-var bitRasterBg = getComputedStyle(document.body).getPropertyValue('--bitRasterBg');
-var lineColor = getComputedStyle(document.body).getPropertyValue('--textColor');
-function toggleColorMode() {
-	styleDocs = [document.documentElement.style];
-	if (colorMode == 'dark') { UI_lightMode(); return null; }
-	if (colorMode == 'light') { UI_darkMode(); return null; }
-}
-
-function UI_lightMode () {
-	colorMode = 'light'
-	styleDocs.forEach( function(style) {
-	style.setProperty('--background', 'var(--backgroundLight)');
-	style.setProperty('--midground', 'var(--midgroundLight)');
-	style.setProperty('--borderColor', 'var(--borderColorLight)');
-	style.setProperty('--buttonbg', 'var(--buttonbgLight)');
-	style.setProperty('--entrybg', 'var(--entrybgLight)');
-	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverLight)');
-	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedLight)');
-	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedLight)');
-	style.setProperty('--textColor', 'var(--textColorLight)');
-	style.setProperty('--tableHeadColor', 'var(--tableHeadColorLight)');
-	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorLight)');
-	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorLight2)');
-	style.setProperty('--cellColor', 'var(--cellColorLight)');
-	style.setProperty('--cellBorder', 'var(--cellBorderLight)');
-	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongLight)');
-	style.setProperty('--shadowColor', 'var(--shadowColorLight)');
-	style.setProperty('--tableTopLeft', 'var(--tableTopLeftLight)');
-	style.setProperty('--bitRasterBg', 'var(--bitRasterBgLight)');
-	});
-	bitRasterBg = getComputedStyle(document.body).getPropertyValue('--bitRasterBg');
-	lineColor = getComputedStyle(document.body).getPropertyValue('--textColor');
-	updateBitRaster();
-}
-
-function UI_darkMode () {
-	colorMode = 'dark';
-	styleDocs.forEach( function(style) {
-	style.setProperty('--background', 'var(--backgroundDark)');
-	style.setProperty('--midground', 'var(--midgroundDark)');
-	style.setProperty('--borderColor', 'var(--borderColorDark)');
-	style.setProperty('--buttonbg', 'var(--buttonbgDark)');
-	style.setProperty('--entrybg', 'var(--entrybgDark)');
-	style.setProperty('--buttonbgHover', 'var(--buttonbgHoverDark)');
-	style.setProperty('--buttonbgSelected', 'var(--buttonbgSelectedDark)');
-	style.setProperty('--buttonfgSelected', 'var(--buttonfgSelectedDark)');
-	style.setProperty('--textColor', 'var(--textColorDark)');
-	style.setProperty('--tableHeadColor', 'var(--tableHeadColorDark)');
-	style.setProperty('--tableHighlightColor', 'var(--tableHighlightColorDark)');
-	style.setProperty('--tableHighlightColor2', 'var(--tableHighlightColorDark2)');
-	style.setProperty('--cellColor', 'var(--cellColorDark)');
-	style.setProperty('--cellBorder', 'var(--cellBorderDark)');
-	style.setProperty('--cellBorderStrong', 'var(--cellBorderStrongDark)');
-	style.setProperty('--shadowColor', 'var(--shadowColorDark)');
-	style.setProperty('--tableTopLeft', 'var(--tableTopLeftDark)');
-	style.setProperty('--bitRasterBg', 'var(--bitRasterBgDark)');
-	});
-	bitRasterBg = getComputedStyle(document.body).getPropertyValue('--bitRasterBg');
-	lineColor = getComputedStyle(document.body).getPropertyValue('--textColor');
-	updateBitRaster();
-}
-
-
-String.prototype.replaceAll = function(str1, str2, ignore) 
-{
-    return this.replace(new RegExp(str1.replace(/([\/\,\!\\\^\$\{\}\[\]\(\)\.\*\+\?\|\<\>\-\&])/g,"\\$&"),(ignore?"gi":"g")),(typeof(str2)=="string")?str2.replace(/\$/g,"$$$$"):str2);
-} 
-
-function ByteReader( bytedata ) {
-this._data = bytedata || "";
-this._offset = 0;
-}
-
-ByteReader.prototype = {
-
-	constructor: ByteReader,
-
-	EOF: function(){
-	return this._offset >= this._data.length;
-	},
-
-	tellSize: function(){
-	return this._data.length;
-	},
-
-	seekTo: function( offset ){
-	this._offset = offset;
-	return this;
-	},
-
-	rewind: function() {
-	this._offset = 0;
-	return this;
-	},
-
-	readBytes: function( bytes ) {
-	var s = this._data.substr( this._offset, bytes );
-	this._offset += bytes;
-	return s;
-	},
-
-	setByteStream: function( data ) {
-
-		if( typeof data != "string" )
-		throw new TypeError( typeof data + " must be string" );
-
-	this._data = data;
-	this._offset = 0;
-	return this;
-	},
-
-	readDouble: function( littleEndian ) {
-	var s = this.readBytes( 8 );
-	var pow = Math.pow, sign, exponent, fraction;
-
-		if( littleEndian )
-		s = s.split("").reverse().join("");
-
-	sign =  ( s.charCodeAt(0) & 0x80 ) >> 7;
-	exponent =  ( ( s.charCodeAt(0) & 0x7F ) << 4 ) | ( ( s.charCodeAt(1) & 0xF0 ) >> 4 );
-	fraction =  ( ( s.charCodeAt(1) & 0x0F ) * pow(2, 48) ) +
-			s.charCodeAt(2) * pow( 2, 40 ) +
-			s.charCodeAt(3) * pow( 2, 32 ) +
-			( ( s.charCodeAt(4) & 0xFF ) << 24 ) +
-			( ( s.charCodeAt(5) & 0xFF ) << 16 ) +
-			( ( s.charCodeAt(6) & 0xFF ) << 8  ) +
-			s.charCodeAt(7);
-
-	sign = pow( -1, sign );
-
-		if( exponent === 2047 ) {
-			if( fraction !== 0)
-			return Number.NaN;
-
-			else if( sign < 0 )
-			return -Infinity;
-
-			else
-			return Infinity;
-		}
-		else if( exponent > 0 )
-		return sign * Math.pow( 2, exponent - 1023 ) * ( fraction / 0x10000000000000 + 1 );
-
-
-		else if ( fraction !== 0 )
-		return sign * Math.pow( 2, -1022 ) * ( fraction / 0x10000000000000 );
-
-
-		else 
-		return 0;
-
-	},
-
-	readSingle: function( littleEndian ) {
-	var s = this.readBytes( 4 )
-	var sign, exponent, fraction;
-
-		if( littleEndian )
-		s = s.split("").reverse().join("");
-
-	sign =  ( s.charCodeAt(0) & 0x80 ) >> 7;
-	exponent =  ( ( s.charCodeAt(0) & 0x7F ) << 1 )  | ( ( s.charCodeAt(1) & 0x80 ) >> 7 );
-	fraction =  ( ( s.charCodeAt(1) & 0x7F ) << 16 ) |
-			( ( s.charCodeAt(2) & 0xFF ) << 8 )  |
-			( s.charCodeAt(3) & 0xFF );
-
-	sign = Math.pow( -1, sign );
-
-		if( exponent === 255 ) {
-
-			if( fraction !== 0 )
-			return Number.Nan;
-
-			else if( sign < 0 )
-			return -Infinity;
-
-			else
-			return Infinity;
-		}
-		else if( exponent > 0 )
-		return sign * Math.pow(2, exponent - 127) * ( fraction / 0x800000 + 1 );
-
-		else if ( fraction !== 0 )
-		return sign *  Math.pow(2, -126) * ( fraction / 0x800000 );
-
-		else
-		return 0;
-
-	},
-
-	readSByte: function() {
-	var s = this.readBytes( 1 ).charCodeAt( 0 ) & 0xFF;
-	return ( s ^ 0x80 ) - 0x80;
-	},
-
-	readUByte: function() {
-	return this.readBytes( 1 ).charCodeAt( 0 ) & 0xFF;
-	},
-	
-	readUBits: function() {
-	return ('00000000'+ ( this.readBytes( 1 ).charCodeAt( 0 ) & 0xFF).toString(2)).slice(-8);
-	},
-
-	readUShort: function( littleEndian ) {
-	var s = this.readBytes( 2 );
-
-		if( littleEndian )
-		return ( s.charCodeAt( 0 ) & 0xFF ) |
-		( ( s.charCodeAt( 1 ) & 0xFF) << 8 );
-
-		else
-		return ( s.charCodeAt( 1 ) & 0xFF ) |
-		( ( s.charCodeAt( 0 ) & 0xFF) << 8 );
-	},
-
-	readULong: function( littleEndian ) {
-	var s = this.readBytes( 4 ), r;
-
-		if( littleEndian ) 
-		r = ( s.charCodeAt( 0 ) & 0xFF )        |
-		( ( s.charCodeAt( 1 ) & 0xFF ) << 8 )   |
-		( ( s.charCodeAt( 2 ) & 0xFF ) << 16 )  |
-		( ( s.charCodeAt( 3 ) & 0xFF ) << 24 );
-
-		else
-		r = ( s.charCodeAt( 3 ) & 0xFF )        |
-		( ( s.charCodeAt( 2 ) & 0xFF ) << 8 )   |
-		( ( s.charCodeAt( 1 ) & 0xFF ) << 16 )  |
-		( ( s.charCodeAt( 0 ) & 0xFF ) << 24 );
-
-		if ( r & 0x80000000 )
-		r = ( r & 0x7FFFFFFF ) + 0x80000000;
-
-	return r;
-	},
-
-	readSShort: function( littleEndian ){
-	var s = this.readBytes( 2 ), r;
-
-		if( littleEndian )
-		r = ( s.charCodeAt( 0 ) & 0xFF ) |
-		( ( s.charCodeAt( 1 ) & 0xFF) << 8 );
-
-		else
-		r = ( s.charCodeAt( 1 ) & 0xFF ) |
-		( ( s.charCodeAt( 0 ) & 0xFF) << 8 );
-
-	return ( r ^ 0x8000 ) - 0x8000;
-	},
-
-	readSLong: function( littleEndian ){
-	var s = this.readBytes( 4 ), r;
-
-		if( littleEndian ) 
-		return ( s.charCodeAt( 0 ) & 0xFF ) |
-		( ( s.charCodeAt( 1 ) & 0xFF ) << 8 )   |
-		( ( s.charCodeAt( 2 ) & 0xFF ) << 16 )  |
-		( ( s.charCodeAt( 3 ) & 0xFF ) << 24 );
-
-		else
-		return ( s.charCodeAt( 3 ) & 0xFF ) |
-		( ( s.charCodeAt( 2 ) & 0xFF ) << 8 )   |
-		( ( s.charCodeAt( 1 ) & 0xFF ) << 16 )  |
-		( ( s.charCodeAt( 0 ) & 0xFF ) << 24 );
-
-	}
-
-
-};
-
-const status = document.getElementById('status');
-const output = document.getElementById('output');
-const spacer = document.getElementById('outputSpacer');
-const biasView = document.getElementById('biasView');
-const widthInput = document.getElementById('widthInput');
-const scaleInput = document.getElementById('scaleInput');
-const fileSelector = document.getElementById('fileSelector')
-const offsetInput = document.getElementById('offsetInput');
-const positionOutput = document.getElementById('position');
-const operationsListHTML = document.getElementById('operationsList');
-var operationsList = [];
-
-var bits = Array(10000).fill(0);
-additiveScramble("0,1,7","No","1","0","0");
-var bitsNoOp = [...bits];
-
-var mouseX = 0;
-var mouseY = 0;
-document.onmousemove = function(event) {
-        mouseX = event.pageX;
-        mouseY = event.pageY;
-    };
-
-
-document.addEventListener("wheel", function(e) {
-  var bounds = output.getBoundingClientRect()
-  if (mouseY > bounds['top'] && mouseY < bounds['bottom'] && mouseX > bounds['left'] && mouseX < bounds['right']) {
-		if (event.shiftKey) {
-			output.parentElement.scrollBy(e.deltaY, 0);
-				} else {
-			output.parentElement.scrollBy(0, e.deltaY);
-				}
-		}
-});
-
-output.parentElement.onscroll = function (e) {  
-	updateBitRaster();
-};
-
-
-function makeInt(item) {
-	return parseInt(item);
-}
-
-function generateBytes() {
-	var bytes = new Uint8Array(bits.length / 8);
-	var byte = 0
-	for (let i = 0; i < bits.length; i+=8) {
-		bytes[byte] = parseInt( bits.slice(i, i+8).join(''), 2);
-		byte++;
-	}
-
-	return bytes;
-}
- 
-function generateOutput() {
-	list = document.getElementById("outputList");
-
-	while (list.hasChildNodes()) {
-		list.removeChild(list.firstChild);
-	}
-
-	var d = new Date();
-	let time = d.getTime();
-
-	let link = document.createElement('a');
-	link.innerHTML = time + '_output.bit';
-	link.download = time + '_output.bit';
-	link.style = 'color: white;'
-	let bytes = generateBytes();
-	let  blob = new Blob([bytes], { type: 'application/octet-stream' });
-	link.href = URL.createObjectURL(blob);
-	list.appendChild(link);
-}
- 
-function arraysEqual(a, b) {
-	if (a === b) return true;
-	if (a == null || b == null) return false;
-	if (a.length !== b.length) return false;
-
-	for (var i = 0; i < a.length; ++i) {
-		if (a[i] !== b[i]) return false;
-		}
-	return true;
-}
-
-function applyXOR(binaryString, offset) {
-	binaryString = binaryString.split('').map(makeInt);
-	offset = parseInt(offset);
-	
-	if (offset < 0) {offset = binaryString.length - (offset % binaryString.length);}	
-	newBits = new Array(bits.length);
-	
-	for (let i = 0; i < bits.length; i++) {
-		newBits[i] = (bits[i] + binaryString[(i+offset) % binaryString.length]) % 2;
-	}
-	
-	bits = newBits;
-	delete newBits;
-}
-
-function additiveScramble(taps, reversed, fill, length, rotation) {
-	taps = taps.split(',').map(makeInt);
-	var tapsRev = [];
-	var lastTap = taps.slice(-1)[0];
-
-	tapsRev.push(taps[0]);
-	for (let i = 1; i < taps.length - 1; i++) {
-		tapsRev.push(lastTap - taps[i]);
-	}
-	tapsRev.push(lastTap);
-
-	if (reversed == 'No') {taps = tapsRev;}
-	
-	var register = fill.repeat(lastTap).split('').slice(0, lastTap).map(makeInt);
-	var scramble = [];
-	
-	length = parseInt(length);
-	var bit = 0;
-	var initial = register.join('');
-	
-	if (length == 0) {
-		
-		do {
-			bit = 0;
-
-			for (let x = 1; x < taps.length; x++) {
-				bit = bit + register[taps[x]-1];
-			}
-
-			bit = bit % 2;
-			register.unshift(bit);
-			register.pop();
-			scramble.push(bit);
-		}
-		while (initial != register.join(''));
-	
-	} else {
-	
-		do {
-			bit = 0;
-
-			for (let x = 1; x < taps.length; x++) {
-				bit = bit + register[taps[x]-1];
-			}
-
-			bit = bit % 2;
-			register.unshift(bit);
-			register.pop();
-			scramble.push(bit);
-		}
-		while (scramble.length < length);
-	
-	}
-	
-	rotation = parseInt(rotation);
-	if (rotation < 0) {rotation = output.length - (rotation % output.length);}	
-	
-	for (let i = 0; i < bits.length; i++) {
-		bits[i] = (bits[i] + scramble[(i+rotation) % scramble.length]) % 2;
-	}
-	
-}
-
-function feedThruScramble(taps, reversed) {
-	taps = taps.split(',').map(makeInt);
-	var tapsRev = [];
-	var lastTap = taps.slice(-1)[0];
-
-	tapsRev.push(taps[0]);
-	for (let i = 1; i < taps.length - 1; i++) {
-		tapsRev.push(lastTap - taps[i]);
-	}
-	tapsRev.push(lastTap);
-
-	if (reversed == 'No') {taps = tapsRev;}
-
-	register = new Array(lastTap).fill(0);
-	newBits = new Array(bits.lenght);
-	
-	for (let a = 0; a < taps.length; a++) {
-		taps[a] = Math.abs(taps[a] - lastTap);
-	}
-   
-	var bit = 0;
-	var offset = 0;
-	for (let i = 0; i < bits.length; i++) {
-		bit = bits[i];
-
-		for (let x = 1; x < taps.length; x++) {
-			bit = bit + register[taps[x] + offset];
-		}
-
-		bit = bit % 2;
-		register.push(bit);
-		newBits[i] = bit;
-		offset++;
-	}
-
-	bits = newBits;
-	delete newBits;
-}
- 
-function feedThruDescramble(taps, reversed) {
-	taps = taps.split(',').map(makeInt);
-	var tapsRev = [];
-	var lastTap = taps.slice(-1)[0];
-
-	tapsRev.push(taps[0]);
-	for (let i = 1; i < taps.length - 1; i++) {
-		tapsRev.push(lastTap - taps[i]);
-	}
-	tapsRev.push(lastTap);
-
-	if (reversed == 'No') {taps = tapsRev;}
-
-	register = new Array(lastTap).fill(0);
-	newBits = new Array(bits.lenght);
-	
-	for (let a = 0; a < taps.length; a++) {
-		taps[a] = Math.abs(taps[a] - lastTap);
-	}
-	
-	var bit = 0;
-	var offset = 0;
-	for (let i = 0; i < bits.length; i++) {
-		bit = bits[i];
-		register.push(bit);
-		offset++;
-
-		for (let x = 1; x < taps.length; x++) {
-			bit = bit + register[taps[x] + offset -1];
-		}
-
-		bit = bit % 2;
-		newBits[i] = bit;
-		
-	}
-
-	bits = newBits;
-	delete newBits;
-}
-
-
-function updateAsciiView() {
-	var width = parseInt(widthInput.value);
-	var ascii = [];
-	var line = [];
-	var x = 0;
-	
-	for (let i = parseInt(offsetInput.value); i < bits.length; i+=8) {
-		line.push( String.fromCharCode( parseInt( bits.slice(i, i+8).join(''), 2) ) );
-		x+=1;
-		if (x == width) {
-			ascii.push(line.join(''));
-			x = 0;
-			line = [];
-		}
-		
-	}
-	ascii.push(line.join(''));
-	document.getElementById('asciiViewOutput').value = ascii.join('');
-
-}
-
-
-function updateHexView() {
-	var width = parseInt(widthInput.value);
-	var hex = [];
-	var line = [];
-	var x = 0;
-	var leftOver = 0;
-	
-	for (let i = parseInt(offsetInput.value); i < bits.length;) {
-		line.push( ('00' + parseInt(bits.slice(i, i+8).join(''), 2).toString(16).toUpperCase()).slice(-2) );
-		i+=8;
-		x+=8;
-		if (x == width) {
-			hex.push(line.join(' '));
-			x = 0;
-			line = [];
-		}
-		
-		if (x+8 >= width) {
-			leftOver = width - x;
-			line.push( ('00' + parseInt(bits.slice(i, i+leftOver).join(''), 2).toString(16).toUpperCase()).slice(-2) );
-			hex.push(line.join(' '));
-			i += leftOver;
-			x = 0;
-			line = [];
-		}
-		
-	}
-	hex.push(line.join(' '));
-	document.getElementById('hexViewOutput').innerHTML = hex.join('\n');
-
-}
-
-function updateBinaryView() {
-	var width = parseInt(widthInput.value);
-	var binary = [];
-	
-	for (var i = parseInt(offsetInput.value); i < bits.length-width;) {
-		binary.push(bits.slice(i, i+width).join(''));
-		i += width;
-	}
-	
-	binary.push(bits.slice(i, bits.length).join(''));
-			
-	document.getElementById('binaryViewOutput').innerHTML = binary.join('\n');
-
-}
-
-function addOperation(operation, args) {
-	operationsList.push([operation, args]);
-	operationsListHTML.innerHTML = "";
-	operationsList.forEach(addToOpsListDisplay);
-	runOperations();
-}
-
-function closeConfigureOperation() {
-	document.getElementsByClassName('opsConfig')[0].className = 'opsConfigHidden';
-}
-
-var openOpsConfig = null;
-
-function configureOperation(index) {
-	if (document.getElementsByClassName('opsConfig').length > 0) {
-		closeConfigureOperation();
-	}
-	
-	for (let a=0; a < operationsList.length; a++) {
-		document.getElementById('configureButton' + a).style.backgroundColor = '';
-		document.getElementById('configureButton' + a).style.color = '';
-		
-	}
-	
-	document.getElementById('configureButton' + index).style.backgroundColor = 'var(--buttonbgSelected)';
-	document.getElementById('configureButton' + index).style.color = 'var(--buttonfgSelected)';
-	
-
-	var type = operationsList[index][0];
-	var args = operationsList[index][1];
-	var configObject = document.getElementById(type + 'Config');
-	configObject.className = 'opsConfig';
-	
-	for (let i=0; i < args.length; i++) {
-		document.getElementById(type + i).value = args[i];
-	}
-	
-	openOpsConfig = index;
-}
-
-function updateOperation() {
-	var type = operationsList[openOpsConfig][0]
-	var args = operationsList[openOpsConfig][1]
-	
-	for (let i = 0; i < args.length; i++) {
-		args[i] = document.getElementById(type+i).value;
-	}
-	operationsList[openOpsConfig] = [type, args];
-	runOperations();
-	
-}
-
-function addToOpsListDisplay(item, index) {
-	operationsListHTML.innerHTML +=
-	"<button id='configureButton" + index  + "' style='width: calc(85% - 4px);'" +
-	"onclick='configureOperation(" + index + ")'" +
-	">" + item[0] + "</button>" +
-	"<button style='width: calc(10% - 4px); text-align: center; padding-left: 0px; padding-right: 0px; margin-left: 1px;'" + 
-	"onclick='removeOperation(" + index + ")'" +
-	">X</button>";
-}
-
-function removeOperation(index) {
-	if (document.getElementsByClassName('opsConfig').length > 0) {
-		closeConfigureOperation();
-	}
-	operationsList.splice(index, 1);
-	operationsListHTML.innerHTML = "";
-	operationsList.forEach(addToOpsListDisplay);
-	runOperations();
-}
-
-function runOperations() {
-	bits = [...bitsNoOp]
-	operationsList.forEach(runOperation);
-	updateBitRaster();
-}
-
-function runOperation(operation) {
-	var operationName = operation[0];
-	var operationArguments = operation[1];
-	var command = operationName + '("' + operationArguments.join('","') + '");'
-	console.log(command);
-	eval(command);
-}
-
-function applyDelta(offset) {
-	newBits = new Array(bits.length);
-	for (let i = 0; i < bits.length-1; i++) { 
-		newBits[i] = (bits[i] + bits[i+parseInt(offset)]) % 2;
-	}
-	bits = newBits;
-	delete newBits;
-}
-
-function invert(bit, index) {
-	return (bit + 1) % 2;
-}
-
-function invertBits() {
-	bits = bits.map(invert);
-}
-
-
-function repeatBits(chunkSize, timesToRepeat) {
-	chunkSize = parseInt(chunkSize);
-	timesToRepeat = parseInt(timesToRepeat);
-	
-	if (chunkSize == 0) {chunkSize = bits.length;}
-
-	if (chunkSize == bits.length) {
-		bits = bits.join('').repeat(timesToRepeat+1).split('');
-	} else {
-	
-		newBits = new Array();
-		
-		for (let i = 0; i < bits.length;) {
-			for (let x=0; x < timesToRepeat+1; x++) {
-				newBits.push( ...bits.slice(i,i+chunkSize) );
-			}
-			i += chunkSize;
-		}
-		bits = newBits;
-		delete newBits;
-	}
-}
-
-
-function addBits(start, iterations, bitsToAdd) {
-	start = parseInt(start);
-	bitsToAdd = bitsToAdd.repeat(iterations);
-	bitsToAdd = bitsToAdd.split('').map(makeInt);
-
-	if (start > -1) {
-		newBits = bits.slice(0, start);
-		newBits = newBits.concat(bitsToAdd);
-		newBits.push( ...bits.slice(start) );
-	} else {
-		start = start * -1
-		var revBits = bits;
-		revBits.reverse();
-		bitsToAdd.reverse();
-		
-		newBits = revBits.slice(0, start-1);
-		newBits.push( ...bitsToAdd );
-		newBits.push( ...revBits.slice(start-1) );
-		newBits.reverse();
-	}
-	
-	bits = newBits;
-	delete newBits;
-}
-
-function snipBits(start, keep) {
-	start = parseInt(start);
-	keep = parseInt(keep);
-	
-	if (keep == 0) {
-		bits = bits.slice(start);
-	} else if (keep < 0) {
-		bits = bits.slice(start, keep);
-	} else {
-		bits = bits.slice(start, start+keep);
-	}
-}
-
-function increase(field) {
-	document.getElementById(field).value = parseInt(document.getElementById(field).value) + parseInt(document.getElementById(field + 'Increment').value);
-	updateOperation();
-}
-
-function decrease(field) {
-	document.getElementById(field).value = parseInt(document.getElementById(field).value) - parseInt(document.getElementById(field + 'Increment').value);
-	updateOperation()
-}
-
-function useBitRasterScroll(field) {
-	var position = parseInt((document.getElementById('bitRasterInner').scrollTop / document.getElementById('bitRasterInner').scrollHeight) * bits.length);
-	document.getElementById(field).value = position;
-}
-
-
-function takeSkip(commandString) {
-	var takeSkipBits = [];
-	var takeSkipCommands = [];
-   
-   
-	var commandPositions = []
-	for (let a = 0; a < commandString.length; a++) {
-		if (['t','z','s','i','o','r'].includes(commandString.slice(a,a+1))) {
-				commandPositions.push(a);
-		}
-	}
-	commandPositions.push(commandString.length);
-   
-	var amount = 0;
-	for (let b = 0; b < commandPositions.length-1; b++) {
-		amount = parseInt(commandString.slice(commandPositions[b]+1, commandPositions[b+1]));
-		takeSkipCommands.push( [commandString.slice(commandPositions[b],commandPositions[b]+1), amount] );
-	}
-   
-	var c = [];
-	var count = 0
-
-	for (let i = 0; i < bits.length;) {
-		c = takeSkipCommands[count % takeSkipCommands.length];
-
-		if (c[0] == 'z') {
-			takeSkipBits.push( ...Array(c[1]).fill(0) );
-		} else if (c[0] == 'o') {
-			takeSkipBits.push( ...Array(c[1]).fill(1) );
-			count++;
-		} else if (c[0] == 't') {
-			takeSkipBits.push( ...bits.slice(i, i+c[1]) );
-			i+=c[1];
-		} else if (c[0] == 's') {
-			i+=c[1];
-		} else if (c[0] == 'i') {
-			takeSkipBits.push( ...bits.slice(i, i+c[1]).map(invert) );
-			i+=c[1];
-		} else if (c[0] == 'r') {
-			takeSkipBits.push( ...bits.slice(i, i+c[1]).reverse() );
-			i+=c[1];
-		}
-		count++;
-				   
-	}
-   
-	bits = takeSkipBits;
-}
-
-
-
-function columnBias(width, checkBits) {
-	var bias = 0;
-	var count = 0;
-	var total = 0;
-	var delta = 0;
-	checkBits = parseInt(checkBits);
-	
-	for (var i=0; i<width; i++){
-		count = 0;
-		total = 0;
-
-		for (var pos = i; pos < checkBits;){
-			total += bits[pos];
-			pos += width;
-			count += 1;
-		}
-		
-		bias = parseFloat(total) / parseFloat(count);
-		delta += Math.abs(bias - 0.5);
-		
-	}
-	
-	delta = delta / width;
-	return delta / 0.5;
-}
-
-function findWidth() {
-	setTimeout(clearWidthGraph, 0);
-	setTimeout(runFindWidth, 200);
-}
-
-function clearWidthGraph () {
-	var graph = document.getElementById("findWidthGraph");
-	var overlay = document.getElementById("findWidthOverlay");
-	var graphWidth = parseInt(graph.parentElement.clientWidth);
-	graph.width = graphWidth;
-	overlay.width = graphWidth;
-	
-	var ctx = graph.getContext("2d");
-	var text = ctx.measureText("Testing Widths...")
-	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.font = "20px monospace";
-	ctx.fillStyle = "#fff";
-	ctx.fillText("Testing Widths...", (graph.width/2)-text.width, graph.height/2)-text.height;
-}
-
-var pixPerResult = 0;
-var pixPerScore = 0;
-var floor = 0;
-var widthResults = [];
-var overlayCanvas = document.getElementById("findWidthOverlay");
-
-function applyWidth(event) {
-	var rect = overlayCanvas.getBoundingClientRect();
-	var x = event.clientX - rect.left;
-	var y = event.clientY - rect.top;
-
-	var min_x = parseInt((x - 4) / pixPerResult);
-	var max_x = parseInt((x + 4) / pixPerResult);
-	
-	var bestScore = 0;
-	var bestResult = 0;
-	
-	for (let i = min_x; i < max_x; i++) {
-		if (widthResults[i][1] > bestScore) {
-			bestScore = widthResults[i][1];
-			bestResult = i;
-		}
-	}
-	
-	widthInput.value = bestResult;
-	updateBitRaster();
-	
-}
-
-function getMousePos(event) {
-	var rect = overlayCanvas.getBoundingClientRect();
-	var x = event.clientX - rect.left;
-	var y = event.clientY - rect.top;
-
-	var min_x = parseInt((x - 4) / pixPerResult);
-	var max_x = parseInt((x + 4) / pixPerResult);
-	
-	var bestScore = 0;
-	var bestResult = 0;
-	
-	for (let i = min_x; i < max_x; i++) {
-		if (widthResults[i][1] > bestScore) {
-			bestScore = widthResults[i][1];
-			bestResult = i;
-		}
-	}
-		
-	x = bestResult * pixPerResult;
-	y = overlayCanvas.height - (bestScore * pixPerScore) + floor;
-	
-	var ctx = overlayCanvas.getContext("2d");
-	ctx.clearRect(0,0,overlayCanvas.width, overlayCanvas.height);
-	ctx.strokeStyle = "#ccccff";
-	ctx.strokeRect(x-8, y-8, 16, 16);
-}
-
-function getBitLocation(event) {
-	var rect = output.getBoundingClientRect();
-	var x = event.clientX - rect.left;
-	var y = event.clientY - rect.top;
-
-	var width = parseInt(widthInput.value);
-	var scale = parseInt(scaleInput.value);
-	
-	var column = parseInt(x / scale);
-	var row = parseInt(y / scale);
-	var bit = parseInt((row * width) + column);
-	
-	document.getElementById('cursorColumn').value = column;
-	document.getElementById('cursorRow').value = row;
-	document.getElementById('cursorBit').value = bit;
-
-}
-
-
-function singleColumnBias(column, width, checkBits) {
-	var bias = 0;
-	var count = 0;
-	var total = 0;
-	var offset = parseInt(offsetInput.value);
-	checkBits = parseInt(checkBits);
-	
-	if (checkBits > (bits.length - offset)) {checkBits = bits.length - offset;}
-
-	for (var pos=column; pos<checkBits;){
-		total += bits[pos];
-		pos += width;
-		count += 1;
-	}
-	
-	bias = parseFloat(total) / parseFloat(count);
-	return bias;
-
-}
-
-
-function runColumnBias() {
-	var width = parseInt(widthInput.value);
-	var checkBits = parseInt(document.getElementById('columnBiasInput').value);
-	
-	var graph = document.getElementById("columnBiasGraph");
-
-	var pixPerResult = graph.width / width;
-	var result = 0;
-	var results = [];
-	var biasString = []
-	
-	for (var i = 0; i < width; i++) {
-		result = singleColumnBias(i, width, checkBits);
-		results.push([i, result]);
-		biasString.push(parseInt(Math.round(result)));
-	}
-	
-	document.getElementById('columnBiasOutput').value = biasString.join('');
-	
-	var ctx = graph.getContext("2d");
-	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.strokeStyle = lineColor;
-	ctx.beginPath();feedThruScramble
-	for (var i = 0; i < results.length; i++) {
-		ctx.lineTo(i*pixPerResult, graph.height-(results[i][1]*graph.height));
-	}
-	ctx.stroke();
-}
-
-
-function runFindWidth() {
-	var minWidth = parseInt(document.getElementById('minWidthInput').value);
-	var maxWidth = parseInt(document.getElementById('maxWidthInput').value);
-	var checkBits = parseInt(document.getElementById('testBitsInput').value);
-	
-	var graph = document.getElementById("findWidthGraph");
-
-	pixPerResult = graph.width / (maxWidth - minWidth);
-	var maxResult = 0;
-	var minResult = 1;
-	var result = 0;
-	widthResults = [];
-	
-	for (var i = minWidth; i < maxWidth; i++) {
-		result = columnBias(i, checkBits);
-		widthResults.push([i, result]);
-		if (result > maxResult) {maxResult = result;}
-		if (result < minResult) {minResult = result;}
-	}
-	
-	var range = maxResult - minResult;
-	pixPerScore = (graph.height - 1) / range;
-	floor = minResult * pixPerScore;
-	
-	var ctx = graph.getContext("2d");
-	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.strokeStyle = lineColor
-	ctx.beginPath();
-	for (var i = 0; i < widthResults.length; i++) {
-		ctx.lineTo(i*pixPerResult, graph.height-(widthResults[i][1]*pixPerScore)+floor);
-	}
-	ctx.stroke();
-}
-
-// function to open a toolbox
-
-var openBox = "none";
-
-function closeToolbox(item) {
-	if (item == "findWidth") {
-		document.getElementById('findWidthGraph').style.visibility = 'hidden';
-		document.getElementById('findWidthOverlay').style.visibility = 'hidden';
-	}
-	
-	if (item == 'columnBias') {
-		document.getElementById('columnBiasGraph').style.visibility = 'hidden';
-	}
-	
-	document.getElementById(item+"Button").style.backgroundColor = "";
-	document.getElementById(item+"Button").style.color = "";
-	document.getElementById(item).className = "closedToolbox";
-	//document.getElementById("bitRaster").className = "withClosedToolbox";
-	openBox = "none";
-	setTimeout(updateBitRaster, 1);
-}
-
-function openToolbox(item) {
-	if (openBox == item) {
-		closeToolbox(openBox);
-	} else {
-		if (openBox != "none") {closeToolbox(openBox);}
-		openBox = item;
-		document.getElementById(item+"Button").style.backgroundColor = "var(--buttonbgSelected)";
-		document.getElementById(item+"Button").style.color = "var(--buttonfgSelected)";
-		document.getElementById(item).className = "openToolbox";
-		//document.getElementById("bitRaster").className = "withOpenToolbox";
-		if (item == "findWidth") {
-			setTimeout(showFindWidthGraph, 1000);
-			setTimeout(findWidth, 1001);
-		}
-		if (item == "columnBias") {
-			setTimeout(showColumnBiasGraph, 1000);
-			setTimeout(runColumnBias, 1001);
-		}
-	}
-	setTimeout(updateBitRaster, 1);
-}
-
-function showFindWidthGraph() {
-	document.getElementById('findWidthGraph').style.visibility = '';
-	document.getElementById('findWidthOverlay').style.visibility = '';
-	document.getElementById('findWidthGraph').width = document.getElementById('findWidthGraph').parentElement.clientWidth;
-	document.getElementById('findWidthOverlay').width = document.getElementById('findWidthGraph').parentElement.clientWidth;
-}
-
-function showColumnBiasGraph() {
-	document.getElementById('columnBiasGraph').style.visibility = '';
-	document.getElementById('columnBiasGraph').width = document.getElementById('columnBiasGraph').parentElement.clientWidth;
-}
-
-// function to update the bit raster
-
-function updateBitRaster() {
-
-	var width = parseInt(widthInput.value)
-	var scale = parseInt(scaleInput.value)
-	var maxWidth = output.parentElement.clientWidth;
-	var maxHeight = output.parentElement.clientHeight;
-	if (width * scale < maxWidth) {maxHeight+=15;}
-	if ( ((bits.length * scale) / width) < maxHeight ) {maxWidth+=5;}
-	
-	
-	var startX = output.parentElement.scrollLeft;
-	var startY = output.parentElement.scrollTop;
-	
-	var endX = startX + maxWidth;
-	var endY = startY + maxHeight;
-
-		spacer.style.width = width * scale;
-		spacer.style.height = (parseInt(bits.length / width) * scale) + scale + scale;
-		output.width = maxWidth;
-		output.height = maxHeight;
-		output.style.top = output.parentElement.getBoundingClientRect()['y'];
-		output.style.left = output.parentElement.getBoundingClientRect()['x'];
-		var ctx = output.getContext("2d");
-		ctx.clearRect(0, 0, output.width, output.height);
-		ctx.fillStyle = '#fff';
-		ctx.fillRect(0,0,output.width, output.height);
-
-		var x = 0;
-		var y = 0;
-		var symbol = 0;
-		
-		maxX = 0;
-		
-		ctx.fillStyle = '#000';
-		for (var i = parseInt(offsetInput.value); i < bits.length; i++) {
-			if (startX <= x && x <= endX && startY <= y && y <= endY) {
-				if (bits[i] == 1) { ctx.rect(x-startX, y-startY, scale, scale); }
-			} 
-			x += scale;
-			if (x == (width*scale)) {y+=scale; x=0;}
-			if (x > maxX) {maxX = x;}
-		}
-		ctx.fill();
-		
-		
-		ctx.fillStyle = bitRasterBg;
-		ctx.fillRect(maxX, 0, output.width, output.height);
-		ctx.fillRect(0, y-startY+scale, output.width, output.height);
-		ctx.fillRect(x-startX+scale, y-startY, output.width, output.height); 
-	
-}
-
-
-// check page load status
-
-if (window.FileList && window.File && window.FileReader) {
-//console.log('doing the things');
-updateBitRaster();
-
-// file upload
-
-fileSelector.addEventListener('change', event => {
-	var binaryString = '';
-
-	const file = event.target.files[0];
-	const reader = new FileReader();
-	reader.addEventListener('load', event => {
-	
-		binaryString = event.target.result;
-   		var tileReader = new ByteReader( binaryString ), bitArray = [];
-
-		while( !tileReader.EOF() ) {
-			bitArray.push( tileReader.readUBits());
-		}
-	
-		bitString = bitArray.join('').split('');
-		bits = [];
-		
-		for (let i = 0; i < bitString.length; i++) { bits.push( parseInt( bitString[i]) ); }
-		
-		bitsNoOp = [...bits]
-		updateBitRaster();
-		updateOtherDisplays();
-		
-	});
-	
-	reader.readAsBinaryString(file);
-});
-
-// change width
-document.getElementById('widthInput').addEventListener('change', event => {
-	updateBitRaster();
-	updateOtherDisplays();
-});
-
-// change scale
-document.getElementById('scaleInput').addEventListener('change', event => {
-	updateBitRaster();
-	updateOtherDisplays();
-});
-
-// change offset
-document.getElementById('offsetInput').addEventListener('change', event => {
-	updateBitRaster();
-	updateOtherDisplays();
-});
-
-}
-
-function updateOtherDisplays() {
-	if (document.getElementById('hexView').className == 'openToolbox') { updateHexView(); }
-	if (document.getElementById('asciiView').className == 'openToolbox') { updateAsciiView(); }
-	if (document.getElementById('binaryView').className == 'openToolbox') { updateBinaryView(); }
-	if (document.getElementById('columnBias').className == 'openToolbox') { runColumnBias(); }
-}
-
-document.onload = updateBitRaster();
-
+document.onload = onLoad();
 </script>
 
 
-</body></html>
+</div></body></html>
