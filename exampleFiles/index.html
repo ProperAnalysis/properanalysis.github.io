@@ -1,0 +1,135 @@
+<html>
+<style>
+
+:root {
+    --backgroundLight: #ffffff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #8d8d8d;
+    --textColorLight: #000;
+    
+    --backgroundDark: #092a30;
+    --midgroundDark: #000;
+    --borderColorDark: #bafbff;
+    --textColorDark: #ccfff8;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --textColor: var(--textColorDark);
+}
+
+*::-webkit-scrollbar {
+    -webkit-appearance: none;
+}
+*::-webkit-scrollbar:vertical {
+    width: 5px;
+}
+*::-webkit-scrollbar:horizontal {
+    height: 5px;
+}
+*::-webkit-scrollbar-thumb {
+	border-radius: 3px;
+    border: 1px solid var(--borderColor);
+    background-Color: var(--buttonbg);
+}
+*::-webkit-scrollbar-track { 
+	border-radius: 3px;
+    border: none;
+    background-Color: var(--midground);
+} 
+
+::-webkit-scrollbar-corner {
+    background-Color: var(--midground); 
+}
+
+html, body {
+	margin: 0; 
+	height: 100%; 
+	overflow: hidden;
+	background-color: var(--background);
+}
+
+#container {
+	background-color: var(--midground);
+    width: calc(100% - 42px);
+	height: calc(100% - 42px);
+    padding: 10px;
+    margin: 10px;
+    border-radius: 5px;
+    border: 1px var(--borderColor) solid;
+}
+
+a, p, td {
+	color: var(--textColor);
+	font-family: monospace;
+	text-align: justify;
+}
+
+table {
+	width: 100%;
+    border: 1px solid var(--borderColor);
+	border-collapse: collapse;
+}
+
+td {
+	border: 1px solid var(--borderColor);
+    vertical-align: top;
+	padding: 10px;
+}
+
+</style>
+<body>
+<div id='container'>
+
+<p>These files are for use with packetView and bitView. While packetView can open and display .bin files
+(using the raw input option) they are best viewed in bitView. The same goes for pcap files, they can be viewied in bitView,
+however bitView will just display the file as a raw binary stream,
+it will not make use of the pcap header to break up the file into packets</p>
+
+<p>Note that these files were created in a simulated environment.
+They were artificially crafted for the purposes of development and training.
+The Author gives consent for these files to be used/viewed/modified/analysed in any way, by anyone, for any purpose.</p>
+
+<p style='border-bottom: 1px solid var(--borderColor);'></p>
+</div>
+</body>
+
+<script>
+files = [];
+
+files.push([
+"HDLC_bitStuff.bin",
+"HDLC with bit-stuffing, see RFC 1662 section 5 for a description of the protocol. Crafted using packetView's 'encap_HDLC_bitStuff' function."
+]);
+
+files.push([
+"HDLC_byteStuff.bin",
+"HDLC with byte-stuffing, see RFC 1662 section 4 for a description of the protocol. Crafted using packetView's 'encap_HDLC_byteStuff' function."
+]);
+
+files.push([
+"HTTP.pcap",
+"Two sided HTTP session over ethernet, IPv4 and TCP. Contains requests and responses for HTML, txt and jpeg files. Crafted in a simulation environment between a browser and a python http server."
+]);
+
+files.push([
+"ICMP_and_ARP.pcap",
+"Two sided ICMP session with echo requests and echo replies. Also contains an ARP 'who has' along with a reply."
+]);
+
+
+function onload () {
+	container = document.getElementById('container');
+	table = "<table>"
+	files.forEach( function(file) {
+		table += '<tr><td><a href="./' + file[0] + '">' + file[0] + '</a></td><td>' + file[1] + '</td></tr>';
+	});
+	table += '<table>';
+	container.innerHTML += table;
+}
+
+window.onload = onload();
+
+</script>
+
+</html>
