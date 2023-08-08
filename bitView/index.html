@@ -1,7 +1,7 @@
-
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
 <title>bitView</title>
 <style>
 
@@ -292,8 +292,8 @@ textArea {
 </div>
 
 <div id="findWidth" class="closedToolbox">
-<canvas id="findWidthGraph" width="1" height="265" style="border:0px; position: absolute; left: 20; z-index: 0; visibility: hidden;" "=""></canvas>
-<canvas id="findWidthOverlay" onmousemove="getMousePos(event)" onclick="applyWidth(event)" width="1" height="265" style="visibility: hidden; border:0px; position: absolute; left: 20; z-index: 1;" "=""></canvas>
+<canvas id="findWidthGraph" width="1" height="265" style="border: 0px; position: absolute; left: 20px; z-index: 0; visibility: hidden; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" "="" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
+<canvas id="findWidthOverlay" onmousemove="getMousePos(event)" onclick="applyWidth(event)" width="1" height="265" style="visibility: hidden; border: 0px; position: absolute; left: 20px; z-index: 1; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" "="" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
 <div id="spacer" style="width: 100%; height: 265px;"></div>
 <div style="padding-top: 5px; padding-right: 10px;">
 Min Width: <input type="number" id="minWidthInput" value="0">
@@ -304,9 +304,9 @@ Bits to Test: <input type="number" id="testBitsInput" value="100000">
 </div>
 
 <div id="columnBias" class="closedToolbox">
-<canvas id="columnBiasGraph" width="1" height="155" style="border:0px; position: absolute; left: 20; z-index: 0; visibility: hidden; margin-bottom: 10px;"></canvas>
+<canvas id="columnBiasGraph" width="1" height="155" style="border: 0px; position: absolute; left: 20px; z-index: 0; visibility: hidden; margin-bottom: 10px; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
 <div id="spacer" style="width: 100%; height: 165px;"></div>
-<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: auto; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: auto; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
 <div style="padding-top: 5px; padding-right: 10px;">
 Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button id="goColumnBiasButton" onclick="runColumnBias();">Go</button>
@@ -315,15 +315,15 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 
 <div id="asciiView" class="closedToolbox">
-<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
 </div>
 
 <div id="hexView" class="closedToolbox">
-<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
 </div>
 
 <div id="binaryView" class="closedToolbox">
-<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor);; width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
 </div>
 
 <div id="operations" class="closedToolbox" style="overflow-y: hidden; overflow-x: hidden; display: -webkit-box;">
@@ -493,7 +493,7 @@ Column: <input type="text" id="cursorColumn" value="0">
 Row: <input type="text" id="cursorRow" value="0">
 </div>
 
-<div class="topMenuItem" style="border: none;">
+<div class="topMenuItem" style="border: none; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left="">
 Bit: <input type="text" id="cursorBit" value="0">
 </div>
 
@@ -501,8 +501,8 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 <div id="bitRasterOuter">
 <div id="bitRasterInner">
-<div id="outputSpacer" style="width: 2032px; height: 790px;"></div>
-<canvas id="output" width="1878" height="840" style="border: 0px; position: absolute; z-index: 0; top: 113px; left: 21px;" onmousemove="getBitLocation(event)"></canvas>
+<div id="outputSpacer" style="width: 512px; height: 82px;"></div>
+<canvas id="output" width="1878" height="855" style="border: 0px; position: absolute; z-index: 0; top: 113px; left: 21px; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" onmousemove="getBitLocation(event)" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
 </div>
 </div>
 
@@ -812,9 +812,9 @@ document.addEventListener("wheel", function(e) {
   var bounds = output.getBoundingClientRect()
   if (mouseY > bounds['top'] && mouseY < bounds['bottom'] && mouseX > bounds['left'] && mouseX < bounds['right']) {
 		if (event.shiftKey) {
-			output.parentElement.scrollBy(e.deltaY, 0);
+			output.parentElement.scrollBy(e.deltaY/10, 0);
 				} else {
-			output.parentElement.scrollBy(0, e.deltaY);
+			output.parentElement.scrollBy(0, e.deltaY/10);
 				}
 		}
 });
@@ -1028,13 +1028,16 @@ function feedThruDescramble(taps, reversed) {
 }
 
 
-function updateAsciiView() {
+function updateAsciiView(startBit) {
 	var width = parseInt(widthInput.value);
 	var ascii = [];
 	var line = [];
 	var x = 0;
 	
-	for (let i = parseInt(offsetInput.value); i < bits.length; i+=8) {
+	maxBit = bits.length;
+	if ((width * 40)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
+	
+	for (let i = startBit; i < maxBit; i+=8) {
 		line.push( String.fromCharCode( parseInt( bits.slice(i, i+8).join(''), 2) ) );
 		x+=1;
 		if (x == width) {
@@ -1042,7 +1045,6 @@ function updateAsciiView() {
 			x = 0;
 			line = [];
 		}
-		
 	}
 	ascii.push(line.join(''));
 	document.getElementById('asciiViewOutput').value = ascii.join('');
@@ -1050,15 +1052,18 @@ function updateAsciiView() {
 }
 
 
-function updateHexView() {
+function updateHexView(startBit) {
 	var width = parseInt(widthInput.value);
 	var hex = [];
 	var line = [];
 	var x = 0;
 	var leftOver = 0;
 	
-	for (let i = parseInt(offsetInput.value); i < bits.length;) {
-		line.push( ('00' + parseInt(bits.slice(i, i+8).join(''), 2).toString(16).toUpperCase()).slice(-2) );
+	maxBit = bits.length;
+	if ((width * 20)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
+	
+	for (let i = startBit; i < maxBit;) {
+		line.push( ('00' + parseInt(bits.slice(i, i+8).join(''), 2).toString(16)).slice(-2) );
 		i+=8;
 		x+=8;
 		if (x == width) {
@@ -1069,7 +1074,7 @@ function updateHexView() {
 		
 		if (x+8 >= width) {
 			leftOver = width - x;
-			line.push( ('00' + parseInt(bits.slice(i, i+leftOver).join(''), 2).toString(16).toUpperCase()).slice(-2) );
+			line.push( ('00' + parseInt(bits.slice(i, i+leftOver).join(''), 2).toString(16)).slice(-2) );
 			hex.push(line.join(' '));
 			i += leftOver;
 			x = 0;
@@ -1082,16 +1087,16 @@ function updateHexView() {
 
 }
 
-function updateBinaryView() {
+function updateBinaryView(startBit) {
 	var width = parseInt(widthInput.value);
 	var binary = [];
+	maxBit = bits.length;
+	if ((width * 20)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
 	
-	for (var i = parseInt(offsetInput.value); i < bits.length-width;) {
+	for (var i = startBit; i < maxBit;) {
 		binary.push(bits.slice(i, i+width).join(''));
 		i += width;
 	}
-	
-	binary.push(bits.slice(i, bits.length).join(''));
 			
 	document.getElementById('binaryViewOutput').innerHTML = binary.join('\n');
 
@@ -1434,15 +1439,15 @@ function getMousePos(event) {
 
 function getBitLocation(event) {
 	var rect = output.getBoundingClientRect();
-	var x = event.clientX - rect.left;
-	var y = event.clientY - rect.top;
+	var x = parseInt(event.clientX - rect.x);
+	var y = parseInt(event.clientY - rect.y);
 
 	var width = parseInt(widthInput.value);
 	var scale = parseInt(scaleInput.value);
 	
-	var column = parseInt(x / scale);
-	var row = parseInt(y / scale);
-	var bit = parseInt((row * width) + column);
+	var bit = startBit + parseInt(x/scale) + parseInt(y/scale)*width;
+	var row = parseInt(bit / width);
+	var column = bit % width;
 	
 	document.getElementById('cursorColumn').value = column;
 	document.getElementById('cursorRow').value = row;
@@ -1594,6 +1599,7 @@ function showColumnBiasGraph() {
 
 // function to update the bit raster
 
+startBit = 0;
 function updateBitRaster() {
 
 	var width = parseInt(widthInput.value)
@@ -1604,14 +1610,16 @@ function updateBitRaster() {
 	if ( ((bits.length * scale) / width) < maxHeight ) {maxWidth+=5;}
 	
 	
-	var startX = output.parentElement.scrollLeft;
-	var startY = output.parentElement.scrollTop;
+	var startX = parseInt(output.parentElement.scrollLeft);
+	var startY = parseInt(output.parentElement.scrollTop);
 	
 	var endX = startX + maxWidth;
 	var endY = startY + maxHeight;
+	
+	if (maxWidth > width*scale) { endX = startX + (width*scale) };
 
 		spacer.style.width = width * scale;
-		spacer.style.height = (parseInt(bits.length / width) * scale) + scale + scale;
+		spacer.style.height = (parseInt(bits.length / width) * scale);
 		output.width = maxWidth;
 		output.height = maxHeight;
 		output.style.top = output.parentElement.getBoundingClientRect()['y'];
@@ -1620,30 +1628,47 @@ function updateBitRaster() {
 		ctx.clearRect(0, 0, output.width, output.height);
 		ctx.fillStyle = '#fff';
 		ctx.fillRect(0,0,output.width, output.height);
-
+		ctx.fillStyle = '#000';
+		
+		startBit = parseInt( parseInt(offsetInput.value) + (startX) + ((startY)*width) );
+		var endBit = parseInt( parseInt(offsetInput.value) + (endX) + ((endY)*width) );
 		var x = 0;
 		var y = 0;
-		var symbol = 0;
+		var maxX = 0;
 		
-		maxX = 0;
-		
-		ctx.fillStyle = '#000';
-		for (var i = parseInt(offsetInput.value); i < bits.length; i++) {
-			if (startX <= x && x <= endX && startY <= y && y <= endY) {
-				if (bits[i] == 1) { ctx.rect(x-startX, y-startY, scale, scale); }
-			} 
+		bits.slice(startBit,endBit).forEach( function (bit) {
+			if (bit == 1) { ctx.rect(x, y, scale, scale); }
 			x += scale;
 			if (x == (width*scale)) {y+=scale; x=0;}
 			if (x > maxX) {maxX = x;}
-		}
+		})
 		ctx.fill();
 		
+		if (scale > 9) {
+			ctx.strokeStyle = '#E00';
+			ctx.lineWidth = 0.5;
+			lX = 0;
+			lY = 0;
+			while (lX < maxWidth) {
+				lX += scale;
+				ctx.moveTo(lX, 0);
+				ctx.lineTo(lX, maxHeight);
+			}
+			while (lY < maxHeight) {
+				lY += scale;
+				ctx.moveTo(0, lY);
+				ctx.lineTo(maxWidth, lY);
+			}
+			ctx.stroke();
+		}
+
 		
 		ctx.fillStyle = bitRasterBg;
 		ctx.fillRect(maxX, 0, output.width, output.height);
-		ctx.fillRect(0, y-startY+scale, output.width, output.height);
-		ctx.fillRect(x-startX+scale, y-startY, output.width, output.height); 
+		ctx.fillRect(0, y+scale, output.width, output.height);
+		ctx.fillRect(x+scale, y, output.width, output.height); 
 	
+		updateOtherDisplays(startBit);
 }
 
 
@@ -1686,33 +1711,31 @@ fileSelector.addEventListener('change', event => {
 // change width
 document.getElementById('widthInput').addEventListener('change', event => {
 	updateBitRaster();
-	updateOtherDisplays();
 });
 
 // change scale
 document.getElementById('scaleInput').addEventListener('change', event => {
 	updateBitRaster();
-	updateOtherDisplays();
 });
 
 // change offset
 document.getElementById('offsetInput').addEventListener('change', event => {
 	updateBitRaster();
-	updateOtherDisplays();
 });
 
 }
 
-function updateOtherDisplays() {
-	if (document.getElementById('hexView').className == 'openToolbox') { updateHexView(); }
-	if (document.getElementById('asciiView').className == 'openToolbox') { updateAsciiView(); }
-	if (document.getElementById('binaryView').className == 'openToolbox') { updateBinaryView(); }
+function updateOtherDisplays(startBit) {
+	if (document.getElementById('hexView').className == 'openToolbox') { updateHexView(startBit); }
+	if (document.getElementById('asciiView').className == 'openToolbox') { updateAsciiView(startBit); }
+	if (document.getElementById('binaryView').className == 'openToolbox') { updateBinaryView(startBit); }
 	if (document.getElementById('columnBias').className == 'openToolbox') { runColumnBias(); }
 }
 
 document.onload = updateBitRaster();
 
 </script>
+
 
 
 </body></html>
