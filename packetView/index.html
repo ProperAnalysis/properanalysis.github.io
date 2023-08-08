@@ -2904,12 +2904,11 @@ table {
 }
 
 th {
-	background: var(--midground);
-	position: sticky;
-	top: 0;
-	Color: var(--tableHeadColor);
-	border-style: solid;
-    border-Color: var(--borderColor);
+    background: var(--midground);
+    position: sticky;
+    top: 0;
+    Color: var(--tableHeadColor);
+    border: 1px solid var(--cellBorder);
     border-top: none;
     padding: 10px;
     padding-top: 0px;
@@ -2918,12 +2917,11 @@ th {
 }
 
 td {
-	padding-top: 0px;
-	padding-bottom: 0px;
-	padding-left: 5px;
-	padding-right: 5px;
-	border-style: solid;
-    border-Color: var(--borderColor);
+    padding-top: 0px;
+    padding-bottom: 0px;
+    padding-left: 5px;
+    padding-right: 5px;
+    border: 1px solid var(--cellBorder);
     text-align: center;
     Color: var(--textColor);
 }
@@ -3088,12 +3086,12 @@ button:hover, input::file-selector-button:hover{
 </div>
 
 <div id="fields" class="closedToolbox">
-<div style="max-height: 10em; overflow: scroll;" id="fieldsContainer"></div>
+<div style="max-height: 20em; overflow: scroll;" id="fieldsContainer"></div>
 </div>
 
 
 <div id="streams" class="closedToolbox">
-<div style="max-height: 10em; overflow: scroll;" id="streamsContainer"></div>
+<div style="max-height: 20em; overflow: scroll;" id="streamsContainer"></div>
 </div>
 
 <div id="applyTemplate" class="closedToolbox">
