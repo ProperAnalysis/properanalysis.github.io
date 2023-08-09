@@ -2235,8 +2235,29 @@ function processInputRaw(inputData) {
 function processInput(inputData) {
 	packets = [[]];
 
+	if (intArray2hexString(inputData.slice(0,4)) == '474d4255') {
+		processInput_CAP(inputData, 128, 8, 16);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+
+	if (intArray2hexString(inputData.slice(0,4)) == '34cdb2a1') {
+		processInput_CAP(inputData, 24, 8, 24);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+
+	if (intArray2hexString(inputData.slice(0,4)) == '4d3cb2a1') {
+		processInput_CAP(inputData, 24, 8, 16);
+		populatePacketView();
+		loadingPage.style.visibility = 'hidden';
+		return null;
+	}
+
 	if (intArray2hexString(inputData.slice(0,4)) == 'd4c3b2a1') {
-		processInput_CAP(inputData);
+		processInput_CAP(inputData, 24, 8, 16);
 		populatePacketView();
 		loadingPage.style.visibility = 'hidden';
 		return null;
@@ -2248,6 +2269,10 @@ function processInput(inputData) {
 		loadingPage.style.visibility = 'hidden';
 		return null;
 	}
+	
+	loadingPage.style.visibility = 'hidden';
+	alert("Unable to read file format, try raw.");
+	return null;
 	
 }
 
@@ -2372,21 +2397,24 @@ function processNextGenBlock(s, inputData) {
 // CAP File Parser
 // ---------------------------------------------------------------------------------------
 
-function processCapBlock(inputData, s) {
-	packetLength = readLSBFLength(inputData.slice(s+8, s+12));
-	packet = Array.from(inputData.slice(s+16, s+16+packetLength));
-	if ( s+packetLength+16 == inputData.length ) { s = -1; }
-	else { s = s+packetLength+16 }
+
+function processCapBlock(inputData, s, lenOffset, packetHeaderLen) {
+	// standard lenOffset is 8
+	// standard packetHeaderLen is 16
+	packetLength = readLSBFLength(inputData.slice(s+lenOffset, s+lenOffset+4));
+	packet = Array.from(inputData.slice(s+packetHeaderLen, s+packetHeaderLen+packetLength));
+	if ( s+packetLength+packetHeaderLen == inputData.length ) { s = -1; }
+	else { s = s+packetLength+packetHeaderLen }
 	
 	return [s, packet]
 }
 
-function processInput_CAP(inputData) {
+function processInput_CAP(inputData, headerLen, lenOffset, packetHeaderLen) {
 	var maxPackets = 1000000;
 	var n = 0;
-	var s = 24;
+	var s = headerLen; // standard is 24
 	while (s >= 0 && n < maxPackets) {
-		[s, packet] = processCapBlock(inputData, s);
+		[s, packet] = processCapBlock(inputData, s, lenOffset, packetHeaderLen);
 		packets[currentStream].push([packet, n]);
 		n++;
 	}
@@ -2904,11 +2932,12 @@ table {
 }
 
 th {
-    background: var(--midground);
-    position: sticky;
-    top: 0;
-    Color: var(--tableHeadColor);
-    border: 1px solid var(--cellBorder);
+	background: var(--midground);
+	position: sticky;
+	top: 0;
+	Color: var(--tableHeadColor);
+	border-style: solid;
+    border-Color: var(--borderColor);
     border-top: none;
     padding: 10px;
     padding-top: 0px;
@@ -2917,11 +2946,12 @@ th {
 }
 
 td {
-    padding-top: 0px;
-    padding-bottom: 0px;
-    padding-left: 5px;
-    padding-right: 5px;
-    border: 1px solid var(--cellBorder);
+	padding-top: 0px;
+	padding-bottom: 0px;
+	padding-left: 5px;
+	padding-right: 5px;
+	border-style: solid;
+    border-Color: var(--borderColor);
     text-align: center;
     Color: var(--textColor);
 }
@@ -3086,12 +3116,12 @@ button:hover, input::file-selector-button:hover{
 </div>
 
 <div id="fields" class="closedToolbox">
-<div style="max-height: 20em; overflow: scroll;" id="fieldsContainer"></div>
+<div style="max-height: 10em; overflow: scroll;" id="fieldsContainer"></div>
 </div>
 
 
 <div id="streams" class="closedToolbox">
-<div style="max-height: 20em; overflow: scroll;" id="streamsContainer"></div>
+<div style="max-height: 10em; overflow: scroll;" id="streamsContainer"></div>
 </div>
 
 <div id="applyTemplate" class="closedToolbox">
