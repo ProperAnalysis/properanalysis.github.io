@@ -277,12 +277,23 @@ textArea {
 <button id="binaryViewButton" onclick="openToolbox(&#39;binaryView&#39;); updateBinaryView();">Binary View</button>
 <button id="operationsButton" onclick="openToolbox(&#39;operations&#39;)" style="">Operations</button>
 <button id="outputMenuButton" onclick="openToolbox(&#39;outputMenu&#39;);">Output</button>
+<button id="playAudioButton" onclick="openToolbox(&#39;playAudio&#39;);">Play Audio</button>
 <button id="outputMenuButton" onclick="toggleColorMode();">Light/Dark</button>
 </div>
 
 
 <div id="inputMenu" class="closedToolbox">
 <input type="file" id="fileSelector">
+</div>
+
+<div id="playAudio" class="closedToolbox">
+<div style="display: block;">
+<p>Sample Rate: <input type="number" id="sampleRateInput" min=1 value=8000></input>
+<button style="margin-left: 10px;" onclick="playAudio();">Generate and Play</button></p>
+<audio controls="controls" id="audio" loop>
+<source id="source" src="" type="audio/wav" />
+</audio>
+</div>
 </div>
 
 <div id="outputMenu" class="closedToolbox">
@@ -1738,5 +1749,65 @@ function updateOtherDisplays(startBit) {
 
 document.onload = updateBitRaster();
 
+function number2LSFBArray(number, length) {
+	result = []
+	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
+	for (var i=0; i<number.length; i+=2) {
+		result.push( parseInt(number.substr(i,2), 16) );
+	}
+	return result.reverse();
+}
+
+function buildWavFile(bytes) {
+	var sampleRate = parseInt(document.getElementById("sampleRateInput").value);
+	var bitsPerSample = 8;
+	var channels = 1;
+	var magicNumber1 = (sampleRate * bitsPerSample * channels) / 8;
+	var magicNumber2 = (bitsPerSample * channels)
+
+	var wav = [];
+	wav.push(...[82, 73, 70, 70] ); //RIFF
+	wav.push(...number2LSFBArray(bytes.length + 36, 4) ); //size LSBF
+	wav.push(...[87, 65, 86, 69] ); //WAVE
+	wav.push(...[102, 109, 116, 32] ); //fmt 
+	wav.push(...[16, 0, 0, 0] ); //length of format data
+	wav.push(...[1, 0] ); //format
+	wav.push(...[channels, 0] ); //channels
+	wav.push(...number2LSFBArray(sampleRate, 4) ); //sample rate
+	wav.push(...number2LSFBArray(magicNumber1, 4) ); //magic number
+	wav.push(...number2LSFBArray(magicNumber2, 2) ); //magic number
+	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //bitsPerSample
+	wav.push(...[100, 97, 116, 97] ); //data
+	wav.push(...number2LSFBArray(bytes.length, 4) ); //size LSBF
+	wav.push(...bytes);
+	
+	return new Uint8Array( wav );
+}
+
+function playAudio() {
+	var i = 0
+	var bytes = [];
+	while (i < bits.length) {
+		bytes.push( parseInt(bits.slice(i, i+8).join(''), 2) );
+		i += 8;
+	}
+	
+	var wav = buildWavFile(bytes)
+
+	// Create blob from Uint8Array & Object URL.
+	var blob = new Blob([wav], { type: 'audio/wav' });
+	var url = URL.createObjectURL(blob);
+
+	// Get DOM elements.
+	var audio = document.getElementById('audio');
+	var source = document.getElementById('source');
+
+	// Insert blob object URL into audio element & play.
+	source.src = url;
+	audio.load();
+	audio.play();
+}
+
 </script>
+
 </body></html>
