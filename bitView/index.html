@@ -1036,6 +1036,7 @@ function updateAsciiView(startBit) {
 	
 	maxBit = bits.length;
 	if ((width * 40)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
+	if (bits.length < 100000) { maxBit = bits.length; }
 	
 	for (let i = startBit; i < maxBit; i+=8) {
 		line.push( String.fromCharCode( parseInt( bits.slice(i, i+8).join(''), 2) ) );
@@ -1061,6 +1062,7 @@ function updateHexView(startBit) {
 	
 	maxBit = bits.length;
 	if ((width * 20)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
+	if (bits.length < 100000) { maxBit = bits.length; }
 	
 	for (let i = startBit; i < maxBit;) {
 		line.push( ('00' + parseInt(bits.slice(i, i+8).join(''), 2).toString(16)).slice(-2) );
@@ -1090,8 +1092,10 @@ function updateHexView(startBit) {
 function updateBinaryView(startBit) {
 	var width = parseInt(widthInput.value);
 	var binary = [];
+	
 	maxBit = bits.length;
 	if ((width * 20)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
+	if (bits.length < 100000) { maxBit = bits.length; }
 	
 	for (var i = startBit; i < maxBit;) {
 		binary.push(bits.slice(i, i+width).join(''));
@@ -1735,7 +1739,4 @@ function updateOtherDisplays(startBit) {
 document.onload = updateBitRaster();
 
 </script>
-
-
-
 </body></html>
