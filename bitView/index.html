@@ -1157,9 +1157,12 @@ function updateBinaryView() {
 
 function loadFullBinaryView() {
 	var initialBinaryView = binaryViewLimit + 0;
+	var initialStartBit = startBit + 0;
 	binaryViewLimit = bits.length / parseInt(widthInput.value);
+	startBit = 0;
 	updateBinaryView();
 	binaryViewLimit = initialBinaryView;
+	startBit = initialStartBit;
 }
 
 
