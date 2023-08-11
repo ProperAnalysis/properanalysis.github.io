@@ -283,7 +283,12 @@ textArea {
 
 
 <div id="inputMenu" class="closedToolbox">
+<p style="width: 100%;">Load from file:</p>
 <input type="file" id="fileSelector">
+<p style="width: 100%; border-top: 1px solid var(--borderColor); padding-top: 10px;">OR load from text:</p>
+<textarea id="textInputArea" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); border: 1px solid var(--borderColor);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<button onclick="loadTextInput(2);">Load Binary</button>
+<button onclick="loadTextInput(16);">Load Hex</button>
 </div>
 
 <div id="playAudio" class="closedToolbox">
@@ -303,8 +308,8 @@ textArea {
 </div>
 
 <div id="findWidth" class="closedToolbox">
-<canvas id="findWidthGraph" width="1" height="265" style="border: 0px; position: absolute; left: 20px; z-index: 0; visibility: hidden; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" "="" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
-<canvas id="findWidthOverlay" onmousemove="getMousePos(event)" onclick="applyWidth(event)" width="1" height="265" style="visibility: hidden; border: 0px; position: absolute; left: 20px; z-index: 1; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" "="" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
+<canvas id="findWidthGraph" width="1" height="265" style="border: 0px; position: absolute; left: 20px; z-index: 0; visibility: hidden;"></canvas>
+<canvas id="findWidthOverlay" onmousemove="getMousePos(event)" onclick="applyWidth(event)" width="1" height="265" style="visibility: hidden; border: 0px; position: absolute; left: 20px; z-index: 1;"></canvas>
 <div id="spacer" style="width: 100%; height: 265px;"></div>
 <div style="padding-top: 5px; padding-right: 10px;">
 Min Width: <input type="number" id="minWidthInput" value="0">
@@ -315,9 +320,9 @@ Bits to Test: <input type="number" id="testBitsInput" value="100000">
 </div>
 
 <div id="columnBias" class="closedToolbox">
-<canvas id="columnBiasGraph" width="1" height="155" style="border: 0px; position: absolute; left: 20px; z-index: 0; visibility: hidden; margin-bottom: 10px; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
+<canvas id="columnBiasGraph" width="1" height="155" style="border: 0px; position: absolute; left: 20px; z-index: 0; visibility: hidden; margin-bottom: 10px;"></canvas>
 <div id="spacer" style="width: 100%; height: 165px;"></div>
-<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: auto; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
+<textarea disabled="" id="columnBiasOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: auto; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ></textarea>
 <div style="padding-top: 5px; padding-right: 10px;">
 Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button id="goColumnBiasButton" onclick="runColumnBias();">Go</button>
@@ -326,11 +331,11 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 
 <div id="asciiView" class="closedToolbox">
-<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
+<textarea disabled="" id="asciiViewOutput" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ></textarea>
 </div>
 
 <div id="hexView" class="closedToolbox">
-<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
+<textarea disabled="" id="hexViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 </div>
 
 <div id="binaryView" class="closedToolbox">
@@ -343,7 +348,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 	<option>bit spaced</option>
 	<option>byte spaced</option>
 </select>
-<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
+<textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ></textarea>
 </div>
 
 <div id="operations" class="closedToolbox" style="overflow-y: hidden; overflow-x: hidden; display: -webkit-box;">
@@ -513,7 +518,7 @@ Column: <input type="text" id="cursorColumn" value="0">
 Row: <input type="text" id="cursorRow" value="0">
 </div>
 
-<div class="topMenuItem" style="border: none; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left="">
+<div class="topMenuItem" style="border: none; ">
 Bit: <input type="text" id="cursorBit" value="0">
 </div>
 
@@ -522,7 +527,7 @@ Bit: <input type="text" id="cursorBit" value="0">
 <div id="bitRasterOuter">
 <div id="bitRasterInner">
 <div id="outputSpacer" style="width: 512px; height: 82px;"></div>
-<canvas id="output" width="1878" height="855" style="border: 0px; position: absolute; z-index: 0; top: 113px; left: 21px; --darkreader-inline-border-top: initial; --darkreader-inline-border-right: initial; --darkreader-inline-border-bottom: initial; --darkreader-inline-border-left: initial;" onmousemove="getBitLocation(event)" data-darkreader-inline-border-top="" data-darkreader-inline-border-right="" data-darkreader-inline-border-bottom="" data-darkreader-inline-border-left=""></canvas>
+<canvas id="output" width="1878" height="855" style="border: 0px; position: absolute; z-index: 0; top: 113px; left: 21px; " onmousemove="getBitLocation(event)"></canvas>
 </div>
 </div>
 
@@ -1729,6 +1734,34 @@ function updateBitRaster() {
 }
 
 
+function hex2bin(hexByte) {
+	return ('0000000' + parseInt(hexByte, 16).toString(2)).substr(-8).split('');
+}
+
+function loadTextInput(base) {
+	data = document.getElementById('textInputArea').value;
+	data = data.split('\n').join('');
+	data = data.split(' ').join('');
+	
+	bits = [];
+	
+	if (base === 2) {
+		for (var x=0; x<data.length; x++) {
+			bits.push( parseInt( data[x] ) );
+		}
+	}
+	
+	if (base === 16) {
+		for (var x=0; x<data.length; x+=2) {
+			bits.push( ...hex2bin(data.substring(x, x+2)) );
+		}
+	}
+	
+	bitsNoOp = [...bits]
+	updateBitRaster();
+	updateOtherDisplays();
+}
+
 // check page load status
 
 if (window.FileList && window.File && window.FileReader) {
@@ -1858,6 +1891,10 @@ function playAudio() {
 	audio.play();
 }
 
+
+
 </script>
+
+
 
 </body></html>
