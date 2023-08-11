@@ -1150,7 +1150,7 @@ function updateBinaryView() {
 	if (spacing == 'byte spaced') { binary = byteSpace(binary).join('\n'); };
 	
 	if (viewType == 'standard view') { } // do nothing
-	if (viewType == '.x view') { binary = binary.replaceAll('1','X').replaceAll('0','.'); }
+	if (viewType == '.x view') { binary = binary.replaceAll('1','X').replaceAll('0','.').replaceAll(' ', '|'); }
 
 	document.getElementById('binaryViewOutput').innerHTML = binary;
 }
