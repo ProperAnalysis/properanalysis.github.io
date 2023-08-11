@@ -334,6 +334,15 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 </div>
 
 <div id="binaryView" class="closedToolbox">
+<button onclick="loadFullBinaryView();">Load All</button>
+<select id="binaryViewType">
+	<option>standard view</option>
+	<option>.x view</option>
+</select>
+<select id="binaryViewSpacing">
+	<option>bit spaced</option>
+	<option>byte spaced</option>
+</select>
 <textarea disabled="" id="binaryViewOutput" style="white-space: pre; overflow-wrap: normal; overflow-x: scroll; font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); --darkreader-inline-color: var(--darkreader-text--textColor); --darkreader-inline-bgcolor: var(--darkreader-bg--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-darkreader-inline-color="" data-darkreader-inline-bgcolor=""></textarea>
 </div>
 
@@ -1039,7 +1048,7 @@ function feedThruDescramble(taps, reversed) {
 }
 
 
-function updateAsciiView(startBit) {
+function updateAsciiView() {
 	var width = parseInt(widthInput.value);
 	var ascii = [];
 	var line = [];
@@ -1064,7 +1073,7 @@ function updateAsciiView(startBit) {
 }
 
 
-function updateHexView(startBit) {
+function updateHexView() {
 	var width = parseInt(widthInput.value);
 	var hex = [];
 	var line = [];
@@ -1100,22 +1109,55 @@ function updateHexView(startBit) {
 
 }
 
-function updateBinaryView(startBit) {
+function byteSpace(binary) {
+	//binary is array of strings
+	binary = binary.map( function(row) {
+		var newRow = []
+		for (var x=0; x<row.length; x+=8) {
+			newRow.push(row.substring(x, x+8));
+			newRow.push(' ');
+		}
+		
+		return newRow.join('');
+	})
+	return binary;
+}
+
+binaryViewLimit = 20;
+function updateBinaryView() {
+	var viewType = document.getElementById("binaryViewType").value;
+	var spacing = document.getElementById("binaryViewSpacing").value;
+	
 	var width = parseInt(widthInput.value);
 	var binary = [];
 	
 	maxBit = bits.length;
-	if ((width * 20)+startBit < maxBit) {maxBit = (width * 20)+startBit;}
+	if ((width * binaryViewLimit)+startBit < maxBit) {maxBit = (width * binaryViewLimit)+startBit;}
 	if (bits.length < 100000) { maxBit = bits.length; }
 	
 	for (var i = startBit; i < maxBit;) {
 		binary.push(bits.slice(i, i+width).join(''));
 		i += width;
 	}
-			
-	document.getElementById('binaryViewOutput').innerHTML = binary.join('\n');
+	
+	
+	if (spacing == 'bit spaced') { binary = binary.join('\n'); }
+	if (spacing == 'byte spaced') { binary = byteSpace(binary).join('\n'); };
+	
+	if (viewType == 'standard view') { } // do nothing
+	if (viewType == '.x view') { binary = binary.replaceAll('1','X').replaceAll('0','.'); }
 
+	document.getElementById('binaryViewOutput').innerHTML = binary;
 }
+
+function loadFullBinaryView() {
+	var initialBinaryView = binaryViewLimit + 0;
+	binaryViewLimit = bits.length / parseInt(widthInput.value);
+	updateBinaryView();
+	binaryViewLimit = initialBinaryView;
+}
+
+
 
 function addOperation(operation, args) {
 	operationsList.push([operation, args]);
@@ -1690,60 +1732,68 @@ function updateBitRaster() {
 // check page load status
 
 if (window.FileList && window.File && window.FileReader) {
-//console.log('doing the things');
-updateBitRaster();
+	//console.log('doing the things');
+	updateBitRaster();
 
-// file upload
+	// file upload
 
-fileSelector.addEventListener('change', event => {
-	var binaryString = '';
+	fileSelector.addEventListener('change', event => {
+		var binaryString = '';
 
-	const file = event.target.files[0];
-	const reader = new FileReader();
-	reader.addEventListener('load', event => {
-	
-		binaryString = event.target.result;
-   		var tileReader = new ByteReader( binaryString ), bitArray = [];
-
-		while( !tileReader.EOF() ) {
-			bitArray.push( tileReader.readUBits());
-		}
-	
-		bitString = bitArray.join('').split('');
-		bits = [];
+		const file = event.target.files[0];
+		const reader = new FileReader();
+		reader.addEventListener('load', event => {
 		
-		for (let i = 0; i < bitString.length; i++) { bits.push( parseInt( bitString[i]) ); }
+			binaryString = event.target.result;
+			var tileReader = new ByteReader( binaryString ), bitArray = [];
+
+			while( !tileReader.EOF() ) {
+				bitArray.push( tileReader.readUBits());
+			}
 		
-		bitsNoOp = [...bits]
+			bitString = bitArray.join('').split('');
+			bits = [];
+			
+			for (let i = 0; i < bitString.length; i++) { bits.push( parseInt( bitString[i]) ); }
+			
+			bitsNoOp = [...bits]
+			updateBitRaster();
+			updateOtherDisplays();
+			
+		});
+		
+		reader.readAsBinaryString(file);
+	});
+
+	// change width
+	document.getElementById('widthInput').addEventListener('change', event => {
 		updateBitRaster();
-		updateOtherDisplays();
-		
+	});
+
+	// change scale
+	document.getElementById('scaleInput').addEventListener('change', event => {
+		updateBitRaster();
+	});
+
+	// change offset
+	document.getElementById('offsetInput').addEventListener('change', event => {
+		updateBitRaster();
+	});
+
+	document.getElementById('binaryViewType').addEventListener('change', event => {
+		updateBinaryView();
 	});
 	
-	reader.readAsBinaryString(file);
-});
-
-// change width
-document.getElementById('widthInput').addEventListener('change', event => {
-	updateBitRaster();
-});
-
-// change scale
-document.getElementById('scaleInput').addEventListener('change', event => {
-	updateBitRaster();
-});
-
-// change offset
-document.getElementById('offsetInput').addEventListener('change', event => {
-	updateBitRaster();
-});
-
+	document.getElementById('binaryViewSpacing').addEventListener('change', event => {
+		updateBinaryView();
+	});
+	
 }
 
 function updateOtherDisplays(startBit) {
-	if (document.getElementById('hexView').className == 'openToolbox') { updateHexView(startBit); }
-	if (document.getElementById('asciiView').className == 'openToolbox') { updateAsciiView(startBit); }
-	if (document.getElementById('binaryView').className == 'openToolbox') { updateBinaryView(startBit); }
+	if (document.getElementById('hexView').className == 'openToolbox') { updateHexView(); }
+	if (document.getElementById('asciiView').className == 'openToolbox') { updateAsciiView(); }
+	if (document.getElementById('binaryView').className == 'openToolbox') { updateBinaryView(); }
 	if (document.getElementById('columnBias').className == 'openToolbox') { runColumnBias(); }
 }
 
@@ -1776,7 +1826,7 @@ function buildWavFile(bytes) {
 	wav.push(...number2LSFBArray(sampleRate, 4) ); //sample rate
 	wav.push(...number2LSFBArray(magicNumber1, 4) ); //magic number
 	wav.push(...number2LSFBArray(magicNumber2, 2) ); //magic number
-	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //bitsPerSample
+	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //magic number
 	wav.push(...[100, 97, 116, 97] ); //data
 	wav.push(...number2LSFBArray(bytes.length, 4) ); //size LSBF
 	wav.push(...bytes);
