@@ -1,0 +1,358 @@
+<html>
+<head>
+<style>
+
+html, body {
+	padding: 0px;
+	margin: 0px;
+	background: #222;
+}
+
+.spectrumContainer {
+	width: calc(100% - 2vh);
+    height: calc(50% - 2vh);
+    border: 1px solid white;
+    border-radius: 2vh;
+    overflow: hidden;
+    margin: 1vh;
+}
+
+.antennaControls {
+	width: calc(100% - 4vh);
+    height: calc(50% - 4vh);
+    font-size: 2vh;
+    font-family: monospace;
+    border: 1px solid white;
+    border-radius: 2vh;
+    overflow: hidden;
+    margin: 1vh;
+    padding: 1vh;
+    background: #000;
+    color: #fff;
+    text-align: center;
+
+}
+
+p {
+	margin: 0px;
+	font-size: 2vh;
+	padding: 0.2vh;
+}
+
+select, input {
+	font-size: 2vh;
+	background: black;
+	color: white;
+	width: 10em;
+}
+
+button {
+	font-size: 2vh;
+	background: black;
+	color: white;
+	border: 1px solid white;
+	border-radius: 0.5vh;
+	width: 10em;
+}
+
+button:hover {
+	background: #555;
+}
+
+button:active {
+	background: #999;
+}
+
+</style>
+</head>
+<body>
+<div class='spectrumContainer'>
+<canvas id='spectrum' width=1000></canvas>	
+</div>
+<div class='antennaControls'>
+<p style="text-align: center; font-size: 3vh; padding-bottom: 2vh;">Antenna Controls</p>
+<p>Antenna Site: 
+<select id="siteSelect">
+  <option value="SITE ALPHA">SITE ALPHA</option>
+  <option value="SITE BRAVO">SITE BRAVO</option>
+  <option value="SITE CHARLIE">SITE CHARLIE</option>
+  <option value="SITE DELTA" >SITE DELTA</option>
+</select>
+<p>
+<p>...Frequency:
+<select id="frequencySelect">
+  <option value="2400">2400.000 MHz</option>
+  <option value="2405">2405.000 MHz</option>
+  <option value="2410">2410.000 MHz</option>
+  <option value="2415">2415.000 MHz</option>
+</select>
+<p>
+<p>.....Azimuth:
+<input type="number" id='azimuthInput' value=0 min=0 max=359 onchange='inputAzimuth()'></input>
+<div style='text-align: center; padding-top: 2vh;'>
+<p>Azimuth Adjust</p>
+<p><button onClick='rotateAntenna(10)'>+ 10</button></p>
+<p><button onClick='rotateAntenna(5)'>+ 5</button></p>
+<p><button onClick='rotateAntenna(1)'>+ 1</button></p>
+<p><button onClick='rotateAntenna(-1)'>- 1</button></p>
+<p><button onClick='rotateAntenna(-5)'>- 5</button></p>
+<p><button onClick='rotateAntenna(-10)'>- 10</button></p>
+</div>
+</div>
+<div id='testSize' style='visibility: hidden; width: 1vw; height: 1vh; position: absolute; top: 0px;'></div>
+</body>
+
+<script>
+
+function bezier(t , initial , p1, p2, final){
+return (1 - t) * (1 - t) * (1 - t) * initial
+        +
+        3 * (1 - t) * (1 - t) * t * p1
+        +
+        3 * (1 - t) * t * t * p2
+        +
+        t * t * t * final;
+}
+
+var spectrumPoints = 2000
+var signalBandwidth = 1000;
+var signalCenter = spectrumPoints / 2;
+var signalStart = signalCenter - signalBandwidth/2;
+var signalEnd = signalStart + signalBandwidth;
+var cleanSignalPower = 80;
+var rollOff = 100;
+var rollOffRate = 1/rollOff;
+var noiseFloor = 10;
+var randomness = 0.5;
+var refreshDelay = 30; //msec
+var antennaValues = [100, 100, 97.77641208, 93.66408837, 87.42143006, 78.22105885, 63.0978675, 41.06893375, 63.82507362, 69.72866786, 70.60342495, 68.05801707, 61.94586212, 50.10810147, 33.94896411, 52.55415898, 58.29882646, 59.68408785, 58.07576635, 53.60316722, 45.1846216, 27.50516733, 40.74335025, 47.49894874, 49.78265812, 49.44323208, 46.90198532, 42.05608204, 33.72184152, 24.23898033, 34.1530415, 38.79972223, 40.58120577, 40.51377274, 38.94395897, 35.82759822, 30.75973532, 23.38779457, 25.64342201, 31.12010934, 34.03289723, 35.22252645, 35.08763703, 33.76957235, 31.31269775, 27.58854785, 22.52941654, 19.57852416, 22.72137565, 25.34647336, 26.67038185, 27.05987401, 26.85440888, 26.21399665, 25.23816927, 23.86764198, 22.00486694, 19.55363269, 17.18479585, 17.61446004, 20.21617536, 22.5476516, 24.16249662, 25.13017414, 25.53427307, 25.4452001, 24.93460946, 24.01001221, 22.74888707, 21.18087929, 19.36349865, 17.32978227, 15.15496993, 12.95469044, 10.8883369, 9.163944365, 8.051355629, 7.65856744, 7.878181526, 8.395835897, 8.93568345, 9.335134545, 9.513573076, 9.452140328, 9.128961158, 8.547793073, 7.689687742, 6.541253122, 5.055801807, 3.075560332, 2.031381194, 2.418377969, 3.265418619, 3.349121598, 2.870068259, 2.310895568, 3.165844838, 4.52361813, 5.631785178, 6.441843694, 6.969944031, 7.283059051, 7.499845757, 7.833025838, 8.500111184, 9.487943852, 10.61558466, 11.7109572, 12.6855487, 13.50434071, 14.16945168, 14.71150599, 15.17597312, 15.62867629, 16.08301216, 16.51640773, 16.86717388, 17.00281395, 16.80712169, 16.13403074, 14.87677648, 13.33656014, 13.54975159, 16.19246968, 18.96254881, 21.17213288, 22.76724034, 23.75415186, 24.12431518, 23.8203106, 22.78560349, 20.84155088, 17.80856416, 14.47268754, 16.1632326, 19.42123445, 21.49735652, 22.50208239, 22.58415123, 21.77239161, 20.038619, 17.22287146, 12.92949494, 10.95583803, 14.88368948, 17.42945191, 18.84092508, 19.42123445, 19.19097804, 17.95703322, 15.10603787, 9.482823537, 14.68408047, 19.47908489, 22.28420469, 23.68811573, 23.74471062, 22.20286456, 18.0748268, 10.59352249, 20.43745626, 25.36619824, 27.99744168, 28.89181673, 27.96584583, 24.44051761, 13.69967533, 22.93286424, 30.09155324, 33.90106435, 35.53037805, 34.98975224, 31.31269775, 17.70745304, 30.90579981, 40.50029511, 46.5166539, 50.66929871, 53.40846314, 54.99588506, 55.49313238, 54.91330041, 53.24657037, 50.41936325, 46.19225745, 40.0572082, 30.26877911, 18.68761638, 31.22196924, 34.66073538, 35.03867185, 33.23519104, 29.22663447, 21.65677049, 16.17053857, 24.7691794, 27.83970012, 28.48489575, 27.35965597, 24.46939952, 19.20736425, 12.91690945, 19.27300234, 22.5658965, 23.70697069, 23.35977032, 21.71008309, 18.64741068, 13.87707901, 12.50615561, 16.37600054, 18.51914003, 19.37173961, 19.3305582, 18.49515496, 16.80712169, 13.97629512, 11.07463524, 14.45911939, 18.10632518, 20.52299238, 21.96003226, 22.50208239, 22.14874792, 20.80695432, 18.27229222, 14.60883611, 14.98069646, 18.86520809, 21.61241006, 23.28514846, 24.08617397, 24.16249662, 23.57519588, 22.32947937, 20.42037761, 17.76962984, 14.33064473, 11.62278741, 13.29803993, 15.42244586, 16.67998441, 17.26100326, 17.34509126, 17.10122714, 16.64271349, 16.10486408, 15.55023593, 14.98764162, 14.39816768, 13.70621872, 12.86037581, 11.81142071, 10.53300918, 9.029499958, 7.434364355, 6.261571513, 6.195810078, 6.669982613, 6.969944031, 6.924180518, 6.517302259, 5.75933376, 4.659349322, 3.280532386, 2.408098677, 2.984639471, 3.476027884, 3.390214659, 2.520667299, 2.031381194, 3.195501273, 5.222538167, 6.739051938, 7.909893547, 8.77914952, 9.360487966, 9.673505095, 9.69427111, 9.43172167, 8.881666826, 8.051355629, 7.020097344, 6.046688849, 5.896249502, 7.159258258, 9.274473212, 11.69328769, 14.16945168, 16.5683383, 18.79242157, 20.78103203, 22.50208239, 23.90555219, 24.96387925, 25.61362333, 25.84267071, 25.57392768, 24.74006202, 23.22928647, 20.88485049, 17.56808588, 14.9182866, 17.4371346, 20.68616788, 23.05297972, 24.7691794, 26.02287464, 26.8954184, 27.34928199, 27.22499865, 26.22408155, 23.96249274, 20.19922022, 20.58300945, 26.13341058, 30.42442141, 33.30611377, 34.97752946, 35.48100173, 34.72150813, 32.42680334, 28.0396065, 23.58459213, 29.28087839, 34.81889223, 38.38215034, 40.36568311, 40.8788001, 39.7370011, 36.32664064, 29.75014936, 32.31074474, 40.66222413, 45.95728245, 48.90642164, 49.72082912, 48.10095618, 42.79275345, 31.81484792, 43.08700515, 52.12247198, 57.03669605, 59.02338442, 58.09290458, 53.10114688, 38.40816038, 47.94998028, 60.54330117, 66.99689973, 69.82550425, 69.2072981, 63.66096771, 42.77877498, 62.071174, 77.53338987, 86.92718638, 93.28751823, 97.53409147, 100]
+
+var spectrumData = new Array(spectrumPoints).fill(0.0);
+var cleanSignal = new Array(spectrumPoints).fill(0.0);
+var noiseData = new Array(spectrumPoints).fill(0.0);
+var rxStrength = 1.0;
+
+
+for (var i = signalStart; i < signalEnd; i++) {
+	cleanSignal[i] = cleanSignalPower + noiseFloor;
+}
+
+var rollOffPosition = 0;
+for (var i = signalStart; i > signalStart-rollOff; i--) {
+	rollOffPosition+=rollOffRate;
+	var rollOffAmount = bezier(rollOffPosition, 0, 0, 0.5, 0.5) ;
+	cleanSignal[i] = cleanSignalPower - (rollOffAmount*cleanSignalPower*2) + noiseFloor;
+	if (cleanSignal[i] < 0) {cleanSignal[i] = 0;}
+}
+
+var rollOffPosition = 0;
+for (var i = signalEnd; i < signalEnd+rollOff; i++) {
+	rollOffPosition+=rollOffRate;
+	var rollOffAmount = bezier(rollOffPosition, 0, 0, 0.5, 0.5) ;
+	cleanSignal[i] = cleanSignalPower - (rollOffAmount*cleanSignalPower*2) + noiseFloor;
+	if (cleanSignal[i] < 0) {cleanSignal[i] = 0;}
+}
+
+noisePoints = new Array(spectrumPoints).fill(0)
+function updateNoiseData() {
+
+	for (var i=0; i<noiseData.length; i++) {
+		if (Math.random() > 0.99) {
+			noisePoints[i] =  Math.random() * 2;
+		} else if (Math.random() > 0.999) {
+			noisePoints[i] =  Math.random() * 10;
+		} else if (noisePoints[i] > 0) {
+			noisePoints[i] = noisePoints[i] * 0.9;
+		}
+	}
+ 
+	for (var i=0; i<noisePoints.length; i++) {
+			noiseData[i] = noiseFloor + noisePoints[i]
+	}
+}
+
+function updateSpectrumData() {
+	for (var i=0; i<spectrumData.length; i++) {
+		spectrumData[i] = cleanSignal[i] * rxStrength;
+		if (spectrumData[i] < noiseData[i]) {
+			spectrumData[i] = noiseData[i];
+		}
+
+		spectrumData[i] += (((Math.random() * 2) -1) * randomness)
+	}
+	
+	
+}
+
+var spectrumView = document.getElementById('spectrum');
+
+function updateSpectrumView() {
+	
+	
+	canvas = spectrumView;
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+	var clientHeight = document.getElementById('testSize').clientHeight;
+	var verticalLines = parseInt(canvas.width / 50) / clientHeight * 10;
+	var horizontalLines = parseInt(canvas.height / 50) / clientHeight * 10;
+	var lineWidth = parseInt(clientHeight / 20)
+	
+	var decimation = parseInt(spectrumData.length / canvas.width) + 2;
+	
+	ctx = canvas.getContext('2d');
+	
+	minY = 0
+	maxY = 100
+	
+	minX = 0
+	maxX = spectrumData.length;
+	
+	scaleX = canvas.width / (maxX - minX);
+	scaleY = canvas.height / (maxY - minY);
+	offsetY = scaleY * minY
+	
+	background = '#000';
+	//fill = '#002259cc'; 
+	fill = '#00ffea55';
+	line1 = '#0fe';
+	line2 = '#fff';
+	grid = '#777';
+	
+	ctx.clearRect(0,0,canvas.width, canvas.height);
+	ctx.fillStyle = background;
+	ctx.fillRect(0,0,canvas.width, canvas.height);
+	
+	ctx.strokeStyle = grid;
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	var a = 0;
+	for (var x = 0; x < canvas.width; x += parseInt(canvas.width/verticalLines)) {
+		ctx.moveTo(x, 0);
+		ctx.lineTo(x, canvas.height);
+		a++;
+	}
+	ctx.stroke();
+	
+	ctx.strokeStyle = grid;
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	var a = 0;
+	for (var y = 0; y < canvas.height; y += parseInt(canvas.height/horizontalLines)) {
+		ctx.moveTo(0, y);
+		ctx.lineTo(canvas.width, y);
+		a++;
+	}
+	ctx.stroke();
+	
+	ctx.fillStyle = fill;
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	for (var x=0; x<spectrumData.length; x+=decimation) {
+		ctx.lineTo(x*scaleX, offsetY+canvas.height-(spectrumData[x]*scaleY));
+	}
+	ctx.lineTo(x*scaleX, canvas.height);
+	ctx.fill();
+	
+	ctx.strokeStyle = line1;
+	ctx.lineWidth = 2;
+	ctx.beginPath();
+	ctx.moveTo(0, canvas.height);
+	for (var x=0; x<spectrumData.length; x+=decimation) {
+		ctx.lineTo(x*scaleX, offsetY+canvas.height-(spectrumData[x]*scaleY));
+	}
+	ctx.lineTo(x*scaleX, canvas.height);
+	ctx.stroke();
+	
+
+}
+
+var antennaAzimuth = 0;
+var signalAzimuth = 247;
+var simulatedAzimuth = (antennaAzimuth - signalAzimuth) % 360;
+
+function updateSpectrum() {
+	if (antennaAzimuth - signalAzimuth < 0) {
+		simulatedAzimuth = 360 + (antennaAzimuth - signalAzimuth);
+	} else {
+		simulatedAzimuth = (antennaAzimuth - signalAzimuth) % 360;
+	}
+
+	
+	rxStrength = (antennaValues[simulatedAzimuth] / 100);
+	rxStrength += (((Math.random() * 2) -1) * 0.008)
+	updateNoiseData();
+	updateSpectrumData();
+	updateSpectrumView();
+	setTimeout(updateSpectrum, refreshDelay);
+}
+
+var antennaAzimuthInput = document.getElementById('azimuthInput');
+var targetAzimuth = 0;
+var rotationBlocked = false;
+function rotateAntenna(amount) {
+	if (rotationBlocked) { return null; }
+	rotationBlocked = true;
+
+	if (antennaAzimuth + amount < 0 ) {
+		targetAzimuth = 360 + (antennaAzimuth + amount);
+	} else {
+		targetAzimuth = (antennaAzimuth + amount) % 360;
+	}
+	
+	direction = 1;
+	if (targetAzimuth < antennaAzimuth) { direction = -1}
+	if (Math.abs(targetAzimuth - antennaAzimuth) > 180) { direction *= -1 }
+	
+	if (direction == 1) { animateRotationUp(); }
+	else { animateRotationDown(); }
+	
+}
+
+function inputAzimuth() {
+	targetAzimuth = parseInt(antennaAzimuthInput.value);
+	if (targetAzimuth == antennaAzimuth) {return null; }
+
+	if (rotationBlocked) { return null; }
+	rotationBlocked = true;
+	
+	direction = 1;
+	if (targetAzimuth < antennaAzimuth) { direction = -1}
+	if (Math.abs(targetAzimuth - antennaAzimuth) > 180) { direction *= -1 }
+	
+	if (direction == 1) { animateRotationUp(); }
+	else { animateRotationDown(); }
+}
+
+function animateRotationUp() {
+	if (antennaAzimuth == 359) {
+		antennaAzimuth = 0;
+	} else {
+		antennaAzimuth += 1;
+	}
+	antennaAzimuthInput.value = antennaAzimuth;
+	if (antennaAzimuth != targetAzimuth) {
+		setTimeout(animateRotationUp, refreshDelay*5);
+	} else {
+		rotationBlocked = false;
+	}
+}
+
+function animateRotationDown() {
+	if (antennaAzimuth == 0) {
+		antennaAzimuth = 359;
+	} else {
+		antennaAzimuth -= 1;
+	}
+	antennaAzimuthInput.value = antennaAzimuth;
+	if (antennaAzimuth != targetAzimuth) {
+		setTimeout(animateRotationDown, refreshDelay*5);
+	} else {
+		rotationBlocked = false;
+	}
+}
+
+
+updateNoiseData();
+updateSpectrum();
+
+</script>
