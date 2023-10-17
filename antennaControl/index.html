@@ -52,7 +52,11 @@ button {
 	color: white;
 	border: 1px solid white;
 	border-radius: 0.5vh;
-	width: 10em;
+    	width: 5em;
+  	height: 2em;
+    	margin: 0.5em;
+    	margin-bottom: 0;
+    	margin-top: 1em;
 }
 
 button:hover {
@@ -91,12 +95,9 @@ button:active {
 <input type="number" id='azimuthInput' value=0 min=0 max=359 onchange='inputAzimuth()'></input>
 <div style='text-align: center; padding-top: 2vh;'>
 <p>Azimuth Adjust</p>
-<p><button onClick='rotateAntenna(10)'>+ 10</button></p>
-<p><button onClick='rotateAntenna(5)'>+ 5</button></p>
-<p><button onClick='rotateAntenna(1)'>+ 1</button></p>
-<p><button onClick='rotateAntenna(-1)'>- 1</button></p>
-<p><button onClick='rotateAntenna(-5)'>- 5</button></p>
-<p><button onClick='rotateAntenna(-10)'>- 10</button></p>
+<p><button onClick='rotateAntenna(10)'>+ 10</button> <button onClick='rotateAntenna(-10)'>- 10</button> </p>
+<p><button onClick='rotateAntenna(5)'>+ 5</button> <button onClick='rotateAntenna(-5)'>- 5</button> </p>
+<p><button onClick='rotateAntenna(1)'>+ 1</button> <button onClick='rotateAntenna(-1)'>- 1</button> </p>
 </div>
 </div>
 <div id='testSize' style='visibility: hidden; width: 1vw; height: 1vh; position: absolute; top: 0px;'></div>
