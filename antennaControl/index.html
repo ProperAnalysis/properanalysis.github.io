@@ -1,5 +1,35 @@
 <html>
 <head>
+<script>
+
+var targetPack = {}
+
+targetPack['Target 1'] = {}
+targetPack['Target 1']['SITE ALPHA'] = {'SA': 2470, 'LA': 0}
+targetPack['Target 1']['SITE BRAVO'] = {'SA': 750, 'LA': 0};
+targetPack['Target 1']['SITE CHARLIE'] = {'SA': 3550, 'LA': 0};
+targetPack['Target 1']['SITE DELTA'] = {'SA': 1350, 'LA': 0};
+
+targetPack['Target 2'] = {}
+targetPack['Target 2']['SITE ALPHA'] = {'SA': 2270, 'LA': 0}
+targetPack['Target 2']['SITE BRAVO'] = {'SA': 800, 'LA': 0};
+targetPack['Target 2']['SITE CHARLIE'] = {'SA': 3050, 'LA': 0};
+targetPack['Target 2']['SITE DELTA'] = {'SA': 1210, 'LA': 0};
+
+signals = {}
+signals['Target 1'] = {}
+signals['Target 1']['bandwidth'] = 750;
+signals['Target 1']['power'] = 80;
+signals['Target 1']['rollOff'] = 100;
+
+signals['Target 2'] = {}
+signals['Target 2']['bandwidth'] = 400;
+signals['Target 2']['power'] = 60;
+signals['Target 2']['rollOff'] = 50;
+
+
+</script>
+
 <style>
 
 html, body {
@@ -10,7 +40,7 @@ html, body {
 
 .spectrumContainer {
 	width: calc(100% - 2vh);
-    height: calc(50% - 22vh);
+    height: calc(50% - 21vh);
     border: 1px solid white;
     border-radius: 2vh;
     overflow: hidden;
@@ -19,7 +49,7 @@ html, body {
 
 .waterfallContainer {
 	width: calc(100% - 2vh);
-    height: calc(50% - 22vh);
+    height: calc(50% - 21vh);
     border: 1px solid white;
     border-radius: 2vh;
     overflow: hidden;
@@ -88,8 +118,17 @@ button:active {
 
 <div class='antennaControls'>
 
-<p>Antenna Site: 
-<select id="siteSelect">
+<p>Target Signal: 
+<select id="targetSelect" onchange="targetSelectionChange();">
+  <option value='T1'>T1</option>
+  <option value='T2'>T2</option>
+  <option value='T3'>T3</option>
+  <option value='T4'>T4</option>
+</select>
+<p>
+
+<p>&nbsp;Antenna Site: 
+<select id="siteSelect" onchange="updateSignalAzimuth();">
   <option value="SITE ALPHA">SITE ALPHA</option>
   <option value="SITE BRAVO">SITE BRAVO</option>
   <option value="SITE CHARLIE">SITE CHARLIE</option>
@@ -97,13 +136,13 @@ button:active {
 </select>
 <p>
 
-<p>.....Azimuth:
+<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Azimuth:
 <input type="number" id='azimuthInput' value="0" min="0" max="359" onchange='inputAzimuth()'></input>
-<div style='text-align: center; padding-top: 2vh;'>
-<p>Azimuth Adjust</p>
-<p><button onClick='rotateAntenna(100)'>+ 10</button> <button onClick='rotateAntenna(-100)'>- 10</button> </p>
-<p><button onClick='rotateAntenna(50)'>+ 5</button> <button onClick='rotateAntenna(-50)'>- 5</button> </p>
-<p><button onClick='rotateAntenna(10)'>+ 1</button> <button onClick='rotateAntenna(-10)'>- 1</button> </p>
+<div style='text-align: center; padding-top: 1vh;'>
+
+<p><button onClick='rotateAntenna(100)'>Az + 10</button> <button onClick='rotateAntenna(-100)'>Az - 10</button> </p>
+<p><button onClick='rotateAntenna(50)'>Az + 5</button> <button onClick='rotateAntenna(-50)'>Az - 5</button> </p>
+<p><button onClick='rotateAntenna(10)'>Az + 1</button> <button onClick='rotateAntenna(-10)'>Az - 1</button> </p>
 </div>
 </div>
 <div id='testSize' style='visibility: hidden; width: 1vw; height: 1vh; position: absolute; top: 0px;'></div>
@@ -142,23 +181,27 @@ function interpolateAntennaValues() {
 interpolateAntennaValues();
 
 var spectrumPoints = 2000
-var signalBandwidth = 750;
-var signalCenter = spectrumPoints / 2;
-var signalStart = signalCenter - signalBandwidth/2;
-var signalEnd = signalStart + signalBandwidth;
-var cleanSignalPower = 80;
-var rollOff = 100;
-var rollOffRate = 1/rollOff;
 var noiseFloor = 10;
 var randomness = 1;
 var refreshDelay = 30; //msec
 
-var waterfallData = new Array();
 var spectrumData = new Array(spectrumPoints).fill(0.0);
 var cleanSignal = new Array(spectrumPoints).fill(0.0);
 var noiseData = new Array(spectrumPoints).fill(0.0);
 var rxStrength = 1.0;
 
+function generateSignal(signal) {
+
+cleanSignal = new Array(spectrumPoints).fill(0.0);
+
+var signalBandwidth = signal['bandwidth'];
+var cleanSignalPower = signal['power'];
+var rollOff = signal['rollOff'];
+
+var rollOffRate = 1/rollOff;
+var signalCenter = spectrumPoints / 2;
+var signalStart = signalCenter - signalBandwidth/2;
+var signalEnd = signalStart + signalBandwidth;
 
 for (var i = signalStart; i < signalEnd; i++) {
 	cleanSignal[i] = cleanSignalPower + noiseFloor;	
@@ -178,6 +221,7 @@ for (var i = signalEnd; i < signalEnd+rollOff; i++) {
 	var rollOffAmount = bezier(rollOffPosition, 0, 0, 0.01, 0.5) ;
 	cleanSignal[i] = cleanSignalPower - (rollOffAmount*cleanSignalPower*2) + noiseFloor;
 	if (cleanSignal[i] < 0) {cleanSignal[i] = 0;}
+}
 }
 
 noisePoints = new Array(spectrumPoints).fill(0)
@@ -200,17 +244,27 @@ function updateNoiseData() {
 	}
 }
 
+var cutover = 50;
 function updateSpectrumData() {
-	for (var i=0; i<spectrumData.length; i++) {
-		spectrumData[i] = cleanSignal[i] * rxStrength;
-		if (spectrumData[i] < noiseData[i]) {
-			spectrumData[i] = noiseData[i];
-		}
 
-		spectrumData[i] += (((Math.random() * 2) -1) * randomness)
+	var modifier = 0;
+	if (cutover) {
+		modifier = -20 / (cutover-10);
+		cutover -= 1;
 	}
 	
-	
+	if (cutover < 10) {
+		modifier = 0;
+	}
+
+	for (var i=0; i<spectrumData.length; i++) {
+		spectrumData[i] = cleanSignal[i] * rxStrength;
+		if (spectrumData[i] < noiseData[i] || cutover > 10) {
+			spectrumData[i] = noiseData[i] + modifier;
+		}
+
+		spectrumData[i] += (((Math.random() * 2) -1) * randomness);
+	}
 }
 
 const waterfallView = document.getElementById('waterfall');
@@ -328,11 +382,93 @@ function updateSpectrumView() {
 	ctx.lineTo(x*scaleX, canvas.height);
 	ctx.stroke();
 	
-
+	if (rotationBlocked) {
+		ctx.fillStyle = '#511e';
+		ctx.strokeStyle = "#f00";
+		ctx.beginPath();
+		ctx.rect(canvas.width/4, 2, canvas.width/2, canvas.height/10);
+		ctx.fill();
+		ctx.stroke();
+		
+		ctx.fillStyle = '#f00';
+		ctx.textAlign="center"; 
+		ctx.textBaseline = "middle";
+		ctx.font = "2vh Monospace";
+		ctx.fillText("Antenna Moving", canvas.width/2, (canvas.height/20) + 2);
+	}
+	
+	if (cutover) {
+		ctx.fillStyle = '#511e';
+		ctx.strokeStyle = "#f00";
+		ctx.beginPath();
+		ctx.rect(canvas.width/4, 2, canvas.width/2, canvas.height/10);
+		ctx.fill();
+		ctx.stroke();
+		
+		ctx.fillStyle = '#f00';
+		ctx.textAlign="center"; 
+		ctx.textBaseline = "middle";
+		ctx.font = "2vh Monospace";
+		ctx.fillText("Feed Switching", canvas.width/2, (canvas.height/20) + 2);
+	}
+	
 }
 
-var antennaAzimuth = 2470;
-var signalAzimuth = 2470;
+
+const targetSelect = document.getElementById('targetSelect');
+const siteSelect = document.getElementById('siteSelect');
+var target = null;
+var site = null;
+
+function targetSelectionChange() {
+	populateSiteMenu();
+	updateSignalAzimuth();
+	target = targetSelect.value;
+	
+	generateSignal(signals[target]);
+	
+}
+
+function updateSignalAzimuth() {
+	site = siteSelect.value;
+	target = targetSelect.value;
+	signalAzimuth = targetPack[target][site]['SA'];
+	antennaAzimuthInput.value = parseInt(targetPack[target][site]['LA'] / 10);
+	antennaAzimuth = targetPack[target][site]['LA'];
+	cutover = 50;
+}
+
+function removeOptions(selectElement) {
+   var i, L = selectElement.options.length - 1;
+   for(i = L; i >= 0; i--) {
+      selectElement.remove(i);
+   }
+}
+
+function populateTargetMenu() {
+	removeOptions(targetSelect);
+	for (var [key, value] of Object.entries(targetPack)) {
+		var option = document.createElement("option");
+		option.text = key;
+		targetSelect.add(option);
+		target = key;
+	}
+	populateSiteMenu();
+	updateSignalAzimuth();
+}
+
+function populateSiteMenu() {
+	removeOptions(siteSelect);
+	for (var [key, value] of Object.entries(targetPack[target])) {
+		var option = document.createElement("option");
+		option.text = key;
+		siteSelect.add(option);
+		site = key;
+	}
+}
+
+var antennaAzimuth = 0;
+var signalAzimuth = 0;
 var simulatedAzimuth = (antennaAzimuth - signalAzimuth) % 3600;
 
 function updateSpectrum() {
@@ -396,6 +532,7 @@ function animateRotationUp() {
 		antennaAzimuth += 1;
 	}
 	antennaAzimuthInput.value = parseInt(antennaAzimuth / 10);
+	targetPack[target][site]['LA'] = antennaAzimuth;
 	if (antennaAzimuth != targetAzimuth) {
 		setTimeout(animateRotationUp, refreshDelay);
 	} else {
@@ -410,6 +547,7 @@ function animateRotationDown() {
 		antennaAzimuth -= 1;
 	}
 	antennaAzimuthInput.value = parseInt(antennaAzimuth / 10);
+	targetPack[target][site]['LA'] = antennaAzimuth;
 	if (antennaAzimuth != targetAzimuth) {
 		setTimeout(animateRotationDown, refreshDelay);
 	} else {
@@ -418,6 +556,8 @@ function animateRotationDown() {
 }
 
 
+populateTargetMenu();
+targetSelectionChange();
 updateNoiseData();
 updateSpectrum();
 
