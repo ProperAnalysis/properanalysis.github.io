@@ -57,7 +57,7 @@ html, body {
 }
 
 .antennaControls {
-    width: calc(100% - 4vh);
+	width: calc(100% - 4vh);
     height: 34vh;
     font-size: 2vh;
     font-family: monospace;
@@ -85,12 +85,12 @@ select, input {
 }
 
 button {
-    font-size: 2vh;
+	font-size: 2vh;
     background: black;
     color: white;
     border: 1px solid white;
     border-radius: 0.5vh;
-    width: 16vh;
+    width: 5vh;
     height: 4vh;
     margin: 1vh;
     margin-bottom: 0;
@@ -136,13 +136,29 @@ button:active {
 </select>
 <p>
 
-<p>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Azimuth:
+<p>Antenna Angle:
 <input type="number" id='azimuthInput' value="0" min="0" max="359" onchange='inputAzimuth()'></input>
 <div style='text-align: center; padding-top: 1vh;'>
 
-<p><button onClick='rotateAntenna(100)'>Az + 10</button> <button onClick='rotateAntenna(-100)'>Az - 10</button> </p>
-<p><button onClick='rotateAntenna(50)'>Az + 5</button> <button onClick='rotateAntenna(-50)'>Az - 5</button> </p>
-<p><button onClick='rotateAntenna(10)'>Az + 1</button> <button onClick='rotateAntenna(-10)'>Az - 1</button> </p>
+<p>
+<button onClick='rotateAntenna(900)'>+90</button>
+<button onClick='rotateAntenna(100)'>+10</button>
+<button onClick='rotateAntenna(50)'>+5</button>
+<button onClick='rotateAntenna(10)'>+1</button>
+</p>
+
+<p>
+<button onClick='rotateAntenna(-900)'>-90</button>
+<button onClick='rotateAntenna(-100)'>-10</button>
+<button onClick='rotateAntenna(-50)'>-5</button>
+<button onClick='rotateAntenna(-10)'>-1</button>
+</p>
+
+<p>
+<button style='width: 30vh'onClick='stopAntenna()'>Stop Antenna Move</button>
+</p>
+
+
 </div>
 </div>
 <div id='testSize' style='visibility: hidden; width: 1vw; height: 1vh; position: absolute; top: 0px;'></div>
@@ -222,6 +238,7 @@ for (var i = signalEnd; i < signalEnd+rollOff; i++) {
 	cleanSignal[i] = cleanSignalPower - (rollOffAmount*cleanSignalPower*2) + noiseFloor;
 	if (cleanSignal[i] < 0) {cleanSignal[i] = 0;}
 }
+
 }
 
 noisePoints = new Array(spectrumPoints).fill(0)
@@ -256,6 +273,8 @@ function updateSpectrumData() {
 	if (cutover < 10) {
 		modifier = 0;
 	}
+	
+	var linesInterval = parseInt(Math.random()*8)
 
 	for (var i=0; i<spectrumData.length; i++) {
 		spectrumData[i] = cleanSignal[i] * rxStrength;
@@ -264,6 +283,8 @@ function updateSpectrumData() {
 		}
 
 		spectrumData[i] += (((Math.random() * 2) -1) * randomness);
+
+
 	}
 }
 
@@ -382,6 +403,18 @@ function updateSpectrumView() {
 	ctx.lineTo(x*scaleX, canvas.height);
 	ctx.stroke();
 	
+
+	ctx.fillStyle = background;
+	ctx.beginPath();
+	ctx.rect(canvas.width-canvas.width/20, 0, canvas.width-5, canvas.height/10);
+	ctx.fill();
+
+	ctx.fillStyle = '#0ff';
+	ctx.textAlign="right"; 
+	ctx.textBaseline = "middle";
+	ctx.font = "2vh Monospace";
+	ctx.fillText("Peak: " + parseInt(Math.max(...spectrumData)), canvas.width-5, (canvas.height/20) + 2);
+	
 	if (rotationBlocked) {
 		ctx.fillStyle = '#511e';
 		ctx.strokeStyle = "#f00";
@@ -394,7 +427,7 @@ function updateSpectrumView() {
 		ctx.textAlign="center"; 
 		ctx.textBaseline = "middle";
 		ctx.font = "2vh Monospace";
-		ctx.fillText("Antenna Moving", canvas.width/2, (canvas.height/20) + 2);
+		ctx.fillText("Antenna Moving: " + parseInt(antennaAzimuth/10), canvas.width/2, (canvas.height/20) + 2);
 	}
 	
 	if (cutover) {
@@ -494,6 +527,10 @@ var rotationBlocked = false;
 function rotateAntenna(amount) {
 	if (rotationBlocked) { return null; }
 	rotationBlocked = true;
+	
+	if (Math.abs(amount) == 900) { moveRate = 5; }
+	else if (Math.abs(amount) == 100) { moveRate = 2; }
+	else { moveRate = 1; }
 
 	if (antennaAzimuth + amount < 0 ) {
 		targetAzimuth = 3600 + (antennaAzimuth + amount);
@@ -517,6 +554,8 @@ function inputAzimuth() {
 	if (rotationBlocked) { return null; }
 	rotationBlocked = true;
 	
+	moveRate = 5;
+	
 	direction = 1;
 	if (targetAzimuth < antennaAzimuth) { direction = -1}
 	if (Math.abs(targetAzimuth - antennaAzimuth) > 1800) { direction *= -1 }
@@ -525,34 +564,53 @@ function inputAzimuth() {
 	else { animateRotationDown(); }
 }
 
+
+var moveRate = 5
+
 function animateRotationUp() {
-	if (antennaAzimuth == 3599) {
+	if (antennaAzimuth == 3600 - moveRate) {
 		antennaAzimuth = 0;
 	} else {
-		antennaAzimuth += 1;
+		antennaAzimuth += moveRate;
 	}
 	antennaAzimuthInput.value = parseInt(antennaAzimuth / 10);
 	targetPack[target][site]['LA'] = antennaAzimuth;
 	if (antennaAzimuth != targetAzimuth) {
-		setTimeout(animateRotationUp, refreshDelay);
+		if (stopSignal == false || antennaAzimuth % 10 != 0) {
+			setTimeout(animateRotationUp, refreshDelay);
+		} else {
+			stopSignal = false;
+			rotationBlocked = false;
+		}
 	} else {
 		rotationBlocked = false;
 	}
 }
 
+
 function animateRotationDown() {
 	if (antennaAzimuth == 0) {
-		antennaAzimuth = 3599;
+		antennaAzimuth = 3600 - moveRate;
 	} else {
-		antennaAzimuth -= 1;
+		antennaAzimuth -= moveRate;
 	}
 	antennaAzimuthInput.value = parseInt(antennaAzimuth / 10);
 	targetPack[target][site]['LA'] = antennaAzimuth;
 	if (antennaAzimuth != targetAzimuth) {
-		setTimeout(animateRotationDown, refreshDelay);
+		if (stopSignal == false || antennaAzimuth % 10 != 0) {
+			setTimeout(animateRotationDown, refreshDelay);
+		} else {
+			stopSignal = false;
+			rotationBlocked = false;
+		}
 	} else {
 		rotationBlocked = false;
 	}
+}
+
+var stopSignal = false
+function stopAntenna() {
+	stopSignal = true;
 }
 
 
