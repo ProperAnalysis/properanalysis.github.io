@@ -1,0 +1,202 @@
+<html>
+<style>
+
+body {
+	background: black;
+	color: white;
+	font-family: monospace;
+}
+
+p {
+    display: block;
+    margin-block-start: 0em;
+    margin-block-end: 0em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+}
+
+textArea {
+	background: black;
+	color: white;
+	width: 100%;
+	height: calc(30% - 4em);
+	resize: none; 
+}
+
+button {
+  background-color: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: monospace;
+}
+
+input {
+	background: black;
+	color: white;
+	resize: none; 
+	border: 1px solid #fff;
+	border-radius: 2px;
+}
+
+button:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+button:active {
+  background-color: #333;
+  color: #fff;
+}
+
+</style>
+<body>
+Error Correcting Binary Decoder (will match binary to closest codeword).
+<br></br>
+
+Instructions - keys must be of fixed length:
+<textArea id='instructionsText'>
+000000=0
+010101=1
+101010=2
+111111=3</textArea>
+<p id='instructionsStats'></p>
+
+<br></br>
+Binary:
+<textArea  id='binaryText'></textArea>
+<p id='binaryStats'></p>
+
+<br></br>
+Simulated Random Error Rate (x in 1000):<input type="number" id='randomErrorRateEntry' value=0 max='500' min='0'>
+<p id='errorStats'></p>
+
+<br></br>
+Output:
+<textArea readonly id='outputText'></textArea>
+<p id='outputStats'></p>
+
+<script>
+
+var characterMap = []
+
+const outputText = document.getElementById('outputText')
+const randomErrorRateEntry = document.getElementById('randomErrorRateEntry')
+const binaryText = document.getElementById('binaryText')
+const instructionsText = document.getElementById('instructionsText')
+
+const outputStats = document.getElementById('outputStats')
+const binaryStats = document.getElementById('binaryStats')
+const errorStats = document.getElementById('errorStats')
+const instructionsStats = document.getElementById('instructionsStats')
+
+var binary = ''
+var output = ''
+var keyLength = 0
+
+function addErrors() {
+	var errorRate = parseInt(randomErrorRateEntry.value)
+	var newBinary = binary.split('')
+	var errorCount = 0
+	
+	for (var i=0; i<newBinary.length; i++) {
+		if (Math.floor(Math.random() * 1000) < errorRate) {
+			errorCount += 1
+			if (newBinary[i] == '0') { newBinary[i] = '1' }
+			else { newBinary[i] = '0' }
+		}
+	}
+	
+	errorStats.innerHTML = errorCount + ' errors introduced.'
+	
+	binary = newBinary.join('');
+}
+
+function hammingDistance(b1, b2) {
+	var distance = 0
+	
+	for (var i=0; i<b1.length; i++) {
+		if (b1[i] != b2[i]) { distance += 1 }
+	}
+	
+	return distance
+}
+
+function update() {
+	binary = binaryText.value;
+	output = '';
+
+	buildMap();
+	addErrors();
+	parseBinary();
+	
+	outputText.value = output;
+	instructionsStats.innerHTML = 'Instructions Length: ' + instructionsText.value.length + ' charcters // ' + (instructionsText.value.length * 8) + " bits.";
+	binaryStats.innerHTML = 'Binary Length: ' + binaryText.value.length + ' bits.';
+	outputStats.innerHTML = 'Output Length: ' + outputText.value.length + ' characters // ' + (outputText.value.length * 8) + " bits."
+}
+
+function buildMap() {
+	var instructions = instructionsText.value.split('\n')
+	
+	characterMap = []
+	
+	for (var i=0; i<instructions.length; i++) {
+		if (instructions[i].substr(-1,1) == '=') {
+			var key = instructions[i].substr(0, instructions[i].length-2)
+			var value = '='
+		} else { 
+			var key = instructions[i].split('=')[0]
+			var value = instructions[i].split('=').slice(1,).join('')
+		}
+		characterMap.push( [key, value] ) 
+		keyLength = key.length
+	}
+	
+}
+
+
+function findClosest(b1) {
+	var closestScore = 99
+	var closest = ''
+
+	for (y=0; y<characterMap.length; y++) {
+		var b2 = characterMap[y][0]
+		var value = characterMap[y][1]
+		var hd = hammingDistance(b1, b2)
+		
+		if ( hd == 0 ) {
+			return value
+		}
+		
+		if ( hd < closestScore ) {
+			closestScore = hd
+			closest = value
+		} 
+	}
+	
+	return closest
+
+}
+
+
+function parseBinary() {
+	var result = [];
+
+	for (x=0; x<binary.length; x+=keyLength) {
+		var b1 = binary.substr(x,keyLength)
+		result.push( findClosest(b1) )
+	}
+	
+	output = result.join('')
+}
+
+
+instructionsText.addEventListener('input', update);
+binaryText.addEventListener('input', update);
+randomErrorRateEntry.addEventListener('input', update);
+
+</script>
