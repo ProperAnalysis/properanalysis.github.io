@@ -1,0 +1,118 @@
+<html>
+<style>
+
+body {
+	background: black;
+	color: white;
+	font-family: monospace;
+}
+
+p {
+    display: block;
+    margin-block-start: 0em;
+    margin-block-end: 0em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+}
+
+textArea {
+	background: black;
+	color: white;
+	width: 100%;
+	height: calc(30% - 4em);
+	resize: none; 
+}
+
+input {
+	background: black;
+	color: white;
+	resize: none; 
+	border: 1px solid #fff;
+	border-radius: 2px;
+}
+
+button {
+  background-color: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: monospace;
+}
+
+button:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+button:active {
+  background-color: #333;
+  color: #fff;
+}
+
+</style>
+
+<body>
+Hamming Codeword Generator
+<br></br>
+Codeword Length:<input type="number" id='codewordLengthEntry' value=4>
+<br></br>
+Minimum Hamming Distance:<input type="number" id='minimumDistanceEntry' value=2>
+<br></br>
+Codewords:
+<textArea id='outputText'></textArea>
+
+<script>
+
+const outputText = document.getElementById('outputText')
+const codewordLengthEntry = document.getElementById('codewordLengthEntry')
+const minimumDistanceEntry = document.getElementById('minimumDistanceEntry')
+
+function generateAllPossibleBinary(length) {
+	var results = []
+	var maxValue = 2 ** length
+	
+	for (var i=0; i<maxValue; i++) {
+		results.push( ('0'.repeat(length) + i.toString(2)).substr(-1*length,)  )
+	}
+	return results
+}
+
+function hammingDistance(b1, b2) {
+	var distance = 0
+	
+	for (var i=0; i<b1.length; i++) {
+		if (b1[i] != b2[i]) { distance += 1 }
+	}
+	
+	return distance
+}
+
+function update() {
+	var allCodes = generateAllPossibleBinary(codewordLengthEntry.value);
+	var distinctCodes = [allCodes.shift()]
+	var minDistance = minimumDistanceEntry.value
+	
+	allCodes.forEach( function e2(b2) {
+		match = true
+		distinctCodes.forEach( function e1(b1) {
+			if ( hammingDistance(b1, b2) < minDistance) { match = false }
+		})
+		if (match) { distinctCodes.push(b2) }
+	})
+	
+	var result = distinctCodes.length + ' codewords found:\n'
+	distinctCodes.forEach( function a(code) { 
+		result += code + '\n'
+	})
+	
+	outputText.value = result;
+}
+
+codewordLengthEntry.addEventListener('input', update);
+minimumDistanceEntry.addEventListener('input', update);
+
+update()
+
+</script>
