@@ -1,0 +1,150 @@
+<html>
+<style>
+
+body {
+	background: black;
+	color: white;
+	font-family: monospace;
+}
+
+p {
+    display: block;
+    margin-block-start: 0em;
+    margin-block-end: 0em;
+    margin-inline-start: 0px;
+    margin-inline-end: 0px;
+}
+
+textArea {
+	background: black;
+	color: white;
+	width: 100%;
+	height: calc(30% - 4em);
+	resize: none; 
+}
+
+button {
+  background-color: transparent;
+  color: #fff;
+  border: 1px solid #fff;
+  border-radius: 2px;
+  padding: 10px 20px;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: monospace;
+}
+
+button:hover {
+  background-color: #333;
+  color: #fff;
+}
+
+button:active {
+  background-color: #333;
+  color: #fff;
+}
+
+</style>
+
+<body>
+Instructions:
+<textArea id='instructionsText'>
+0000=0
+0001=1
+0010=2
+0011=3
+0100=4
+0101=5
+0110=6
+0111=7
+1000=8
+1001=9
+1010=A
+1011=B
+1100=C
+1101=D
+1110=E
+1111=F</textArea>
+<p id='instructionsStats'></p>
+
+<br></br>
+Input:
+<textArea id='inputText'></textArea>
+<p id='inputStats'></p>
+
+<br></br>
+Binary:
+<textArea readonly id='binaryText'></textArea>
+<p id='binaryStats'></p>
+
+<script>
+
+var characterMap = []
+var longestKey = 0
+
+const inputText = document.getElementById('inputText')
+const binaryText = document.getElementById('binaryText')
+const instructionsText = document.getElementById('instructionsText')
+
+const inputStats = document.getElementById('inputStats')
+const binaryStats = document.getElementById('binaryStats')
+const instructionsStats = document.getElementById('instructionsStats')
+
+var binary = ''
+
+function update() {
+	binary = '';
+
+	buildMap();
+	toBinary();
+	
+	binaryText.value = binary;
+	instructionsStats.innerHTML = 'Instructions Length: ' + instructionsText.value.length + ' charcters // ' + (instructionsText.value.length * 8) + " bits.";
+	binaryStats.innerHTML = 'Binary Length: ' + binaryText.value.length + ' bits.';
+	inputStats.innerHTML = 'Input Length: ' + inputText.value.length + ' characters // ' + (inputText.value.length * 8) + " bits."
+}
+
+function buildMap() {
+	var instructions = instructionsText.value.split('\n')
+	
+	characterMap = {}
+	longestKey = 0
+	
+	for (var i=0; i<instructions.length; i++) {
+		if (instructions[i].substr(-1,1) == '=') {
+			var value = instructions[i].substr(0, instructions[i].length-2)
+			var key = '='
+		} else { 
+			var value = instructions[i].split('=')[0]
+			var key = instructions[i].split('=').slice(1,).join('')
+		}
+		characterMap[key] = value
+		if ( key.length > longestKey ) { longestKey = key.length }
+	}
+}
+
+function toBinary() {
+	var result = [];
+
+	for (x=0; x<inputText.value.length;) {
+		for (l=1; l<=longestKey; l++) {
+			if ( characterMap[ inputText.value.substr(x,l) ] != undefined ) {
+				result.push( characterMap[ inputText.value.substr(x,l) ] )
+				x+=l
+				break
+			} else if (l==longestKey) {
+				binary = result.join('')
+				return null
+			}
+		}
+		
+	}
+	
+	binary = result.join('')
+}
+
+
+instructionsText.addEventListener('input', update);
+inputText.addEventListener('input', update);
+
+</script>
