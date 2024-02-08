@@ -127,12 +127,12 @@ function toBinary() {
 	var result = [];
 
 	for (x=0; x<inputText.value.length;) {
-		for (l=1; l<=longestKey; l++) {
+		for (l=longestKey; l>0; l--) {
 			if ( characterMap[ inputText.value.substr(x,l) ] != undefined ) {
 				result.push( characterMap[ inputText.value.substr(x,l) ] )
 				x+=l
 				break
-			} else if (l==longestKey) {
+			} else if (l==1) {
 				binary = result.join('')
 				return null
 			}
