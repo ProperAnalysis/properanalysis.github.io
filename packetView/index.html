@@ -1835,7 +1835,7 @@ function mergeIntoStream(mergeStream) {
 	mergedPackets.push(...packets[currentStream]);
 	mergedPackets.push(...packets[streamNumber]);
 	
-	mergedPackets = mergedPackets.sort( function(a, b) { if (a[3] > b[3]) {return 1;} else {return -1;} })
+	mergedPackets = mergedPackets.sort( function(a, b) { if (a[1] > b[1]) {return 1;} else {return -1;} })
 	
 	packets[streamIndex.indexOf(streamName)] = mergedPackets;
 
