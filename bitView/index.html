@@ -374,6 +374,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,600,100]);">fskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;addNoise&#39;, [1]);">addNoise</button>
 </div>
 
 <div style="width: 1px; background: var(--borderColor);"></div>
@@ -388,6 +389,14 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 <div id="operationsConfig" style="width: calc(60% - 15px); height: 270px;">
 <p style="text-align: center;">Operation Configuration</p>
+
+<div id="addNoiseConfig" class="opsConfigHidden">
+<p>Add Noise</p>
+<p>Intended for use with PCM audio (8 bits / sample). Adds noise with a given amplitude.</p>
+<p>Amplitude: <input type="number" id="addNoise0" value="0"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
 
 <div id="askModulateConfig" class="opsConfigHidden">
 <p>ASK Modulate</p>
@@ -1075,6 +1084,25 @@ function hammingDistance(bits1, bits2) {
 	return distance
 }
 
+function addNoise(noise) {
+	
+	var newBits = new Array()
+	var noiseSample = 0
+	var sample = 0
+	for (let x = 0; x<bits.length; x+=8 ) {
+		noiseSample =  Math.random() * noise
+		sample = parseInt(bits.slice(x,x+8).join(''),2)
+		sample = Math.round( (noiseSample + sample) / 2 )
+		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
+		newBits.push( ...sample )
+	}
+	
+	bits = newBits
+	delete newBits
+
+
+}
+
 function sinePCM(frequency, duration, phase=1, amplitude=60) {
 
 	var period = 8000 / frequency
@@ -1087,6 +1115,7 @@ function sinePCM(frequency, duration, phase=1, amplitude=60) {
 
 	var newBits = new Array()
 	var sample = 0
+	
 	for (let j = 0; j < duration; ++j) { 
 		sample = Math.round( Math.random() + 127 + (phase * amplitude * (Math.sin(2.0 * Math.PI * j / period))));
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
@@ -1217,7 +1246,7 @@ function mergeBits(length, bias) {
 	length = parseInt(length)
 	bias = parseInt(bias) / 100.0
 	console.log(bias)
-	var start = parseInt(length/2)
+	var start = 0
 	var newBits = new Array()
 	
 	for (let x = start; x < bits.length-length;) {
