@@ -360,12 +360,16 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;feedThruDescramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;]);">feedThruDescramble</button>
 <button style="width: 100%;" onclick="addOperation(&#39;applyDelta&#39;, [1]);">applyDelta</button>
 <button style="width: 100%;" onclick="addOperation(&#39;applyXOR&#39;, [&#39;0&#39;, 0]);">applyXOR</button>
-<button style="width: 100%;" onclick="addOperation(&#39;&#39;, []);">frameSync</button>
+<button style="width: 100%;" onclick="addOperation(&#39;frameSync&#39;, [0,0,256]);">frameSync</button>
+<button style="width: 100%;" onclick="addOperation(&#39;findPattern&#39;, [0,0]);">findPattern</button>
 <button style="width: 100%;" onclick="addOperation(&#39;takeSkip&#39;, [&#39;t256&#39;]);">takeSkip</button>
+<button style="width: 100%;" onclick="addOperation(&#39;mergeBits&#39;, [1,50]);">mergeBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;invertBits&#39;, []);">invertBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;repeatBits&#39;, [0, 1]);">repeatBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;snipBits&#39;, [0, 0]);">snipBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
+<button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,600,100]);">fskModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
 </div>
 
 <div style="width: 1px; background: var(--borderColor);"></div>
@@ -380,6 +384,53 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 <div id="operationsConfig" style="width: calc(60% - 15px); height: 270px;">
 <p style="text-align: center;">Operation Configuration</p>
+
+<div id="bpskModulateConfig" class="opsConfigHidden">
+<p>BPSK Modulate</p>
+<p>Produces a PCM audio stream of the bits, modulated using binary phase shift keying</p>
+<p>Frequency: <input type="number" id="bpskModulate0" value="1000"></p>
+<p>Baud Rate: <input type="number" id="bpskModulate1" value="100"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="fskModulateConfig" class="opsConfigHidden">
+<p>FSK Modulate</p>
+<p>Produces a PCM audio stream of the bits, modulated using frequency shift keying</p>
+<p>Low Frequency: <input type="number" id="fskModulate0" value="400"></p>
+<p>High Frequency: <input type="number" id="fskModulate1" value="600"></p>
+<p>Baud Rate: <input type="number" id="fskModulate2" value="100"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="mergeBitsConfig" class="opsConfigHidden">
+<p>Merge Bits</p>
+<p>For a given length of bits, takes the average of those bits and makes it into 1 bit. For a bias of 50, any more than 50% of bits being 1 will result in a 1.</p>
+<p>Length: <input type="number" id="mergeBits0" value="1" min="1"></p>
+<p>Bias: <input type="number" id="mergeBits1" value="50" min="1"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="findPatternConfig" class="opsConfigHidden">
+<p>Find Pattern</p>
+<p>Matches a pattern within a given hamming distance - matches are filled with 1s. Non-matches are filled with 0s.</p>
+<p>Pattern: <input type="text" id="findPattern0" value=""></p>
+<p>Hamming distance: <input type="number" id="findPattern1" value="0"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="frameSyncConfig" class="opsConfigHidden">
+<p>Frame Sync</p>
+<p>Finds a sync pattern and aligns the frame, pads the frame so that all frames appear at a fixed width.</p>
+<p>Sync Pattern: <input type="text" id="frameSync0" value=""></p>
+<p>Hamming distance: <input type="number" id="frameSync1" value="0"></p>
+<p>Frame Width: <input type="number" id="frameSync2" value="256"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
 
 <div id="applyDeltaConfig" class="opsConfigHidden">
 <p>Apply Delta</p>
@@ -971,6 +1022,174 @@ function additiveScramble(taps, reversed, fill, length, rotation) {
 		bits[i] = (bits[i] + scramble[(i+rotation) % scramble.length]) % 2;
 	}
 	
+}
+
+function hammingDistance(bits1, bits2) {
+	var distance = 0
+	for (let x = 0; x < bits1.length; x++) {
+		distance += (bits1[x] + bits2[x]) % 2;
+	}
+	return distance
+}
+
+function sinePCM(frequency, duration, phase=1) {
+
+	var period = 8000 / frequency
+	var duration = parseInt(duration * 8000)
+	
+	if(frequency == 0) {
+		samples = '000000'.repeat(duration)
+		return samples.split('').map(makeInt)
+	}
+
+	var newBits = new Array()
+	var sample = 0
+	for (let j = 0; j < duration; ++j) { 
+		sample = Math.round(Math.random() + 127 + (phase * 60 * (Math.sin(2.0 * Math.PI * j / period))));
+		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
+		newBits.push( ...sample )
+    }
+    
+    return newBits
+}
+
+function fskModulate(lowF, highF, rate) {
+	var lowF = parseInt(lowF)
+	var highF = parseInt(highF)
+	var rate = parseInt(rate)
+
+	var newBits = new Array()
+	var low = sinePCM(lowF, 1/rate)
+	var high = sinePCM(highF, 1/rate)
+	var nothing = sinePCM(0, 1/rate)
+	var length = bits.length ;
+	if (length/rate > 130) { length = parseInt(130 * rate)}
+	
+	for (let x = 0; x < length; x++) {
+		if (bits.slice(x,x+24).join('') == '000000000000000000000000') { 
+			newBits.push( ...nothing )
+		} else {
+	
+			if (bits[x] == 1) {newBits.push( ...high )} 
+			else {newBits.push( ...low )}
+			
+		}
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
+function bpskModulate(frequency, rate) {
+	var frequency = parseInt(frequency)
+	var rate = parseInt(rate)
+
+	var newBits = new Array()
+	var low = sinePCM(frequency, 1/rate, 1)
+	var high = sinePCM(frequency, 1/rate, -1)
+	var nothing = sinePCM(0, 1/rate)
+	var length = bits.length;
+	if (length/rate > 130) { length = parseInt(130 * rate) }
+	
+	for (let x = 0; x < length; x++) {
+		if (bits.slice(x,x+24).join('') == '000000000000000000000000') { 
+			newBits.push( ...nothing )
+		} else {
+	
+			if (bits[x] == 1) {newBits.push( ...high )} 
+			else {newBits.push( ...low )}
+			
+		}
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
+function findPattern(pattern, distance) {
+	if (pattern == '0') {return null}
+	pattern = pattern.split('').map(makeInt)
+	
+	var matches = new Array();
+	distance = parseInt(distance)
+	
+	for (let x = 0; x < bits.length; x++) {
+		if ( hammingDistance(bits.slice(x,x+pattern.length), pattern) <= distance ) {
+			matches.push(x)
+		}
+	}
+	
+	var newBits = new Array(bits.length).fill(0)
+	
+	for (let a = 0; a < matches.length; a++) {
+		for (let x = 0; x < pattern.length; x++) {
+			newBits[matches[a]+x] = 1
+		}
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
+function averageBits(start, stop, bias=0.5) {
+	var total = 0;
+	
+	for (let x = start; x < stop; x++) {
+		total += bits[x]
+	}
+	
+	if (total == 0) { return 0 }
+	if (total / (stop-start) < bias) { return 0 }
+	return 1
+
+}
+
+function mergeBits(length, bias) {
+	length = parseInt(length)
+	bias = parseInt(bias) / 100.0
+	console.log(bias)
+	var start = parseInt(length/2)
+	var newBits = new Array()
+	
+	for (let x = start; x < bits.length-length;) {
+		newBits.push( averageBits(x,x+length, bias) )
+		x+=length
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
+function frameSync(pattern, distance, frameWidth) {
+	if (pattern == '0') {return null}
+	pattern = pattern.split('').map(makeInt)
+
+	var frameStarts = new Array();
+	distance = parseInt(distance)
+	frameWidth = parseInt(frameWidth)
+	
+	for (let x = 0; x < bits.length; x++) {
+		if ( hammingDistance(bits.slice(x,x+pattern.length), pattern) <= distance ) {
+			frameStarts.push(x)
+		}
+	}
+	
+	console.log( frameStarts );
+	
+	var newBits = new Array();
+	var frameLen = 0;
+	
+	for (let a = 0; a < frameStarts.length; a++) {
+		if ( a == frameStarts.length - 1 ) { frameLen = bits.length - frameStarts[a] }
+		else { frameLen =  frameStarts[a+1] - frameStarts[a] } 
+		console.log(frameLen)
+		newBits.push( ...bits.slice(frameStarts[a], frameStarts[a]+frameLen) )
+		if (frameLen < frameWidth) { newBits.push( ...(new Array(frameWidth - frameLen).fill(0)) ) }
+	}
+	
+	bits = newBits;
+	delete newBits;
+
 }
 
 function feedThruScramble(taps, reversed) {
@@ -1865,7 +2084,7 @@ function buildWavFile(bytes) {
 	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //magic number
 	wav.push(...[100, 97, 116, 97] ); //data
 	wav.push(...number2LSFBArray(bytes.length, 4) ); //size LSBF
-	wav.push(...bytes);
+	//wav.push(...bytes);
 	
 	return new Uint8Array( wav );
 }
@@ -1879,9 +2098,10 @@ function playAudio() {
 	}
 	
 	var wav = buildWavFile(bytes)
+	bytes = new Uint8Array(bytes)
 
 	// Create blob from Uint8Array & Object URL.
-	var blob = new Blob([wav], { type: 'audio/wav' });
+	var blob = new Blob([wav, bytes], { type: 'audio/wav' });
 	var url = URL.createObjectURL(blob);
 
 	// Get DOM elements.
