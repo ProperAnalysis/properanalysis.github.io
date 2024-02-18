@@ -109,7 +109,7 @@ div {
 #container {
 	width: 100%;
 	height: 100%;
-	font-family: monospace;
+	font-family: 'Comic Sans MS', 'Comic Sans', cursive;
 	font-size: 12pt;
 	color: var(--textColor);
 	position: absolute;
@@ -221,7 +221,7 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
 	border-radius: 2px;
     Color: var(--textColor);
     margin: 0px;
-    font-family: Monospace;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
     outline: none;
     margin-bottom: 3px;
 }
@@ -232,7 +232,7 @@ button {
 
 input[type="number"], input[type="text"], select {
 	width: 6em;
-	font-family: Monospace;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
 }
 
 button:hover, input::file-selector-button:hover{
@@ -258,6 +258,7 @@ textArea {
     border: none;
     padding: 0px;
     outline: none;
+    font-family: monospace;
 }
 
 </style>
@@ -286,15 +287,17 @@ textArea {
 <p style="width: 100%;">Load from file:</p>
 <input type="file" id="fileSelector">
 <p style="width: 100%; border-top: 1px solid var(--borderColor); padding-top: 10px;">OR load from text:</p>
-<textarea id="textInputArea" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); border: 1px solid var(--borderColor);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea id="textInputArea" style="font-family: 'Comic Sans MS', 'Comic Sans', cursive; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); border: 1px solid var(--borderColor);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 <button onclick="loadTextInput(2);">Load Binary</button>
 <button onclick="loadTextInput(16);">Load Hex</button>
 </div>
 
 <div id="playAudio" class="closedToolbox">
 <div style="display: block;">
+<div style="height: 150px;" id='specanContainer'></div>
 <p>Sample Rate: <input type="number" id="sampleRateInput" min=1 value=8000></input>
-<button style="margin-left: 10px;" onclick="playAudio();">Generate and Play</button></p>
+<button style="margin-left: 10px;" onclick="playAudio();">Generate and Play</button>
+<button style="margin-left: 10px;" id='displaySpecanButton'>Display SpecAn</button></p>
 <audio controls="controls" id="audio" loop>
 <source id="source" src="" type="audio/wav" />
 </audio>
@@ -370,6 +373,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,600,100]);">fskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
 </div>
 
 <div style="width: 1px; background: var(--borderColor);"></div>
@@ -384,6 +388,15 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 <div id="operationsConfig" style="width: calc(60% - 15px); height: 270px;">
 <p style="text-align: center;">Operation Configuration</p>
+
+<div id="askModulateConfig" class="opsConfigHidden">
+<p>ASK Modulate</p>
+<p>Produces a PCM audio stream of the bits, modulated using amplitude shift keying</p>
+<p>Frequency: <input type="number" id="askModulate0" value="1000"></p>
+<p>Baud Rate: <input type="number" id="askModulate1" value="100"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
 
 <div id="bpskModulateConfig" class="opsConfigHidden">
 <p>BPSK Modulate</p>
@@ -584,9 +597,39 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 </div>
 
+<script type="module">
+import AudioMotionAnalyzer from 'https://cdn.skypack.dev/audiomotion-analyzer?min';
+var displaySpecanButton = document.getElementById('displaySpecanButton')
+displaySpecanButton.onclick = createSpecAn
+var source = document.getElementById('audio');
 
+
+function createSpecAn() {
+const audioMotion = new AudioMotionAnalyzer(
+  document.getElementById('specanContainer'),
+  {
+    source: source,
+    height: window.innerHeight - 50,
+    mode: 10,
+    barSpace: 0,
+    ledBars: false,
+    frequencyScale: 'linear',
+    maxFreq: 4000,
+    height: 150,
+    smoothing: 0,
+    colorMode: 'gradient',
+    gradient: 'prism',
+    fftSize: 8192,
+    showBgColor: false
+  }
+);
+}
+
+</script>
 
 <script>
+
+
 
 var colorMode = 'dark';
 var styleDocs = [];
@@ -1032,7 +1075,7 @@ function hammingDistance(bits1, bits2) {
 	return distance
 }
 
-function sinePCM(frequency, duration, phase=1) {
+function sinePCM(frequency, duration, phase=1, amplitude=60) {
 
 	var period = 8000 / frequency
 	var duration = parseInt(duration * 8000)
@@ -1045,7 +1088,7 @@ function sinePCM(frequency, duration, phase=1) {
 	var newBits = new Array()
 	var sample = 0
 	for (let j = 0; j < duration; ++j) { 
-		sample = Math.round(Math.random() + 127 + (phase * 60 * (Math.sin(2.0 * Math.PI * j / period))));
+		sample = Math.round( Math.random() + 127 + (phase * amplitude * (Math.sin(2.0 * Math.PI * j / period))));
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
 		newBits.push( ...sample )
     }
@@ -1059,9 +1102,9 @@ function fskModulate(lowF, highF, rate) {
 	var rate = parseInt(rate)
 
 	var newBits = new Array()
-	var low = sinePCM(lowF, 1/rate)
-	var high = sinePCM(highF, 1/rate)
-	var nothing = sinePCM(0, 1/rate)
+	var low = sinePCM(lowF, 1/rate, 1, 60)
+	var high = sinePCM(highF, 1/rate, 1, 60)
+	var nothing = sinePCM(1, 1/rate, 1, 0)
 	var length = bits.length ;
 	if (length/rate > 130) { length = parseInt(130 * rate)}
 	
@@ -1085,9 +1128,35 @@ function bpskModulate(frequency, rate) {
 	var rate = parseInt(rate)
 
 	var newBits = new Array()
-	var low = sinePCM(frequency, 1/rate, 1)
-	var high = sinePCM(frequency, 1/rate, -1)
-	var nothing = sinePCM(0, 1/rate)
+	var low = sinePCM(frequency, 1/rate, 1, 60)
+	var high = sinePCM(frequency, 1/rate, -1, 60)
+	var nothing = sinePCM(frequency, 1/rate, 1, 0)
+	var length = bits.length;
+	if (length/rate > 130) { length = parseInt(130 * rate) }
+	
+	for (let x = 0; x < length; x++) {
+		if (bits.slice(x,x+24).join('') == '000000000000000000000000') { 
+			newBits.push( ...nothing )
+		} else {
+	
+			if (bits[x] == 1) {newBits.push( ...high )} 
+			else {newBits.push( ...low )}
+			
+		}
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
+function askModulate(frequency, rate) {
+	var frequency = parseInt(frequency)
+	var rate = parseInt(rate)
+
+	var newBits = new Array()
+	var low = sinePCM(frequency, 1/rate, 1, 6)
+	var high = sinePCM(frequency, 1/rate, 1, 60)
+	var nothing = sinePCM(frequency, 1/rate, 1, 0)
 	var length = bits.length;
 	if (length/rate > 130) { length = parseInt(130 * rate) }
 	
@@ -1660,7 +1729,7 @@ function clearWidthGraph () {
 	var ctx = graph.getContext("2d");
 	var text = ctx.measureText("Testing Widths...")
 	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.font = "20px monospace";
+	ctx.font = "20px 'Comic Sans MS', 'Comic Sans', cursive";
 	ctx.fillStyle = "#fff";
 	ctx.fillText("Testing Widths...", (graph.width/2)-text.width, graph.height/2)-text.height;
 }
