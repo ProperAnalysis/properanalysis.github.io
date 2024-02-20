@@ -375,6 +375,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addNoise&#39;, [1]);">addNoise</button>
+<button style="width: 100%;" onclick="addOperation(&#39;firFilter&#39;, [&#39;&#39;]);">FIR Filter</button>
 </div>
 
 <div style="width: 1px; background: var(--borderColor);"></div>
@@ -389,6 +390,14 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 <div id="operationsConfig" style="width: calc(60% - 15px); height: 270px;">
 <p style="text-align: center;">Operation Configuration</p>
+
+<div id="firFilterConfig" class="opsConfigHidden">
+<p>FIR Filter</p>
+<p>Implements a FIR filter based on a list of floating point coefficients. Assumes that the data is 8 bit/sample PCM. Enter the comma separated coefficients below.</p>
+<p><textArea id="firFilter0"></textArea></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
 
 <div id="addNoiseConfig" class="opsConfigHidden">
 <p>Add Noise</p>
@@ -606,6 +615,8 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 </div>
 
+<script src="math.js" type="text/javascript"></script>
+
 <script type="module">
 import AudioMotionAnalyzer from 'https://cdn.skypack.dev/audiomotion-analyzer?min';
 var displaySpecanButton = document.getElementById('displaySpecanButton')
@@ -637,7 +648,6 @@ const audioMotion = new AudioMotionAnalyzer(
 </script>
 
 <script>
-
 
 
 var colorMode = 'dark';
@@ -1084,24 +1094,100 @@ function hammingDistance(bits1, bits2) {
 	return distance
 }
 
-function addNoise(noise) {
+function amplify(gain) {
 	
 	var newBits = new Array()
-	var noiseSample = 0
 	var sample = 0
 	for (let x = 0; x<bits.length; x+=8 ) {
-		noiseSample =  Math.random() * noise
-		sample = parseInt(bits.slice(x,x+8).join(''),2)
-		sample = Math.round( (noiseSample + sample) / 2 )
+		sample = Math.round( parseInt(bits.slice(x,x+8).join(''),2) * gain )
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
 		newBits.push( ...sample )
 	}
 	
 	bits = newBits
 	delete newBits
-
-
+	
 }
+
+function validateCoefs(coefs) {
+	var validCoefs = new Array()
+	coefs = coefs.split(',')
+	for (let x = 0; x < coefs.length; x++) {
+		let coef = parseFloat(coefs[x])
+		if (isNaN(coef) == false) { validCoefs.push( coef ) }
+	}
+	return validCoefs
+}
+
+function firFilter(coefs) {
+	coefs = validateCoefs(coefs)
+	if (coefs.length == 0) { return null }
+
+	var newBits = new Array()
+	var newSamples = new Array()
+	var samples = new Array(coefs.length).fill(0)
+	
+	for (let x = 0; x < bits.length; x+=8) {
+		sample = parseInt(bits.slice(x,x+8).join(''),2)
+		samples.push(sample)
+	}
+	
+	var acc = 0
+	var max = 0
+	for (let x = coefs.length; x < samples.length; x++) {
+		acc = 0
+		for (let y = 0; y < coefs.length; y++) {
+			acc += (samples[x-y]-127.0)/127.0 * coefs[y]
+		}
+		newSamples.push( Math.round( 127+ (acc*127) ) )
+	}
+	
+	for (let x = 0	; x < newSamples.length; x++) {
+		newBits.push( ...('0000000' + newSamples[x].toString(2)).split('').slice(-8).map(makeInt) )
+	}
+	
+	bits = newBits
+	delete newBits
+
+} 
+
+function addNoise(noise) {
+	
+	var newBits = new Array()
+
+	for (let x = 0; x<bits.length; x+=8 ) {
+		let sample = (parseInt(bits.slice(x,x+8).join(''),2) - 127) / 127
+		sample = Math.round( 127 + (((sample * 100 + Math.random() * noise) / 200) * 127) )
+		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
+		newBits.push( ...sample )
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
+function frequencyShift(frequency) {
+	var period = 8000 / frequency
+	var newBits = new Array()
+
+	for (let x = 0; x<bits.length-8; x+=8 ) {
+		let sampleSin = (parseInt(bits.slice(x,x+8).join(''),2) - 127) / 127
+		let sampleCos = (parseInt(bits.slice(x+8,x+16).join(''),2) - 127) / 127
+		let complexS = math.complex(sampleSin, sampleCos)
+		let carrierSin = Math.sin(2.0 * Math.PI * (x/8) / period)
+		let carrierCos = Math.cos(2.0 * Math.PI * (x/8) / period)
+		let complexC = math.complex(carrierSin, carrierCos)
+		let sample = math.multiply(complexS, complexC)
+		sample = sample.re
+		sample = Math.round( 127 + (sample * 127))
+		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
+		newBits.push( ...sample )
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
 
 function sinePCM(frequency, duration, phase=1, amplitude=60) {
 
@@ -1168,8 +1254,8 @@ function bpskModulate(frequency, rate) {
 			newBits.push( ...nothing )
 		} else {
 	
-			if (bits[x] == 1) {newBits.push( ...high )} 
-			else {newBits.push( ...low )}
+			if (bits[x] == 1) {newBits.push( ...sinePCM(frequency, 1/rate, -1, 60) )} 
+			else {newBits.push( ...sinePCM(frequency, 1/rate, 1, 60) )}
 			
 		}
 	}
@@ -1566,6 +1652,7 @@ function runOperation(operation) {
 	var operationName = operation[0];
 	var operationArguments = operation[1];
 	var command = operationName + '("' + operationArguments.join('","') + '");'
+	command = command.split('\n').join('')
 	console.log(command);
 	eval(command);
 }
