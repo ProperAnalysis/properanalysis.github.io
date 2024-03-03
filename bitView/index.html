@@ -375,7 +375,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,600,100]);">fskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [2000,500]);">bpskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;qpskModulate&#39;, [2000,500]);">qpskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [2000,500,50]);">askModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addNoise&#39;, [1]);">addNoise</button>
 <button style="width: 100%;" onclick="addOperation(&#39;firFilter&#39;, [&#39;&#39;]);">FIR Filter</button>
 </div>
@@ -422,6 +422,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <p>Produces a PCM audio stream of the bits, modulated using amplitude shift keying</p>
 <p>Frequency: <input type="number" id="askModulate0" value="2000"></p>
 <p>Baud Rate: <input type="number" id="askModulate1" value="100"></p>
+<p>Amount (%): <input type="number" id="askModulate2" value="50"></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -634,6 +635,10 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 </div>
 
+<script>
+var audioMotion = null
+</script>
+
 <script src="math.js" type="text/javascript"></script>
 
 <script type="module">
@@ -644,7 +649,7 @@ var source = document.getElementById('audio');
 
 
 function createSpecAn() {
-const audioMotion = new AudioMotionAnalyzer(
+audioMotion = new AudioMotionAnalyzer(
   document.getElementById('specanContainer'),
   {
     source: source,
@@ -665,6 +670,7 @@ const audioMotion = new AudioMotionAnalyzer(
   }
 );
 }
+
 
 </script>
 
@@ -1178,7 +1184,7 @@ function addNoise(noise) {
 
 	for (let x = 0; x<bits.length; x+=8 ) {
 		let sample = (parseInt(bits.slice(x,x+8).join(''),2) - 127) / 127
-		sample = Math.round( 127 + (((sample * 100 + Math.random() * noise) / 200) * 127) )
+		sample = Math.round( 127 + (((sample * 100 + (Math.random()-0.5) * noise) / 200) * 127) )
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
 		newBits.push( ...sample )
 	}
@@ -1331,12 +1337,12 @@ function qpskModulate(frequency, rate) {
 	delete newBits
 }
 
-function askModulate(frequency, rate) {
+function askModulate(frequency, rate, ammount) {
 	var frequency = parseInt(frequency)
 	var rate = parseInt(rate)
 
 	var newBits = new Array()
-	var low = sinePCM(frequency, 1/rate, 1, 6)
+	var low = sinePCM(frequency, 1/rate, 1, 60 - (60*(ammount/100)))
 	var high = sinePCM(frequency, 1/rate, 1, 60)
 	var nothing = sinePCM(frequency, 1/rate, 1, 0)
 	var length = bits.length;
@@ -2366,10 +2372,6 @@ function playAudio() {
 	audio.play();
 }
 
-
-
 </script>
-
-
 
 </body></html>
