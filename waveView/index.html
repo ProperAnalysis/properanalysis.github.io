@@ -1,0 +1,1222 @@
+<html>
+<head>
+<title>waveView</title>
+	
+<style>
+
+:root {
+    --backgroundLight: #ffffff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #8d8d8d;
+    --buttonbgLight: #e5e5e5;
+    --entrybgLight: #efefef;
+    --backgroundLight: #e2fcff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #2c2c2c;
+    --buttonbgLight: #e2fcff;
+    --entrybgLight: #ffffff;
+    --buttonbgHoverLight: #54fff5;
+    --buttonbgSelectedLight: #54fff5;
+    --buttonfgSelectedLight: #000;
+    --textColorLight: #000;
+    --tableHeadColorLight: #005861;
+    --tableHighlightColorLight: #910000;
+    --tableHighlightColorLight2: #84006c;
+    --cellColorLight: #ffffff;
+    --cellBorderLight: #9e9e9e;
+    --cellBorderStrongLight: #666;
+    --shadowColorLight: #fff;
+    --tableTopLeftLight: #fff;
+    --bitRasterBgLight: #efefef;
+    
+    --backgroundDark: #092a30;
+    --midgroundDark: #000;
+    --borderColorDark: #bafbff;
+    --entrybgDark: #222;
+    --buttonbgDark: #003a2f;
+    --buttonbgHoverDark: #009a85;
+    --buttonbgSelectedDark: #00ffd1;
+    --buttonfgSelectedDark: #000;
+    --textColorDark: #ccfff8;
+    --tableHeadColorDark: #4bffc5;
+    --tableHighlightColorDark: #ff8383;
+    --tableHighlightColorDark2: #e78bff;
+    --cellColorDark: #050505;
+    --cellBorderDark: #606060;
+    --cellBorderStrongDark: #777;
+    --shadowColorDark: #000;
+    --tableTopLeftDark: #484848;
+    --bitRasterBgDark: #222;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --buttonbg: var(--buttonbgDark);
+    --entrybg: var(--entrybgDark);
+    --buttonbgHover: var(--buttonbgHoverDark);
+    --buttonbgSelected: var(--buttonbgSelectedDark);
+    --buttonfgSelected: var(--buttonfgSelectedDark);
+    --textColor: var(--textColorDark);
+    --tableHeadColor: var(--tableHeadColorDark);
+    --tableHighlightColor: var(--tableHighlightColorDark);
+    --tableHighlightColor2: var(--tableHighlightColorDark2);
+    --cellColor: var(--cellColorDark);
+    --cellBorder: var(--cellBorderDark);
+    --cellBorderStrong: var(--cellBorderStrongDark);
+    --shadowColor: var(--shadowColorDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --bitRasterBg: var(--bitRasterBgDark);
+}
+
+*::-webkit-scrollbar {
+    -webkit-appearance: none;
+}
+*::-webkit-scrollbar:vertical {
+    width: 5px;
+}
+*::-webkit-scrollbar:horizontal {
+    height: 5px;
+}
+*::-webkit-scrollbar-thumb {
+	border-radius: 3px;
+    border: 1px solid var(--borderColor);
+    background-Color: var(--buttonbg);
+}
+*::-webkit-scrollbar-track { 
+	border-radius: 3px;
+    border: none;
+    background-Color: var(--midground);
+} 
+
+::-webkit-scrollbar-corner {
+    background-Color: var(--midground); 
+}
+
+html, body {
+	margin: 0; 
+	height: 100%; 
+	overflow: hidden;
+	background-color: var(--background);
+}
+
+
+div {
+	transition: max-height 0s;
+}
+
+#container {
+	width: 100%;
+	height: 100%;
+	font-family: 'Comic Sans MS', 'Comic Sans', cursive;
+	font-size: 12pt;
+	color: var(--textColor);
+	position: absolute;
+	display: flex;
+	flex-direction: column;
+}
+
+
+#topContainerOuter {
+	height: calc(40% - 23px);
+    width: calc(100% - 23px);
+    margin-top: 10px;
+    display: -webkit-box;
+    z-index: 1;
+    margin-left: 10px;
+    background: var(--midground);
+    border-radius: 4px;
+    border: 1px solid var(--borderColor);
+}
+
+#topContainerOuterCollapsed {
+	height: calc(18px);
+    width: calc(100% - 23px);
+    margin-top: 10px;
+    display: -webkit-box;
+    z-index: 1;
+    margin-left: 10px;
+    background: var(--midground);
+    border-radius: 4px;
+    border: 1px solid var(--borderColor);
+    content-visibility: hidden;
+}
+
+
+#collapseTop {
+	height: 23px;
+    width: calc(100% - 23px);
+    margin-top: -18px;
+    display: -webkit-box;
+    z-index: 1;
+    margin-left: 10px;
+}
+
+#collapseTopButton {
+    right: 13px;
+    position: absolute;
+    height: 16px;
+    width: 24px;
+    border: 1px solid;
+}
+
+#bottomContainerOuter {
+	height: calc(60% - 23px);
+    width: calc(100% - 23px);
+    margin-top: 10px;
+    display: -webkit-box;
+    z-index: 1;
+    margin-left: 10px;
+    background: var(--midground);
+    border-radius: 4px;
+    border: 1px solid var(--borderColor);
+}
+
+#bottomContainerOuterExpanded {
+	height: calc(100% - 46px);
+    width: calc(100% - 23px);
+    margin-top: 10px;
+    display: -webkit-box;
+    z-index: 1;
+    margin-left: 10px;
+    background: var(--midground);
+    border-radius: 4px;
+    border: 1px solid var(--borderColor);
+}
+
+
+.sideMenu {
+	height: calc(100% - 20px);
+	width: 150px;
+	margin: 10px;
+	padding-right: 10px;
+	border-right: 1px solid var(--borderColor);
+}
+
+.toolbox {
+	height: calc(100% - 20px);
+	width: calc(100% - 190px);
+	margin: 10px;
+	margin-left: 0px;
+}
+
+.containerSelect {
+	width: 100%;
+}
+
+.menuContainer {
+	width: 100%;
+	height: calc(100% - 10px - 1em);
+	overflow-y: scroll;
+}
+
+.tool {
+	height: 100%;
+	width: 100%;
+	overflow-y: scroll;
+	overflow-x: scroll;
+}
+
+button, input::file-selector-button, input[type="number"], input[type="text"], select{
+	background-Color: var(--entrybg);
+	border: 1px var(--borderColor) solid;
+	border-radius: 2px;
+    Color: var(--textColor);
+    margin: 0px;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
+    outline: none;
+    margin-bottom: 3px;
+}
+
+button {
+	background-Color: var(--buttonbg);
+}
+
+input[type="number"], input[type="text"], select {
+	width: 100%;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
+}
+
+button:hover, input::file-selector-button:hover{
+	background-Color: var(--buttonbgHover);
+}
+
+textArea {
+	resize: none;
+    background: var(--midground);
+    Color: var(--textColor);
+    border: none;
+    padding: 0px;
+    outline: none;
+    font-family: monospace;
+}
+
+p {
+	font-size: 10pt;
+	margin: 0px;
+}
+
+
+</style>	
+	
+</head>
+
+
+
+<body>
+<div id='container'>
+
+<div id='topContainerOuter'>
+	<div class='sideMenu'>
+		<select id='topContainerSelect' class='containerSelect'>
+		</select>
+		<div id='topContainerMenu' class='menuContainer'>
+		</div>
+	</div>
+	<div class='toolbox' id='topContainer'>
+	</div>
+</div>
+
+<div id='collapseTop'><button id='collapseTopButton' onclick='collapseTopContainer()'>^</button></div>
+
+<div id='bottomContainerOuter'>
+	<div class='sideMenu'>
+		<select id='bottomContainerSelect' class='containerSelect'>
+		</select>
+		<div id='bottomContainerMenu' class='menuContainer'>
+		</div>
+	</div>
+	<div class='toolbox' id='bottomContainer'>
+	</div>
+</div>
+
+</div>
+
+<div id='tools' style='visibility: hidden; width: 0px; height 0px;'>
+
+<div id='Input Select' class='tool' updateFunction='noUpdate()'>
+Select Input Source
+<p>&nbsp;</p>
+<p>Sample Rate: <input type='number' id='sampleRate' value=8000></p>
+<p>Bits Per Sample: <input type='number' id='bitsPerSample' value=8></p>
+<p>Header Length (Bytes): <input type='number' id='headerLen' value=44></p>
+<p>&nbsp;</p>
+<p><input type="file" id="fileSelector" onchange='readFile()'><p>
+<p>&nbsp;</p>
+<p><button onclick='parseInputData()'>Read Samples</button></p>
+</div>
+
+<div id='Time Domain' class='tool' updateFunction='updateTimeDomain()'>
+<canvas id='timeDomainCanvas'>
+</div>
+
+<div id='Frequency Domain' class='tool' updateFunction='updateFrequencyDomain()'>
+<canvas id='frequencyDomainCanvas'>
+</div>
+
+<div id='Spectrogram' class='tool' updateFunction='updateSpectrogram()'>
+<canvas style='filter: hue-rotate(280deg);' id='spectroCanvas'>
+</div>
+
+<div id='Bit Raster' class='tool' updateFunction='updateBitRaster()'>
+<canvas id='bitRasterCanvas' style='background: #222;'>
+</div>
+
+<div id='Binary Output' class='tool' updateFunction='updateBinaryOutput()'>
+<textArea style='width: 100%; height: 100%;' id='binaryOutputTextArea'></textArea>
+</div>
+
+<div id='PSK Demodulate' class='tool' updateFunction='noUpdate()'>
+Demodulate Phase Shift Keying
+<p>Frequency: <input type='number' id='pskDemodulateFrequency' value=2000 onchange='pskDemodulate()'></p>
+<p>Phase: <input type='number' id='pskDemodulatePhase' value=0 onchange='pskDemodulate()'></p>
+<p>Start Sample: <input type='number' id='pskDemodulateStart' value=0 onchange='pskDemodulate()'></p>
+<p>Averaging Window: <input type='number' id='pskDemodulateAveraging' value=16 min='1' onchange='pskDemodulate()'></p>
+<p>Symbol Rate: <input type='number' id='pskDemodulateSymbolRate' value=0 onchange='pskDemodulate()'></p>
+<p>Symbol Thresholds: <input type='text' id='pskDemodulateThresholds' value='' onchange='pskDemodulate()'></p>
+<p>Symbol Mapping: <input type='text' id='pskDemodulateSym2Bit' value='' onchange='pskDemodulate()'></p>
+</div>
+
+<div id='FSK Demodulate' class='tool' updateFunction='noUpdate()'>
+Demodulate Frequency Shift Keying
+<p>Start Sample: <input type='number' id='fskDemodulateStart' value=0 min='0' onchange='fskDemodulate()'></p>
+<p>Averaging Window: <input type='number' id='fskDemodulateAveraging' value=16 min='1' onchange='fskDemodulate()'></p>
+<p>Measurement Cross: <input type='number' id='fskDemodulateCrossPoint' value=0 onchange='fskDemodulate()'></p>
+<p>Symbol Rate: <input type='number' id='fskDemodulateSymbolRate' value=0 min='0' onchange='fskDemodulate()'></p>
+<p>Symbol Thresholds: <input type='text' id='fskDemodulateThresholds' value='' onchange='fskDemodulate()'></p>
+<p>Symbol Mapping: <input type='text' id='fskDemodulateSym2Bit' value='' onchange='fskDemodulate()'></p>
+</div>
+
+</div>
+
+
+<div id='menus' style='visibility: hidden; width: 0px; height 0px;'>
+
+<div id='Input Select Menu' class='sideMenuItem'>
+</div>
+
+<div id='Frequency Domain Menu' class='sideMenuItem'>
+<p>Start Sample: <input id='frequencyDomainStartSample' type='number' value=0 onchange='updateFrequencyDomain()'></p>
+<p>Averages: <input id='frequencyDomainAverages' type='number' value=1 onchange='updateFrequencyDomain()'></p>
+<p>FFT Length:
+<select id='frequencyDomainFFTlen' onchange='updateFrequencyDomain()'>
+<option value=256>256</option>
+<option value=512>512</option>
+<option value=1024>1024</option>
+<option value=2048>2048</option>
+<option value=4096>4096</option>
+<option value=8192>8192</option>
+<option value=16384>16384</option>
+<option value=32768>32768</option>
+<option value=65536>65536</option>
+</select>
+</p>
+<p>Window Function:
+<select id='frequencyDomainWindowFunction' onchange='updateFrequencyDomain()'>
+<option value='hamming'>Hamming</option>
+<option value='blackmanHarris'>Blackman-Harris</option>
+<option value='blackmanNuttall'>Blackman-Nuttall</option>
+<option value='hann'>Hann</option>
+<option value='rectangular'>Rectangular</option>
+</select>
+</p>
+<p>Frequency Marker: <input id='frequencyDomainXmarker' type='number' min=1 value=2000 onchange='updateFrequencyDomain()'></p>
+<p>Display Grids:
+<select id='frequencyDomainGridsOn' onchange='updateFrequencyDomain()'>
+<option value='true'>Yes</option>
+<option value='false'>No</option>
+</select>
+</p>
+<p>Animation Rate (samples/second): <input id='frequencyDomainAnimationRate' type='number' value=8000></p>
+<p><button onclick='stopStartAnimateFrequencyDomain()'>Animate / Stop</button></p>
+</div>
+
+<div id='Spectrogram Menu' class='sideMenuItem'>
+<p>Start Sample: <input type='number' id='spectroStartSample' value=0 onchange='updateSpectrogram()'></p>
+<p>End Sample: <input type='number' id='spectroEndSample' value=8000 onchange='updateSpectrogram()'></p>
+<p>FFT Length:
+<select id='spectroFFTlen' onchange='updateSpectrogram()'>
+<option value=16>16</option>
+<option value=32>32</option>
+<option value=64>64</option>
+<option value=128>128</option>
+<option value=256>256</option>
+<option value=512>512</option>
+<option value=1024>1024</option>
+<option value=2048>2048</option>
+<option value=4096>4096</option>
+<option value=8192>8192</option>
+<option value=16384>16384</option>
+</select>
+</p>
+<p>FFT Overlap:
+<select id='spectroFFTratio' onchange='updateSpectrogram()'>
+<option value=1>1</option>
+<option value=2>2</option>
+<option value=4>4</option>
+<option value=8>8</option>
+<option value=16>16</option>
+<option value=32>32</option>
+</select>
+</p>
+
+<p>Window Function:
+<select id='spectroWindowFunction' onchange='updateSpectrogram()'>
+<option value='hamming'>Hamming</option>
+<option value='blackmanHarris'>Blackman-Harris</option>
+<option value='blackmanNuttall'>Blackman-Nuttall</option>
+<option value='hann'>Hann</option>
+<option value='rectangular'>Rectangular</option>
+</select>
+</p>
+
+<p>Grids / Second: <input type='number' id='spectroGridRate' value=0 onchange='updateSpectrogram()'></p>
+<p>Grid Offset: <input type='number' id='spectroGridOffset' value=0 onchange='updateSpectrogram()'></p>
+<p><button onclick='nextSpectrogram()'>Slide Forward</button></p>
+<p><button onclick='previousSpectrogram()'>Slide Back</button></p>
+</div>
+
+<div id='Time Domain Menu' class='sideMenuItem'>
+<p>Start Sample: <input type='number' id='timeDomainStartSample' value=0 onchange='updateTimeDomain()'></p>
+<p>End Sample: <input type='number' id='timeDomainEndSample' value=2000 onchange='updateTimeDomain()'></p>
+<p>Grids / Second: <input type='number' id='timeDomainGridRate' value=0 onchange='updateTimeDomain()'></p>
+<p>Grid Offset: <input type='number' id='timeDomainGridOffset' value=0 onchange='updateTimeDomain()'></p>
+<p>Y Max: <input type='number' id='timeDomainYmax' value=100 onchange='updateTimeDomain()'></p>
+<p>Y Min: <input type='number' id='timeDomainYmin' value=-100 onchange='updateTimeDomain()'></p>
+<p>Y Marker: <input type='number' id='timeDomainYmarker' value=0 onchange='updateTimeDomain()'></p>
+<p><button onclick='updateTimeDomain()'>Update</button></p>
+<p><button onclick='stopStartAnimateTimeDomain()'>Animate / Stop</button></p>
+</div>
+
+<div id='Bit Raster Menu' class='sideMenuItem'>
+<p>Start Sample: <input type='number' id='bitRasterStartSample' value=0 onchange='updateBitRaster()'></p>
+<p>Raster Width: <input type='number' id='bitRasterWidth' value=256 onchange='updateBitRaster()'></p>
+<p>Raster Scale: <input type='number' id='bitRasterScale' value=2 onchange='updateBitRaster()'></p>
+<p>1/0 Threshold: <input type='number' id='bitRasterThresh' value=50 onchange='updateBitRaster()'></p>
+<p><button onclick='updateBitRaster()'>Update</button></p>
+</div>
+
+<div id='Bit Raster Menu' class='sideMenuItem'>
+<p>Start Sample: <input type='number' id='bitRasterStartSample' value=0 onchange='updateBitRaster()'></p>
+<p>Raster Width: <input type='number' id='bitRasterWidth' value=256 onchange='updateBitRaster()'></p>
+<p>Raster Scale: <input type='number' id='bitRasterScale' value=2 onchange='updateBitRaster()'></p>
+<p>1/0 Threshold: <input type='number' id='bitRasterThresh' value=50 onchange='updateBitRaster()'></p>
+<p><button onclick='updateBitRaster()'>Update</button></p>
+</div>
+
+<div id='PSK Demodulate Menu' class='sideMenuItem'>
+</div>
+
+<div id='FSK Demodulate Menu' class='sideMenuItem'>
+</div>
+
+<div id='Binary Output Menu' class='sideMenuItem'>
+</div>
+
+</div>
+</body>
+</html>
+
+<script src="math.js" type="text/javascript"></script>
+
+<script>
+
+function $ (elementId) {
+	return document.getElementById(elementId)
+}
+
+function option (name) {
+	var opt = document.createElement('option')
+    opt.value = name
+    opt.innerHTML = name
+    return opt
+}
+
+function updateToolSelection() {
+	for (let i=0; i<tools.children.length; i++) {
+		console.log( tools.children[i].id )
+		topContainerSelect.appendChild( option( tools.children[i].id ) )
+		bottomContainerSelect.appendChild( option( tools.children[i].id ) )
+	}
+	$('topContainer').innerHTML = $('Input Select').outerHTML
+	$('topContainerMenu').innerHTML = $('Input Select Menu').outerHTML
+	$('topContainerSelect').value = 'Input Select'
+	$('bottomContainer').innerHTML = $('Time Domain').outerHTML
+	$('bottomContainerMenu').innerHTML = $('Time Domain Menu').outerHTML
+	$('bottomContainerSelect').value = 'Time Domain'
+}
+
+function toolSelection(event) {
+	let selection = event.srcElement.value;
+	let destination = event.srcElement.id.split('Select')[0]
+	console.log(selection, destination)
+	$(destination).innerHTML = $(selection).outerHTML
+	$(destination+'Menu').innerHTML = $(selection+' Menu').outerHTML
+	updateUI()
+}
+
+function toFloat(INT) {
+	return (INT - 127.0) / 127.0
+}
+
+function readFile() {
+	var file = new Blob([$('fileSelector').files[0]])
+	var reader = new FileReader()
+	var fileByteArray = []
+	reader.readAsArrayBuffer(file)
+	reader.onloadend = function (evt) {
+    	if (evt.target.readyState == FileReader.DONE) {
+       		var arrayBuffer = evt.target.result,
+           	array = new Uint8Array(arrayBuffer);
+       		for (var i = 0; i < array.length; i++) {
+           		fileByteArray.push(array[i]);
+        	}
+    	}
+    }
+    inputData = fileByteArray
+}
+
+function parseInputData() {
+	let headerLen = parseInt($('headerLen').value)
+	let bitsPerSample = parseInt($('bitsPerSample').value)
+	inputData = inputData.slice(headerLen + (Math.floor(Math.random() * 100)), inputData.len)
+	
+	if (bitsPerSample == 8) {
+		inputData = inputData.map(toFloat)
+	}
+	inputDataNoOp = [...inputData]
+	updateUI()
+}
+
+function updateUI() {
+	eval( topContainer.children[0].attributes.updatefunction.value )
+	eval( bottomContainer.children[0].attributes.updatefunction.value )
+}
+
+function noUpdate() {
+	console.log('no update')
+}
+
+var animatingTimeDomain = false
+var animateTimeDomainSpeed = 0
+function stopStartAnimateTimeDomain() {
+	if (animatingTimeDomain) {
+		animatingTimeDomain = false
+	} else {
+		animateTimeDomainSpeed = (parseInt($('timeDomainEndSample').value) - parseInt($('timeDomainStartSample').value)) / 100
+		animatingTimeDomain = true
+		animateTimeDomain()
+	}
+}
+
+function animateTimeDomain() {
+	if (animatingTimeDomain) {
+		$('timeDomainStartSample').value = parseInt($('timeDomainStartSample').value) + animateTimeDomainSpeed
+		$('timeDomainEndSample').value = parseInt($('timeDomainEndSample').value) + animateTimeDomainSpeed
+		$('timeDomainGridOffset').value = parseInt($('timeDomainGridOffset').value) + animateTimeDomainSpeed
+		updateTimeDomain()
+		setTimeout(animateTimeDomain, 33);
+	} else {
+		return null
+	}
+}
+
+function updateTimeDomain() {
+	let canvas = $('timeDomainCanvas')
+	let ctx = canvas.getContext('2d')
+	let minSample = parseInt( $('timeDomainStartSample').value )
+	let maxSample = parseInt( $('timeDomainEndSample').value )
+	let yMax = parseFloat( $('timeDomainYmax').value ) / 100
+	let yMin = parseFloat( $('timeDomainYmin').value ) / 100
+	let yMarker = parseFloat( $('timeDomainYmarker').value ) / 100
+	let samples = maxSample - minSample
+	let range = yMax - yMin
+	
+	if (maxSample <= minSample) { return null }
+	
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+	let pw = canvas.width / samples
+	let ph = canvas.height / range
+	
+	let gridSpacing = sampleRate / parseInt( $('timeDomainGridRate').value )
+	let gridOffset =  parseInt(parseInt( $('timeDomainGridOffset').value ) * pw) * -1
+	let gridSize = 0
+	
+	if (gridSpacing == 0) {
+		gridSize = canvas.width
+	} else {
+		gridSize = canvas.width / (samples / gridSpacing)
+	}
+	
+	ctx.fillStyle = "#333"
+	
+	let i = 0
+	for (let x = gridOffset; x < canvas.width;) {
+		if (i % 2 == 1) {
+			ctx.fillRect(x,0,gridSize,canvas.height)
+		}
+		i++
+		x += gridSize
+	}
+	
+	ctx.beginPath()
+	ctx.strokeStyle = "red"
+	ctx.moveTo(0, canvas.height - ((yMarker - yMin) * (ph) ))
+	ctx.lineTo(canvas.width, canvas.height - ((yMarker - yMin) * (ph) ))
+	ctx.stroke()
+	
+	ctx.beginPath()
+	ctx.strokeStyle = "white"
+	ctx.moveTo(0, ph)
+
+	let x = 0
+	for (let s = minSample; s < maxSample; s++) {
+		let y = canvas.height - ((inputData[s] - yMin) * (ph) )
+		ctx.lineTo(x, y)
+		x += pw
+	}
+	
+	ctx.stroke()
+}
+
+function updateBitRaster() {
+	let canvas = $('bitRasterCanvas')
+	let ctx = canvas.getContext('2d')
+	let startSample = parseInt( $('bitRasterStartSample').value )
+	let rasterWidth = parseInt( $('bitRasterWidth').value )
+	let scale = parseInt( $('bitRasterScale').value )
+	let rasterThresh = parseFloat( $('bitRasterThresh').value ) / 100
+	
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+
+	let x = 0
+	let y = 0
+	for (let s = startSample; s < inputData.length; s++) {
+		if (inputData[s] > rasterThresh) { ctx.fillStyle = '#000' }
+		else { ctx.fillStyle = '#fff' }
+		
+		ctx.fillRect(x*scale,y*scale,scale,scale)
+	
+		x += 1
+		if (x == rasterWidth) {
+			y += 1
+			x = 0
+		}
+		
+		if ((y * scale) > canvas.height) { return null }
+		
+	}
+}
+
+function nextSpectrogram() {
+	let range = parseInt($('spectroEndSample').value) - parseInt($('spectroStartSample').value)
+	$('spectroEndSample').value = parseInt($('spectroEndSample').value) + parseInt(range/2)
+	$('spectroStartSample').value =  parseInt($('spectroStartSample').value) + parseInt(range/2)
+	updateSpectrogram()	
+}
+
+function previousSpectrogram() {
+	let range = parseInt($('spectroEndSample').value) - parseInt($('spectroStartSample').value)
+	$('spectroEndSample').value = parseInt($('spectroEndSample').value) - parseInt(range/2)
+	$('spectroStartSample').value =  parseInt($('spectroStartSample').value) - parseInt(range/2)
+	updateSpectrogram()	
+}
+
+function updateSpectrogram() {
+	let canvas = $('spectroCanvas')
+	let ctx = canvas.getContext('2d')
+	ctx.translate(0.1, 0.1)
+	ctx.imageSmoothingEnabled= false
+	let fftLen = parseInt( $('spectroFFTlen').value )
+	let startSample = parseInt( $('spectroStartSample').value )
+	let endSample = parseInt( $('spectroEndSample').value )
+	let FFTratio = parseInt( $('spectroFFTratio').value )
+	let windowFunction = eval( $('spectroWindowFunction').value )
+	
+	if (endSample <= startSample) { return null }
+	
+	if (endSample > inputData.length) { endSample = inputData.length-fftLen }
+	let duration = endSample - startSample
+
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+	
+	let spectrogram = new Array()
+	let scalingFactor = 2 / (sampleRate * fftLen)
+	let step = 0
+	let samplesPerStep = ( (fftLen) / FFTratio )
+	
+	let min = 1000
+	let max = -1000
+	
+	while (step < (duration-(fftLen*2))) {
+		let psds = new Array(fftLen).fill(0)
+		let samples = inputData.slice(startSample+step, startSample+step+(fftLen*2))
+		samples = applyWindow(samples, windowFunction)
+		let ffts = math.fft(samples)
+		
+		for (let x = 1; x < (fftLen)-1; x++) {
+			let magnitude = 1 + math.sqrt( math.pow(ffts[x].re, 2) +  math.pow(ffts[x].im, 2) )
+			let power = scalingFactor * math.pow(magnitude, 2)
+			psds[x] = ( math.log(power, 10) )
+			if (psds[x] > max) { max = psds[x] }
+			if (psds[x] < min) { min = psds[x] }
+		}
+	
+		spectrogram.push([...psds.slice(1,-1)])
+		step+=samplesPerStep
+	}
+	
+	canvas.width = spectrogram.length
+	let ph = canvas.height / spectrogram[0].length
+	
+	let range = max - min
+	let scaling = 255 / range
+	
+	for (let x = 0; x < spectrogram.length; x++) {
+		for (let y = 0; y < spectrogram[0].length; y++) {
+			ctx.fillStyle = cmap[ parseInt((spectrogram[x][y]-min)*scaling) ]
+			ctx.fillRect(x, parseInt(canvas.height - y*ph), x+1, parseInt(ph)+1)
+		}
+	}
+	
+	let gridSpacing = parseFloat( $('spectroGridRate').value )
+	let gridOffset =  parseInt( $('spectroGridOffset').value ) * -1
+	let gridSize = 0
+	
+	if (gridSpacing == 0) {
+		gridSize = canvas.width
+	} else {
+		gridSize = ( (sampleRate / gridSpacing) / samplesPerStep )
+	}
+	
+	ctx.strokeStyle = '#ff0'
+	for (let x = gridOffset; x < canvas.width; x += gridSize) {
+			ctx.moveTo(x, 0)
+			ctx.lineTo(x, canvas.height)
+			ctx.stroke()
+	}
+
+	
+}
+
+var animatingFrequencyDomain = false
+var animateFrequencyDomainSpeed = 0
+function stopStartAnimateFrequencyDomain() {
+	if (animatingFrequencyDomain) {
+		animatingFrequencyDomain = false
+	} else {
+		animateFrequencyDomainSpeed = parseInt($('frequencyDomainAnimationRate').value) * (33/1000)
+		animatingFrequencyDomain = true
+		animateFrequencyDomain()
+	}
+}
+
+function animateFrequencyDomain() {
+	if (animatingFrequencyDomain) {
+		if ( parseInt($('frequencyDomainStartSample').value) + animateFrequencyDomainSpeed >= inputData.length ) {
+			animatingFrequencyDomain = false
+			$('frequencyDomainStartSample').value = inputData.length - ( parseInt( $('frequencyDomainFFTlen').value ) * parseInt( $('frequencyDomainAverages').value ) ) - 1
+			updateFrequencyDomain()
+			return null
+		}
+		$('frequencyDomainStartSample').value = parseInt($('frequencyDomainStartSample').value) + animateFrequencyDomainSpeed
+		updateFrequencyDomain()
+		setTimeout(animateFrequencyDomain, 33);
+	} else {
+		return null
+	}
+}
+
+function updateBinaryOutput() {
+	let textArea = $('binaryOutputTextArea')
+	textArea.value = inputData.join('')
+}
+
+function updateFrequencyDomain() {
+	let canvas = $('frequencyDomainCanvas')
+	let ctx = canvas.getContext('2d')
+	let fftLen = parseInt( $('frequencyDomainFFTlen').value )
+	let startSample = parseInt( $('frequencyDomainStartSample').value )
+	let averages = parseInt( $('frequencyDomainAverages').value )
+	let xMarker = parseInt( $('frequencyDomainXmarker').value )
+	let windowFunction = eval( $('frequencyDomainWindowFunction').value )
+	let gridsOn = eval( $('frequencyDomainGridsOn').value )
+	
+	let psds = new Array(fftLen/2).fill(0)
+	let scalingFactor = 2 / (sampleRate * fftLen)
+	
+	let samples = [...inputData.slice(startSample, 1+startSample+(averages*fftLen))]
+		
+	for (let i = 0; i<(samples.length-fftLen); i+=fftLen) {
+		let fftSamples = applyWindow(samples.slice(i,i+fftLen), windowFunction)
+		let ffts = math.fft(fftSamples)
+		for (let x = 1; x < (fftLen/2)-1; x++) {
+			let magnitude = 1 + math.sqrt( math.pow(ffts[x].re, 2) +  math.pow(ffts[x].im, 2) )
+			let power = scalingFactor * math.pow(magnitude, 2)
+			psds[x] = ( math.log(power, 10) )
+		}
+	}
+	
+	for (let p = 0; p < psds.length; p++) {
+		psds[p] = psds[p] * (1/averages)
+	}
+	
+	psds = psds.slice(1,-1)
+	
+	let maxY = math.max(psds)
+	let minY = math.min(psds)
+	let range = maxY - minY
+	
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+	let pw = canvas.width / psds.length
+	let ph = canvas.height / range
+	
+	if (xMarker < 1) {xMarker = 4000}
+	xMarker = (xMarker / ((sampleRate/2)/psds.length) ) * pw
+	ctx.beginPath()
+	ctx.strokeStyle = "red"
+	ctx.moveTo(xMarker, 0)
+	ctx.lineTo(xMarker, canvas.height)
+	ctx.stroke()
+	
+	if (gridsOn) {
+		console.log('grids on')
+		console.log(xMarker)
+		ctx.beginPath()
+		ctx.strokeStyle = "red"
+		let x = xMarker
+		while (x < canvas.width) {
+			ctx.moveTo(x, 0)
+			ctx.lineTo(x, canvas.height)
+			x+= xMarker
+		}	
+		ctx.stroke()
+	}
+	
+	ctx.beginPath()
+	ctx.strokeStyle = "white"
+	ctx.moveTo(0, ph)
+
+	let x = 0
+	for (let s = 0; s < psds.length; s++) {
+		let y = canvas.height - ( ( psds[s] - minY ) * ph )
+		ctx.lineTo(x, y)
+		x += pw
+	}
+	
+	ctx.stroke()
+}
+
+function validateThresholds(thresholds) {
+	let valids = []
+	for (let i = 0; i < thresholds.length ; i++) {
+		let t = parseFloat(thresholds[i])
+		if (isNaN(t) == false) { 
+			if (t == 0) { valids.push(t) }
+			else { valids.push(t/100) }
+		}
+	}
+	return valids
+}
+
+function validateBits(sym2bit) {
+	let valids = []
+	for (let i = 0; i < sym2bit.length ; i++) {
+		let t = sym2bit[i].split('').map(makeInt)
+		if (t.length != 0) { valids.push(t) }
+	}
+	return valids
+}
+
+function pskDemodulate() {
+
+	let frequency = parseFloat($('pskDemodulateFrequency').value)
+	let phase = parseFloat($('pskDemodulatePhase').value) / 360
+	let averagingWindow = parseFloat($('pskDemodulateAveraging').value)
+	let symbolRate = parseFloat($('pskDemodulateSymbolRate').value)
+	let startSample = parseInt($('pskDemodulateStart').value)
+	let thresholds = $('pskDemodulateThresholds').value.split(',')
+	let sym2bit = $('pskDemodulateSym2Bit').value.split(',')
+	thresholds = validateThresholds(thresholds)
+	sym2bit = validateBits(sym2bit)
+
+	var period = 8000.0 / frequency
+	var duration = inputDataNoOp.length - startSample
+	
+	if(frequency == 0) {
+		inputData = [...inputDataNoOp.slice(startSample,inputDataNoOp.length)]
+		updateUI()
+		return null
+	}
+	
+	let symbolWindow = 1
+	if (symbolRate > 0) { symbolWindow = sampleRate / symbolRate }
+
+	let samples = new Array()
+	
+	for (let j = period*phase; j < duration + (period*phase);) { 
+		let average = 0;
+		for (let i=0; i<period/4; i++) { 
+			average += inputDataNoOp[parseInt(j+i)] 
+		}
+		for (let i=0; i<period; i++) {
+			samples.push(average/(period/4))
+		}
+		j += period
+    }
+    
+    let averageSample = math.mean(samples)
+    let maxSample = math.max(samples)
+    let minSample = math.min(samples)
+    let rangeSamples = maxSample - minSample
+    let scale = 4 / rangeSamples
+    
+    for (let i = 0; i<samples.length-averagingWindow; i++) {
+    	samples[i] = (samples[i] - averageSample) * scale
+    }
+    
+    for (let i = 0; i<samples.length-averagingWindow; i++) {
+    	let windowSamples = samples.slice(i,i+averagingWindow)
+    	windowSamples = applyWindow(windowSamples, hamming)
+    	samples[i] = math.mean(windowSamples)
+    }
+    
+    let averaged = new Array()
+    
+    for (let s = startSample; s < samples.length;) {
+    	let total = 0
+    	for (let x = 0; x < symbolWindow; x++) {
+    		total += samples[parseInt(s+x)]
+    	}
+    	averaged.push( total / symbolWindow  )
+    	s += symbolWindow
+    }
+    
+    inputData = averaged
+    
+    if (thresholds.length != 0) {	
+    	for (let s = 0; s < inputData.length; s++) {
+    		let symbol = thresholds.length
+			for (let t = 0; t < thresholds.length; t++) {
+				if (inputData[s] > thresholds[t]) { break }
+				symbol -= 1
+			}
+			inputData[s] = symbol
+		}
+    }
+    
+    if (sym2bit.length != 0) {
+    	let newBits = new Array()
+    	
+    	for (let i = 0; i < inputData.length; i++) {
+    		newBits.push( ...sym2bit[ parseInt(inputData[i]) ] )
+    	}
+    	
+    	inputData = newBits
+    }
+    
+    
+    updateUI()
+}
+
+function autocorrelate(samples, rate) {
+	var sum = 0
+	var pd_state = 0
+	var i = 0
+	
+  	for(i = 0; i < samples.length; i++) {
+  	
+    	let sum_old = sum
+    	sum = 0
+    	
+   		for(k=0; k < samples.length-i; k++) {
+   			sum += samples[i] * samples[i+2]
+   		}
+    
+    	if (pd_state == 2 & (sum-sum_old) < 0) { 
+    		return rate / i
+    	}
+    	
+    	if (pd_state == 1 && (sum > thresh) && (sum-sum_old) > 0) {
+    		pd_state = 2
+    	}
+    	
+    	if (i == 0) { 
+    		thresh = sum * 0.5;
+      		pd_state = 1;
+    	}
+    	
+  	}
+  	return rate / i
+}
+
+function frequencyDetect() {
+	
+	var newData = new Array()
+	var windowLen = 32
+	
+	for (let i = 0; i < inputDataNoOp.length; i++) {
+		let samples = inputDataNoOp.slice(i, i+windowLen)
+		newData.push( autocorrelate(samples, sampleRate) )
+	}
+	
+	inputData = newData
+	updateUI()
+	
+}
+
+
+function fskDemodulate() {
+	let averagingWindow = parseInt($('fskDemodulateAveraging').value)
+	let crossPoint = parseFloat($('fskDemodulateCrossPoint').value) / 100
+	let symbolRate = parseFloat($('fskDemodulateSymbolRate').value)
+	let startSample = parseInt($('fskDemodulateStart').value)
+	let thresholds = $('fskDemodulateThresholds').value.split(',')
+	let sym2bit = $('fskDemodulateSym2Bit').value.split(',')
+	thresholds = validateThresholds(thresholds)
+	sym2bit = validateBits(sym2bit)
+
+	var duration = inputDataNoOp.length - startSample
+	
+	let samples = new Array()
+	let deltas = new Array(startSample).fill(0)
+    
+    let lastCross = 0
+    
+	if (symbolRate == 0) {
+		symbolWindow = 1
+	} else {
+		symbolWindow = sampleRate / symbolRate
+	}
+    
+    let state = 0
+    for (let i = startSample; i < duration; i++) {
+    	if (inputDataNoOp[i] < crossPoint & inputDataNoOp[i+1] > crossPoint & state < 1 ) {
+    		let delta = i - lastCross
+    		lastCross = i
+    		deltas.push(delta)
+    		state = 1
+    	} else if (inputDataNoOp[i] > crossPoint & inputDataNoOp[i+1] < crossPoint & state > -1 ) {
+    		let delta = i - lastCross
+    		lastCross = i
+    		deltas.push(delta)
+    		state = -1
+    	} else {
+    		state = 0
+    	}
+    }
+    
+    for (let i = 0; i<deltas.length; i++) {
+    	let frequency = ( (sampleRate/2) / deltas[i] ) / sampleRate
+    	for (let x = 0; x<deltas[i];x++) {
+    		samples.push(frequency)
+    	}
+    }
+    
+    let averageSample = math.mean(samples)
+    let maxSample = math.max(samples)
+    let minSample = math.min(samples)
+    let rangeSamples = maxSample - minSample
+    let scale = 4 / rangeSamples
+    
+    for (let i = 0; i<samples.length-averagingWindow; i++) {
+    	samples[i] = (samples[i] - averageSample) * scale
+    }
+    
+    for (let i = 0; i<samples.length-averagingWindow; i++) {
+    	let windowSamples = samples.slice(i,i+averagingWindow)
+    	windowSamples = applyWindow(windowSamples, hamming)
+    	samples[i] = math.mean(windowSamples)
+    }
+    
+    let averaged = new Array()
+    
+    for (let s = startSample; s < samples.length;) {
+    	let total = 0
+    	for (let x = 0; x < symbolWindow; x++) {
+    		total += samples[parseInt(s+x)]
+    	}
+    	averaged.push( total / symbolWindow  )
+    	s += symbolWindow
+    }
+    
+    inputData = averaged	
+    
+    if (thresholds.length != 0) {	
+    	for (let s = 0; s < inputData.length; s++) {
+    		let symbol = thresholds.length
+			for (let t = 0; t < thresholds.length; t++) {
+				if (inputData[s] > thresholds[t]) { break }
+				symbol -= 1
+			}
+			inputData[s] = symbol
+		}
+    }
+    
+    if (sym2bit.length != 0) {
+    	let newBits = new Array()
+    	
+    	for (let i = 0; i < inputData.length; i++) {
+    		newBits.push( ...sym2bit[ parseInt(inputData[i]) ] )
+    	}
+    	
+    	inputData = newBits
+    }
+    
+    updateUI()
+}
+
+function makeInt(string) {
+	return parseInt(string)
+}
+
+function applyWindow(signal, func) {
+  var i, n=signal.length, args=[0,n]
+
+  // pass rest of args
+  for(i=2; i<arguments.length; i++) {
+    args[i] = arguments[i]
+  }
+
+  for(i=n-1; i>=0; i--) {
+    args[0] = i
+    signal[i] *= func.apply(null,args)
+  }
+
+  return signal;
+}
+
+function hamming (i,N) {
+  return 0.54 - 0.46 * Math.cos(6.283185307179586*i/(N-1))
+}
+
+function blackmanHarris (i,N) {
+  var a0 = 0.35875,
+      a1 = 0.48829,
+      a2 = 0.14128,
+      a3 = 0.01168,
+      f = 6.283185307179586*i/(N-1)
+
+  return a0 - a1*Math.cos(f) +a2*Math.cos(2*f) - a3*Math.cos(3*f)
+}
+
+function blackmanNuttall (i,N) {
+  var a0 = 0.3635819,
+      a1 = 0.4891775,
+      a2 = 0.1365995,
+      a3 = 0.0106411,
+      f = 6.283185307179586*i/(N-1)
+
+  return a0 - a1*Math.cos(f) +a2*Math.cos(2*f) - a3*Math.cos(3*f)
+}
+
+function hann (i,N) {
+  return 0.5*(1 - Math.cos(6.283185307179586*i/(N-1)))
+}
+
+function rectangular (i,N) {
+  return 1
+}
+
+function collapseTopContainer() {
+	if (topContainerCollapsed) {
+		$('topContainerOuterCollapsed').id = 'topContainerOuter'
+		$('bottomContainerOuterExpanded').id = 'bottomContainerOuter'
+		topContainerCollapsed = false
+	} else {
+		$('topContainerOuter').id = 'topContainerOuterCollapsed'
+		$('bottomContainerOuter').id = 'bottomContainerOuterExpanded'
+		topContainerCollapsed = true
+	}
+	updateUI()
+}
+
+const topContainer = $('topContainer')
+const topContainerMenu = $('topContainerMenu')
+const topContainerSelect = $('topContainerSelect')
+
+const bottomContainer = $('bottomContainer')
+const bottomContainerMenu = $('bottomContainerMenu')
+const bottomContainerSelect = $('bottomContainerSelect')
+
+const menus = $('menus')
+const tools = $('tools')
+var inputData = new Array()
+var inputDataNoOp = new Array()
+var samples = new Array()
+var samplesNoOp = new Array()
+var sampleRate = 8000
+var topContainerCollapsed = false
+
+
+topContainerSelect.onchange = toolSelection
+bottomContainerSelect.onchange = toolSelection
+updateToolSelection()
+
+const cmap = ["#000003","#000004","#000006","#010007","#010109","#01010b","#02020d","#02020f","#030311","#040313","#040415","#050417","#060519","#07051b","#08061d","#09071f","#0a0722","#0b0824","#0c0926","#0d0a28","#0e0a2a","#0f0b2c","#100c2f","#110c31","#120d33","#140d35","#150e38","#160e3a","#170f3c","#180f3f","#1a1041","#1b1044","#1c1046","#1e1049","#1f114b","#20114d","#221150","#231152","#251155","#261157","#281159","#2a115c","#2b115e","#2d1060","#2f1062","#301065","#321067","#341068","#350f6a","#370f6c","#390f6e","#3b0f6f","#3c0f71","#3e0f72","#400f73","#420f74","#430f75","#450f76","#470f77","#481078","#4a1079","#4b1079","#4d117a","#4f117b","#50127b","#52127c","#53137c","#55137d","#57147d","#58157e","#5a157e","#5b167e","#5d177e","#5e177f","#60187f","#61187f","#63197f","#651a80","#661a80","#681b80","#691c80","#6b1c80","#6c1d80","#6e1e81","#6f1e81","#711f81","#731f81","#742081","#762181","#772181","#792281","#7a2281","#7c2381","#7e2481","#7f2481","#812581","#822581","#842681","#852681","#872781","#892881","#8a2881","#8c2980","#8d2980","#8f2a80","#912a80","#922b80","#942b80","#952c80","#972c7f","#992d7f","#9a2d7f","#9c2e7f","#9e2e7e","#9f2f7e","#a12f7e","#a3307e","#a4307d","#a6317d","#a7317d","#a9327c","#ab337c","#ac337b","#ae347b","#b0347b","#b1357a","#b3357a","#b53679","#b63679","#b83778","#b93778","#bb3877","#bd3977","#be3976","#c03a75","#c23a75","#c33b74","#c53c74","#c63c73","#c83d72","#ca3e72","#cb3e71","#cd3f70","#ce4070","#d0416f","#d1426e","#d3426d","#d4436d","#d6446c","#d7456b","#d9466a","#da4769","#dc4869","#dd4968","#de4a67","#e04b66","#e14c66","#e24d65","#e44e64","#e55063","#e65162","#e75262","#e85461","#ea5560","#eb5660","#ec585f","#ed595f","#ee5b5e","#ee5d5d","#ef5e5d","#f0605d","#f1615c","#f2635c","#f3655c","#f3675b","#f4685b","#f56a5b","#f56c5b","#f66e5b","#f6705b","#f7715b","#f7735c","#f8755c","#f8775c","#f9795c","#f97b5d","#f97d5d","#fa7f5e","#fa805e","#fa825f","#fb8460","#fb8660","#fb8861","#fb8a62","#fc8c63","#fc8e63","#fc9064","#fc9265","#fc9366","#fd9567","#fd9768","#fd9969","#fd9b6a","#fd9d6b","#fd9f6c","#fda16e","#fda26f","#fda470","#fea671","#fea873","#feaa74","#feac75","#feae76","#feaf78","#feb179","#feb37b","#feb57c","#feb77d","#feb97f","#febb80","#febc82","#febe83","#fec085","#fec286","#fec488","#fec689","#fec78b","#fec98d","#fecb8e","#fdcd90","#fdcf92","#fdd193","#fdd295","#fdd497","#fdd698","#fdd89a","#fdda9c","#fddc9d","#fddd9f","#fddfa1","#fde1a3","#fce3a5","#fce5a6","#fce6a8","#fce8aa","#fceaac","#fcecae","#fceeb0","#fcf0b1","#fcf1b3","#fcf3b5","#fcf5b7","#fbf7b9","#fbf9bb","#fbfabd","#fbfcbf"]
+
+</script>
