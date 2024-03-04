@@ -380,6 +380,12 @@ Demodulate Frequency Shift Keying
 <option value='rectangular'>Rectangular</option>
 </select>
 </p>
+<p>Advanced Functions:
+<select id='frequencyDomainAdvancedFunction' onchange='updateFrequencyDomain()'>
+<option value='noFunction'>None</option>
+<option value='movingAverageDelta'>Moving Average Delta</option>
+</select>
+</p>
 <p>Frequency Marker: <input id='frequencyDomainXmarker' type='number' min=1 value=2000 onchange='updateFrequencyDomain()'></p>
 <p>Display Grids:
 <select id='frequencyDomainGridsOn' onchange='updateFrequencyDomain()'>
@@ -393,12 +399,12 @@ Demodulate Frequency Shift Keying
 
 <div id='Spectrogram Menu' class='sideMenuItem'>
 <p>Start Sample: <input type='number' id='spectroStartSample' value=0 onchange='updateSpectrogram()'></p>
-<p>End Sample: <input type='number' id='spectroEndSample' value=8000 onchange='updateSpectrogram()'></p>
+<p>End Sample: <input type='number' id='spectroEndSample' value=64000 onchange='updateSpectrogram()'></p>
 <p>FFT Length:
 <select id='spectroFFTlen' onchange='updateSpectrogram()'>
 <option value=16>16</option>
 <option value=32>32</option>
-<option value=64>64</option>
+<option selected value=64>64</option>
 <option value=128>128</option>
 <option value=256>256</option>
 <option value=512>512</option>
@@ -411,7 +417,7 @@ Demodulate Frequency Shift Keying
 </p>
 <p>FFT Overlap:
 <select id='spectroFFTratio' onchange='updateSpectrogram()'>
-<option value=1>1</option>
+<option selected value=1>1</option>
 <option value=2>2</option>
 <option value=4>4</option>
 <option value=8>8</option>
@@ -443,6 +449,12 @@ Demodulate Frequency Shift Keying
 <p>Grid Offset: <input type='number' id='timeDomainGridOffset' value=0 onchange='updateTimeDomain()'></p>
 <p>Y Max: <input type='number' id='timeDomainYmax' value=100 onchange='updateTimeDomain()'></p>
 <p>Y Min: <input type='number' id='timeDomainYmin' value=-100 onchange='updateTimeDomain()'></p>
+<p>Y Scale:
+<select id='timeDomainAutoY' onchange='updateTimeDomain()'>
+<option value='true'>Auto</option>
+<option value='false'>Manual</option>
+</select>
+</p>
 <p>Y Marker: <input type='number' id='timeDomainYmarker' value=0 onchange='updateTimeDomain()'></p>
 <p><button onclick='updateTimeDomain()'>Update</button></p>
 <p><button onclick='stopStartAnimateTimeDomain()'>Animate / Stop</button></p>
@@ -590,9 +602,16 @@ function updateTimeDomain() {
 	let yMin = parseFloat( $('timeDomainYmin').value ) / 100
 	let yMarker = parseFloat( $('timeDomainYmarker').value ) / 100
 	let samples = maxSample - minSample
-	let range = yMax - yMin
+	let autoY = eval($('timeDomainAutoY').value)
 	
 	if (maxSample <= minSample) { return null }
+	if (autoY) {
+		yMax = math.max(inputData) * 1.1
+		yMin = math.min(inputData) * 1.1
+		$('timeDomainYmax').value = yMax * 100
+		$('timeDomainYmin').value = yMin * 100
+	}
+	let range = yMax - yMin
 	
 	canvas.width = canvas.parentElement.clientWidth;
 	canvas.height = canvas.parentElement.clientHeight;
@@ -804,6 +823,7 @@ function updateFrequencyDomain() {
 	let xMarker = parseInt( $('frequencyDomainXmarker').value )
 	let windowFunction = eval( $('frequencyDomainWindowFunction').value )
 	let gridsOn = eval( $('frequencyDomainGridsOn').value )
+	let advancedFunction = eval( $('frequencyDomainAdvancedFunction').value )
 	
 	let psds = new Array(fftLen/2).fill(0)
 	let scalingFactor = 2 / (sampleRate * fftLen)
@@ -825,6 +845,7 @@ function updateFrequencyDomain() {
 	}
 	
 	psds = psds.slice(1,-1)
+	psds = advancedFunction(psds)
 	
 	let maxY = math.max(psds)
 	let minY = math.min(psds)
@@ -871,6 +892,30 @@ function updateFrequencyDomain() {
 	ctx.stroke()
 }
 
+function noFunction(samples) {
+	return samples
+}
+
+function movingAverageDelta(samples) {
+	console.log(samples)
+	let average = 0
+	let newSamples = new Array(samples.length).fill(0)
+	let windowLen = 10
+	
+	for (let i=0; i<windowLen; i++) {
+		samples.push( samples[samples.length-1] )
+	}
+	
+	console.log(samples.length)
+	console.log(newSamples.length)
+	for (let i=0; i<newSamples.length; i++) {
+		newSamples[i] = samples[i] - math.mean( samples.slice(i,i+windowLen) )	
+	}
+	
+	return newSamples
+
+}
+
 function validateThresholds(thresholds) {
 	let valids = []
 	for (let i = 0; i < thresholds.length ; i++) {
@@ -895,7 +940,7 @@ function validateBits(sym2bit) {
 function pskDemodulate() {
 
 	let frequency = parseFloat($('pskDemodulateFrequency').value)
-	let phase = parseFloat($('pskDemodulatePhase').value) / 360
+	let phase = parseFloat($('pskDemodulatePhase').value) / 360.0
 	let averagingWindow = parseFloat($('pskDemodulateAveraging').value)
 	let symbolRate = parseFloat($('pskDemodulateSymbolRate').value)
 	let startSample = parseInt($('pskDemodulateStart').value)
@@ -919,12 +964,8 @@ function pskDemodulate() {
 	let samples = new Array()
 	
 	for (let j = period*phase; j < duration + (period*phase);) { 
-		let average = 0;
-		for (let i=0; i<period/4; i++) { 
-			average += inputDataNoOp[parseInt(j+i)] 
-		}
 		for (let i=0; i<period; i++) {
-			samples.push(average/(period/4))
+			samples.push( math.mean( inputDataNoOp.slice( parseInt(j), parseInt( j+(period/4) ) ) ) )
 		}
 		j += period
     }
@@ -939,10 +980,12 @@ function pskDemodulate() {
     	samples[i] = (samples[i] - averageSample) * scale
     }
     
+    if (averagingWindow > 1) {
     for (let i = 0; i<samples.length-averagingWindow; i++) {
     	let windowSamples = samples.slice(i,i+averagingWindow)
     	windowSamples = applyWindow(windowSamples, hamming)
     	samples[i] = math.mean(windowSamples)
+    }
     }
     
     let averaged = new Array()
