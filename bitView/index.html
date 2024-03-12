@@ -363,7 +363,7 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;feedThruDescramble&#39;, [&#39;0,1,7&#39;, &#39;No&#39;]);">feedThruDescramble</button>
 <button style="width: 100%;" onclick="addOperation(&#39;applyDelta&#39;, [1]);">applyDelta</button>
 <button style="width: 100%;" onclick="addOperation(&#39;applyXOR&#39;, [&#39;0&#39;, 0]);">applyXOR</button>
-<button style="width: 100%;" onclick="addOperation(&#39;frameSync&#39;, [0,0,256]);">frameSync</button>
+<button style="width: 100%;" onclick="addOperation(&#39;frameSync&#39;, [0,0,0,256]);">frameSync</button>
 <button style="width: 100%;" onclick="addOperation(&#39;findPattern&#39;, [0,0]);">findPattern</button>
 <button style="width: 100%;" onclick="addOperation(&#39;takeSkip&#39;, [&#39;t256&#39;]);">takeSkip</button>
 <button style="width: 100%;" onclick="addOperation(&#39;mergeBits&#39;, [1,50]);">mergeBits</button>
@@ -371,11 +371,10 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;repeatBits&#39;, [0, 1]);">repeatBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;snipBits&#39;, [0, 0]);">snipBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
-<button style="width: 100%;" onclick="addOperation(&#39;spread&#39;, [1]);">spread</button>
 <button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,600,100]);">fskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [2000,500]);">bpskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;qpskModulate&#39;, [2000,500]);">qpskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [2000,500,50]);">askModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;mfskModulate&#39;, [400,100,8,100]);">mfskModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addNoise&#39;, [1]);">addNoise</button>
 <button style="width: 100%;" onclick="addOperation(&#39;firFilter&#39;, [&#39;&#39;]);">FIR Filter</button>
 </div>
@@ -401,14 +400,6 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
 
-<div id="spreadConfig" class="opsConfigHidden">
-<p>Spread</p>
-<p>Makes use of a spreading code to spread the signal. Can be reversed with the "De-spread" operation. 1s in the data will be replaced with the spreading code. 0s in the data will be replaced with the inverted spreading code.</p>
-<p><textArea id="spread0"></textArea></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
 <div id="addNoiseConfig" class="opsConfigHidden">
 <p>Add Noise</p>
 <p>Intended for use with PCM audio (8 bits / sample). Adds noise with a given amplitude.</p>
@@ -420,9 +411,8 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <div id="askModulateConfig" class="opsConfigHidden">
 <p>ASK Modulate</p>
 <p>Produces a PCM audio stream of the bits, modulated using amplitude shift keying</p>
-<p>Frequency: <input type="number" id="askModulate0" value="2000"></p>
+<p>Frequency: <input type="number" id="askModulate0" value="1000"></p>
 <p>Baud Rate: <input type="number" id="askModulate1" value="100"></p>
-<p>Amount (%): <input type="number" id="askModulate2" value="50"></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -430,17 +420,8 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <div id="bpskModulateConfig" class="opsConfigHidden">
 <p>BPSK Modulate</p>
 <p>Produces a PCM audio stream of the bits, modulated using binary phase shift keying</p>
-<p>Frequency: <input type="number" id="bpskModulate0" value="2000"></p>
-<p>Baud Rate: <input type="number" id="bpskModulate1" value="500"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="qpskModulateConfig" class="opsConfigHidden">
-<p>QPSK Modulate</p>
-<p>Produces a PCM audio stream of the bits, modulated using quadrature phase shift keying</p>
-<p>Frequency: <input type="number" id="qpskModulate0" value="2000"></p>
-<p>Baud Rate: <input type="number" id="qpskModulate1" value="500"></p>
+<p>Frequency: <input type="number" id="bpskModulate0" value="1000"></p>
+<p>Baud Rate: <input type="number" id="bpskModulate1" value="100"></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -451,6 +432,17 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <p>Low Frequency: <input type="number" id="fskModulate0" value="400"></p>
 <p>High Frequency: <input type="number" id="fskModulate1" value="600"></p>
 <p>Baud Rate: <input type="number" id="fskModulate2" value="100"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="mfskModulateConfig" class="opsConfigHidden">
+<p>MFSK Modulate</p>
+<p>Produces a PCM audio stream of the bits, modulated using multi-frequency shift keying</p>
+<p>Low Frequency: <input type="number" id="mfskModulate0" value="400"></p>
+<p>Shift: <input type="number" id="mfskModulate1" value="100"></p>
+<p>Number of Levels: <input type="number" id="mfskModulate2" value="8"></p>
+<p>Baud Rate: <input type="number" id="mfskModulate3" value="100"></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -478,7 +470,8 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <p>Finds a sync pattern and aligns the frame, pads the frame so that all frames appear at a fixed width.</p>
 <p>Sync Pattern: <input type="text" id="frameSync0" value=""></p>
 <p>Hamming distance: <input type="number" id="frameSync1" value="0"></p>
-<p>Frame Width: <input type="number" id="frameSync2" value="256"></p>
+<p>Min Frame: <input type="number" id="frameSync2" value="0"></p>
+<p>Frame Width: <input type="number" id="frameSync3" value="256"></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -635,10 +628,6 @@ Bit: <input type="text" id="cursorBit" value="0">
 
 </div>
 
-<script>
-var audioMotion = null
-</script>
-
 <script src="math.js" type="text/javascript"></script>
 
 <script type="module">
@@ -649,7 +638,7 @@ var source = document.getElementById('audio');
 
 
 function createSpecAn() {
-audioMotion = new AudioMotionAnalyzer(
+const audioMotion = new AudioMotionAnalyzer(
   document.getElementById('specanContainer'),
   {
     source: source,
@@ -664,13 +653,10 @@ audioMotion = new AudioMotionAnalyzer(
     colorMode: 'gradient',
     gradient: 'prism',
     fftSize: 8192,
-    showBgColor: false,
-    lineWidth: 1,
-    fillAlpha: 0.5
+    showBgColor: false
   }
 );
 }
-
 
 </script>
 
@@ -1160,7 +1146,6 @@ function firFilter(coefs) {
 	}
 	
 	var acc = 0
-	var max = 0
 	for (let x = coefs.length; x < samples.length; x++) {
 		acc = 0
 		for (let y = 0; y < coefs.length; y++) {
@@ -1184,7 +1169,7 @@ function addNoise(noise) {
 
 	for (let x = 0; x<bits.length; x+=8 ) {
 		let sample = (parseInt(bits.slice(x,x+8).join(''),2) - 127) / 127
-		sample = Math.round( 127 + (((sample * 100 + (Math.random()-0.5) * noise) / 200) * 127) )
+		sample = Math.round( 127 + (((sample * 100 + Math.random() * noise) / 200) * 127) )
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
 		newBits.push( ...sample )
 	}
@@ -1218,6 +1203,8 @@ function frequencyShift(frequency) {
 
 function sinePCM(frequency, duration, phase=1, amplitude=60) {
 
+	console.log(frequency)
+
 	var period = 8000 / frequency
 	var duration = parseInt(duration * 8000)
 	
@@ -1229,8 +1216,8 @@ function sinePCM(frequency, duration, phase=1, amplitude=60) {
 	var newBits = new Array()
 	var sample = 0
 	
-	for (let j = (period*phase); j < duration + (period*phase); ++j) { 
-		sample = Math.round( Math.random() + 127 + (amplitude * (Math.sin(2.0 * Math.PI * j / period))));
+	for (let j = 0; j < duration; ++j) { 
+		sample = Math.round( Math.random() + 127 + (phase * amplitude * (Math.sin(2.0 * Math.PI * j / period))));
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
 		newBits.push( ...sample )
     }
@@ -1265,14 +1252,41 @@ function fskModulate(lowF, highF, rate) {
 	delete newBits
 }
 
+function mfskModulate(lowF, shift, ary, rate) {
+	var lowF = parseInt(lowF)
+	var shift = parseInt(shift)
+	var rate = parseInt(rate)
+	var ary = parseInt(ary)
+	
+	var symbol2pcm = []
+	var symbolLength = math.log(ary, 2)
+	
+	for (let i = 0; i<ary; i++) {
+		symbol2pcm.push( sinePCM(lowF + (shift*i), 1/rate, 1, 60) )
+	}
+	
+	console.log(symbol2pcm)
+
+	var newBits = new Array()
+	
+	for (let x = 0; x < bits.length; x+=symbolLength) {
+		newBits.push( ...symbol2pcm[ parseInt(bits.slice(x,x+symbolLength).join(''),2) ] )
+		console.log(bits.slice(x,x+symbolLength))
+		console.log( parseInt(bits.slice(x,x+symbolLength).join(''),2) )
+	}
+	
+	bits = newBits
+	delete newBits
+}
+
 function bpskModulate(frequency, rate) {
 	var frequency = parseInt(frequency)
 	var rate = parseInt(rate)
 
 	var newBits = new Array()
-	var low = sinePCM(frequency, 1/rate, 0, 60)
-	var high = sinePCM(frequency, 1/rate, 0.5, 60)
-	var nothing = sinePCM(frequency, 1/rate, 0, 0)
+	var low = sinePCM(frequency, 1/rate, 1, 60)
+	var high = sinePCM(frequency, 1/rate, -1, 60)
+	var nothing = sinePCM(frequency, 1/rate, 1, 0)
 	var length = bits.length;
 	if (length/rate > 130) { length = parseInt(130 * rate) }
 	
@@ -1281,8 +1295,8 @@ function bpskModulate(frequency, rate) {
 			newBits.push( ...nothing )
 		} else {
 	
-			if (bits[x] == 1) {newBits.push( ...high )} 
-			else {newBits.push( ...low )}
+			if (bits[x] == 1) {newBits.push( ...sinePCM(frequency, 1/rate, -1, 60) )} 
+			else {newBits.push( ...sinePCM(frequency, 1/rate, 1, 60) )}
 			
 		}
 	}
@@ -1291,58 +1305,12 @@ function bpskModulate(frequency, rate) {
 	delete newBits
 }
 
-function spread(spreadingCode) {
-	var newBits = new Array()
-	spreadingCode = spreadingCode.split('').map(makeInt)
-	var invertedCode = spreadingCode.map(invert)
-
-	for (let x = 0; x < bits.length; x++) {
-		if (bits[x] == 1) {newBits.push( ...spreadingCode )} 
-		else {newBits.push( ...invertedCode )}
-	}
-	
-	bits = newBits
-	delete newBits
-}
-
-
-function qpskModulate(frequency, rate) {
+function askModulate(frequency, rate) {
 	var frequency = parseInt(frequency)
 	var rate = parseInt(rate)
 
 	var newBits = new Array()
-	var bits2symbol = {}
-	
-	bits2symbol['00'] = sinePCM( frequency, 1/rate, 0, 60 )
-	bits2symbol['01'] = sinePCM( frequency, 1/rate, 0.25, 60 )
-	bits2symbol['10'] = sinePCM( frequency, 1/rate, 0.5, 60 )
-	bits2symbol['11'] = sinePCM( frequency, 1/rate, 0.75, 60 )
-	bits2symbol['__'] = sinePCM( frequency, 1/rate, 0, 0 )
-	
-	console.log(bits2symbol)
-	
-	var length = bits.length
-	
-	if (length/rate > 130) { length = parseInt(130 * rate) }
-	
-	for (let x = 0; x < length; x+=2) {
-		if (bits.slice(x,x+23).join('') == '00000000000000000000000') { 
-			newBits.push( ...bits2symbol['__'] )
-		} else {
-			newBits.push( ...bits2symbol[ bits.slice(x,x+2).join('') ] )
-		}
-	}
-	
-	bits = newBits
-	delete newBits
-}
-
-function askModulate(frequency, rate, ammount) {
-	var frequency = parseInt(frequency)
-	var rate = parseInt(rate)
-
-	var newBits = new Array()
-	var low = sinePCM(frequency, 1/rate, 1, 60 - (60*(ammount/100)))
+	var low = sinePCM(frequency, 1/rate, 1, 6)
 	var high = sinePCM(frequency, 1/rate, 1, 60)
 	var nothing = sinePCM(frequency, 1/rate, 1, 0)
 	var length = bits.length;
@@ -1417,31 +1385,31 @@ function mergeBits(length, bias) {
 	delete newBits
 }
 
-function frameSync(pattern, distance, frameWidth) {
+function frameSync(pattern, distance, minFrame, frameWidth) {
 	if (pattern == '0') {return null}
+	if (minFrame == '0') {minFrame = 1}
 	pattern = pattern.split('').map(makeInt)
 
 	var frameStarts = new Array();
 	distance = parseInt(distance)
 	frameWidth = parseInt(frameWidth)
+	minFrame = parseInt(minFrame)
 	
-	for (let x = 0; x < bits.length; x++) {
+	for (let x = 0; x < bits.length;) {
 		if ( hammingDistance(bits.slice(x,x+pattern.length), pattern) <= distance ) {
 			frameStarts.push(x)
+			x+=minFrame
+		} else {
+			x++
 		}
 	}
 	
 	console.log( frameStarts );
 	
 	var newBits = new Array();
-	var frameLen = 0;
 	
 	for (let a = 0; a < frameStarts.length; a++) {
-		if ( a == frameStarts.length - 1 ) { frameLen = bits.length - frameStarts[a] }
-		else { frameLen =  frameStarts[a+1] - frameStarts[a] } 
-		console.log(frameLen)
-		newBits.push( ...bits.slice(frameStarts[a], frameStarts[a]+frameLen) )
-		if (frameLen < frameWidth) { newBits.push( ...(new Array(frameWidth - frameLen).fill(0)) ) }
+		newBits.push( ...bits.slice(frameStarts[a], frameStarts[a]+frameWidth) )
 	}
 	
 	bits = newBits;
@@ -1731,8 +1699,8 @@ function runOperation(operation) {
 }
 
 function applyDelta(offset) {
-	newBits = new Array(bits.length + offset.length).fill(0);
-	for (let i = offset.length; i < bits.length; i++) { 
+	newBits = new Array(bits.length);
+	for (let i = 0; i < bits.length-1; i++) { 
 		newBits[i] = (bits[i] + bits[i+parseInt(offset)]) % 2;
 	}
 	bits = newBits;
@@ -2206,7 +2174,7 @@ function updateBitRaster() {
 
 		
 		ctx.fillStyle = bitRasterBg;
-		ctx.fillRect(maxX, 0, output.width, output.height);
+		ctx.fillRect(maxX+scale, 0, output.width, output.height);
 		ctx.fillRect(0, y+scale, output.width, output.height);
 		ctx.fillRect(x+scale, y, output.width, output.height); 
 	
