@@ -302,8 +302,6 @@ Select Input Source
 <p>Header Length (Bytes): <input type='number' id='headerLen' value=44></p>
 <p>&nbsp;</p>
 <p><input type="file" id="fileSelector" onchange='readFile()'><p>
-<p>&nbsp;</p>
-<p><button onclick='parseInputData()'>Read Samples</button></p>
 </div>
 
 <div id='Time Domain' class='tool' updateFunction='updateTimeDomain()'>
@@ -312,6 +310,10 @@ Select Input Source
 
 <div id='Frequency Domain' class='tool' updateFunction='updateFrequencyDomain()'>
 <canvas id='frequencyDomainCanvas'>
+</div>
+
+<div id='Symbol Rate View' class='tool' updateFunction='updateSymbolRateView()'>
+<canvas id='symbolRateViewCanvas'>
 </div>
 
 <div id='Spectrogram' class='tool' updateFunction='updateSpectrogram()'>
@@ -363,7 +365,7 @@ Demodulate Frequency Shift Keying
 <option value=256>256</option>
 <option value=512>512</option>
 <option value=1024>1024</option>
-<option value=2048>2048</option>
+<option selected value=2048>2048</option>
 <option value=4096>4096</option>
 <option value=8192>8192</option>
 <option value=16384>16384</option>
@@ -386,7 +388,7 @@ Demodulate Frequency Shift Keying
 <option value='movingAverageDelta'>Moving Average Delta</option>
 </select>
 </p>
-<p>Frequency Marker: <input id='frequencyDomainXmarker' type='number' min=1 value=2000 onchange='updateFrequencyDomain()'></p>
+<p>Frequency Marker: <input id='frequencyDomainXmarker' type='number' min=0 value=0 onchange='updateFrequencyDomain()'></p>
 <p>Display Grids:
 <select id='frequencyDomainGridsOn' onchange='updateFrequencyDomain()'>
 <option value='true'>Yes</option>
@@ -396,6 +398,20 @@ Demodulate Frequency Shift Keying
 <p>Animation Rate (samples/second): <input id='frequencyDomainAnimationRate' type='number' value=8000></p>
 <p><button onclick='stopStartAnimateFrequencyDomain()'>Animate / Stop</button></p>
 </div>
+
+<div id='Symbol Rate View Menu' class='sideMenuItem'>
+<p>Start Sample: <input id='symbolRateViewStartSample' type='number' value=0 onchange='updateSymbolRateView()'></p>
+<p>End Sample: <input id='symbolRateViewEndSample' type='number' value=8000 onchange='updateSymbolRateView()'></p>
+<p>Max Symbol Rate: <input id='symbolRateViewMaxFrequency' type='number' value=2000 onchange='updateSymbolRateView()'></p>
+<p>Symbol Rate Marker: <input id='symbolRateViewXmarker' type='number' min=0 value=0 onchange='updateSymbolRateView()'></p>
+<p>Display Grids:
+<select id='symbolRateViewGridsOn' onchange='updateSymbolRateView()'>
+<option value='true'>Yes</option>
+<option value='false'>No</option>
+</select>
+</p>
+</div>
+
 
 <div id='Spectrogram Menu' class='sideMenuItem'>
 <p>Start Sample: <input type='number' id='spectroStartSample' value=0 onchange='updateSpectrogram()'></p>
@@ -445,8 +461,8 @@ Demodulate Frequency Shift Keying
 <div id='Time Domain Menu' class='sideMenuItem'>
 <p>Start Sample: <input type='number' id='timeDomainStartSample' value=0 onchange='updateTimeDomain()'></p>
 <p>End Sample: <input type='number' id='timeDomainEndSample' value=2000 onchange='updateTimeDomain()'></p>
-<p>Grids / Second: <input type='number' id='timeDomainGridRate' value=0 onchange='updateTimeDomain()'></p>
-<p>Grid Offset: <input type='number' id='timeDomainGridOffset' value=0 onchange='updateTimeDomain()'></p>
+<p>Grids / Second: <input type='number' id='timeDomainGridRate' value=0 min=0 onchange='updateTimeDomain()'></p>
+<p>Grid Offset: <input type='number' id='timeDomainGridOffset' value=0 min=0 onchange='updateTimeDomain()'></p>
 <p>Y Max: <input type='number' id='timeDomainYmax' value=100 onchange='updateTimeDomain()'></p>
 <p>Y Min: <input type='number' id='timeDomainYmin' value=-100 onchange='updateTimeDomain()'></p>
 <p>Y Scale:
@@ -456,6 +472,14 @@ Demodulate Frequency Shift Keying
 </select>
 </p>
 <p>Y Marker: <input type='number' id='timeDomainYmarker' value=0 onchange='updateTimeDomain()'></p>
+<p>Style:
+<select id='timeDomainStyle' onchange='updateTimeDomain()'>
+<option value='line'>Line</option>
+<option value='points'>Points</option>
+<option value='both'>Line+Points</option>
+<option value='comparison'>Demod Comparison</option>
+</select>
+</p>
 <p><button onclick='updateTimeDomain()'>Update</button></p>
 <p><button onclick='stopStartAnimateTimeDomain()'>Animate / Stop</button></p>
 </div>
@@ -546,12 +570,13 @@ function readFile() {
     	}
     }
     inputData = fileByteArray
+    setTimeout( parseInputData, 100)
 }
 
 function parseInputData() {
 	let headerLen = parseInt($('headerLen').value)
 	let bitsPerSample = parseInt($('bitsPerSample').value)
-	inputData = inputData.slice(headerLen + (Math.floor(Math.random() * 100)), inputData.len)
+	inputData = inputData.slice(headerLen, inputData.len)
 	
 	if (bitsPerSample == 8) {
 		inputData = inputData.map(toFloat)
@@ -601,6 +626,7 @@ function updateTimeDomain() {
 	let yMax = parseFloat( $('timeDomainYmax').value ) / 100
 	let yMin = parseFloat( $('timeDomainYmin').value ) / 100
 	let yMarker = parseFloat( $('timeDomainYmarker').value ) / 100
+	let style = $('timeDomainStyle').value
 	let samples = maxSample - minSample
 	let autoY = eval($('timeDomainAutoY').value)
 	
@@ -608,9 +634,12 @@ function updateTimeDomain() {
 	if (autoY) {
 		yMax = math.max(inputData) * 1.1
 		yMin = math.min(inputData) * 1.1
+		if (yMax == 0) { yMax = 0.1 }
+		if (yMin == 0) { yMin = -0.1 }
 		$('timeDomainYmax').value = yMax * 100
 		$('timeDomainYmin').value = yMin * 100
 	}
+	
 	let range = yMax - yMin
 	
 	canvas.width = canvas.parentElement.clientWidth;
@@ -619,7 +648,7 @@ function updateTimeDomain() {
 	let ph = canvas.height / range
 	
 	let gridSpacing = sampleRate / parseInt( $('timeDomainGridRate').value )
-	let gridOffset =  parseInt(parseInt( $('timeDomainGridOffset').value ) * pw) * -1
+	let gridOffset =  parseInt(parseInt( $('timeDomainGridOffset').value ) * pw)
 	let gridSize = 0
 	
 	if (gridSpacing == 0) {
@@ -644,19 +673,74 @@ function updateTimeDomain() {
 	ctx.moveTo(0, canvas.height - ((yMarker - yMin) * (ph) ))
 	ctx.lineTo(canvas.width, canvas.height - ((yMarker - yMin) * (ph) ))
 	ctx.stroke()
-	
-	ctx.beginPath()
-	ctx.strokeStyle = "white"
-	ctx.moveTo(0, ph)
 
-	let x = 0
-	for (let s = minSample; s < maxSample; s++) {
-		let y = canvas.height - ((inputData[s] - yMin) * (ph) )
-		ctx.lineTo(x, y)
-		x += pw
+
+	if (style == 'line') {
+		
+		ctx.beginPath()
+		ctx.strokeStyle = "white"
+		ctx.moveTo(0, ph)
+	
+		let x = 0
+		for (let s = minSample; s < maxSample; s++) {
+			let y = canvas.height - ((inputData[s] - yMin) * (ph) )
+			ctx.lineTo(x, y)
+			x += pw
+		}
+		ctx.stroke()
+		
+	} else if (style == 'points') {
+		ctx.fillStyle = "white"
+		let x = 0
+		for (let s = minSample; s < maxSample; s++) {
+			let y = canvas.height - ((inputData[s] - yMin) * (ph) )
+			ctx.fillRect(x,y,2,2)
+			x += pw
+		}
+	
+	} else if (style == 'both') {
+	
+		ctx.fillStyle = "yellow"
+		ctx.beginPath()
+		ctx.strokeStyle = "white"
+		ctx.moveTo(0, ph)
+	
+		let x = 0
+		for (let s = minSample; s < maxSample; s++) {
+			let y = canvas.height - ((inputData[s] - yMin) * (ph) )
+			ctx.lineTo(x, y)
+			ctx.fillRect(x,y,2,2)
+			x += pw
+		}
+		ctx.stroke()
+	
+	} else if (style == 'comparison') {
+		ctx.beginPath()
+		ctx.strokeStyle = "#999"
+		ctx.moveTo(0, ph)
+	
+		let x = 0
+		for (let s = minSample; s < maxSample; s++) {
+			let y = canvas.height - ((inputDataNoOp[s] - yMin) * (ph) )
+			ctx.lineTo(x, y)
+			x += pw
+		}
+		ctx.stroke()
+		
+		ctx.beginPath()
+		ctx.strokeStyle = "yellow"
+		ctx.moveTo(0, ph)
+		
+		x = 0
+		for (let s = minSample; s < maxSample; s++) {
+			let y = canvas.height - ((inputData[s] - yMin) * (ph) )
+			ctx.lineTo(x, y)
+			x += pw
+		}
+		ctx.stroke()
 	}
 	
-	ctx.stroke()
+
 }
 
 function updateBitRaster() {
@@ -829,6 +913,9 @@ function updateFrequencyDomain() {
 	let scalingFactor = 2 / (sampleRate * fftLen)
 	
 	let samples = [...inputData.slice(startSample, 1+startSample+(averages*fftLen))]
+	if (samples.length < averages*fftLen) { return null }
+	
+	console.log(samples)
 		
 	for (let i = 0; i<(samples.length-fftLen); i+=fftLen) {
 		let fftSamples = applyWindow(samples.slice(i,i+fftLen), windowFunction)
@@ -853,10 +940,51 @@ function updateFrequencyDomain() {
 	
 	canvas.width = canvas.parentElement.clientWidth;
 	canvas.height = canvas.parentElement.clientHeight;
-	let pw = canvas.width / psds.length
-	let ph = canvas.height / range
+	let scaleWidth = 30
+	let scaleHeight = 20
+	let width = canvas.width - scaleWidth
+	let height = canvas.height - scaleHeight
+	let pw = width / psds.length
+	let ph = height / range
+		
+	ctx.fillStyle = '#bafbff'
+	ctx.fillRect(0, height, width, 1)
 	
-	if (xMarker < 1) {xMarker = 4000}
+	let tickRate = parseInt( (sampleRate / 2) / 10 )
+	let tick = 0
+	ctx.font = "12px Monospace";
+	ctx.fillStyle = '#bafbff'
+	ctx.fillRect(0, height-5, 1, scaleHeight+5)
+	ctx.fillText("0 Hz", 3, height+scaleHeight);
+	tick += tickRate
+
+	while (tick < sampleRate/2) {
+		let x = (tick / ((sampleRate/2)/psds.length) ) * pw
+		ctx.fillStyle = '#333'
+		ctx.fillRect(x, 0, 1, height)
+		ctx.fillStyle = '#bafbff'
+		ctx.fillRect(x, height-5, 1, scaleHeight+5)
+		ctx.fillText(tick, x+3, height+scaleHeight-2);
+		tick += tickRate
+	}
+	ctx.fillStyle = '#bafbff'
+	ctx.fillRect(width, 0, 1, height)
+	
+	tickRate = range / 10.0
+	tick = tickRate
+
+	while (tick <= range+(tickRate/2)) {
+		let y = (tick / range ) * height
+		ctx.fillStyle = '#333'
+		ctx.fillRect(0, canvas.height-y, width, 1)
+		ctx.fillStyle = '#bafbff'
+		ctx.fillRect(width-5, canvas.height-y, 10, 1)
+		ctx.fillText(tick.toFixed(1), width+6, canvas.height-y+5);
+		tick += tickRate
+	}
+	ctx.fillText('~dB', width+6, 12);
+	
+	if (xMarker < 1) {xMarker = sampleRate}
 	xMarker = (xMarker / ((sampleRate/2)/psds.length) ) * pw
 	ctx.beginPath()
 	ctx.strokeStyle = "red"
@@ -870,9 +998,9 @@ function updateFrequencyDomain() {
 		ctx.beginPath()
 		ctx.strokeStyle = "red"
 		let x = xMarker
-		while (x < canvas.width) {
+		while (x < width) {
 			ctx.moveTo(x, 0)
-			ctx.lineTo(x, canvas.height)
+			ctx.lineTo(x, height)
 			x+= xMarker
 		}	
 		ctx.stroke()
@@ -884,12 +1012,127 @@ function updateFrequencyDomain() {
 
 	let x = 0
 	for (let s = 0; s < psds.length; s++) {
-		let y = canvas.height - ( ( psds[s] - minY ) * ph )
+		let y = height - ( ( psds[s] - minY ) * ph )
 		ctx.lineTo(x, y)
 		x += pw
 	}
 	
 	ctx.stroke()
+}
+
+function updateSymbolRateView() {
+	let canvas = $('symbolRateViewCanvas')
+	let ctx = canvas.getContext('2d')
+	let startSample = parseInt( $('symbolRateViewStartSample').value )
+	let endSample = parseInt( $('symbolRateViewEndSample').value )
+	let xMarker = parseInt( $('symbolRateViewXmarker').value )
+	let gridsOn = eval( $('symbolRateViewGridsOn').value )
+	let maxFrequency = parseInt( $('symbolRateViewMaxFrequency').value )
+	
+	let samples = [...inputData.slice(startSample, endSample)]
+	let results = new Array(sampleRate+1).fill(0)
+	
+	let lastValue = 0
+	let runLength = 1
+	for (let i=0; i<samples.length; i++) {
+		if (samples[i] == lastValue) {
+			runLength++
+		} else {
+			results[parseInt(sampleRate/runLength)] += 1
+			runLength = 1
+			lastValue = samples[i]
+		}
+	}
+	
+	results = results.slice(1, maxFrequency+1)
+	
+	let maxY = math.max(results)
+	let minY = math.min(results)
+	let range = maxY - minY
+	if (range == 0) {range = 1}
+	
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+	let scaleWidth = 30
+	let scaleHeight = 20
+	let width = canvas.width - scaleWidth
+	let height = canvas.height - scaleHeight
+	let pw = width / results.length
+	let ph = height / range
+		
+	ctx.fillStyle = '#bafbff'
+	ctx.fillRect(0, height, width, 1)
+	
+	let tickRate = parseInt( results.length / 10 )
+	let tick = 0
+	ctx.font = "12px Monospace";
+	ctx.fillStyle = '#bafbff'
+	ctx.fillRect(0, height-5, 1, scaleHeight+5)
+	ctx.fillText("0 Hz", 3, height+scaleHeight);
+	tick += tickRate
+
+	while (tick < results.length) {
+		let x = tick * pw
+		ctx.fillStyle = '#333'
+		ctx.fillRect(x, 0, 1, height)
+		ctx.fillStyle = '#bafbff'
+		ctx.fillRect(x, height-5, 1, scaleHeight+5)
+		ctx.fillText(tick, x+3, height+scaleHeight-2);
+		tick += tickRate
+	}
+	ctx.fillStyle = '#bafbff'
+	ctx.fillRect(width, 0, 1, height)
+	
+	tickRate = range / 10.0
+	tick = tickRate
+
+	while (tick <= range+(tickRate/2)) {
+		let y = (tick / range ) * height
+		ctx.fillStyle = '#333'
+		ctx.fillRect(0, canvas.height-y, width, 1)
+		ctx.fillStyle = '#bafbff'
+		ctx.fillRect(width-5, canvas.height-y, 10, 1)
+		ctx.fillText(tick.toFixed(1), width+6, canvas.height-y+5);
+		tick += tickRate
+	}
+	ctx.fillText('#', width+6, 12);
+	
+	if (xMarker < 1) {xMarker = maxFrequency*2}
+	let x1 = xMarker * pw
+	xMarker = xMarker * pw
+	ctx.beginPath()
+	ctx.strokeStyle = "red"
+	ctx.moveTo(xMarker, 0)
+	ctx.lineTo(xMarker, canvas.height)
+	ctx.stroke()
+	
+	if (gridsOn) {
+		console.log('grids on')
+		console.log(xMarker)
+		ctx.beginPath()
+		ctx.strokeStyle = "red"
+		let x = xMarker
+		while (x < width) {
+			ctx.moveTo(x, 0)
+			ctx.lineTo(x, height)
+			x+= xMarker
+		}	
+		ctx.stroke()
+	}
+	
+	ctx.beginPath()
+	ctx.strokeStyle = "white"
+	ctx.moveTo(0, ph)
+
+	let x = pw
+	for (let s = 0; s < results.length; s++) {
+		let y = height - ( ( results[s] - minY ) * ph )
+		ctx.lineTo(x, y)
+		x += pw
+	}
+	
+	ctx.stroke()
+	
 }
 
 function noFunction(samples) {
@@ -1072,6 +1315,15 @@ function frequencyDetect() {
 	
 }
 
+function correlate(frequency) {
+	let period = sampleRate/frequency
+	let correlated = new Array()
+	
+	for (let i=0; i<inputDataNoOp.length-period; i+=period) {
+		let samples = inputDataNoOp.slice(i,i+period)
+		let score = 0
+	}
+}
 
 function fskDemodulate() {
 	let averagingWindow = parseInt($('fskDemodulateAveraging').value)
