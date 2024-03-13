@@ -1192,7 +1192,7 @@ function pskDemodulate() {
 	thresholds = validateThresholds(thresholds)
 	sym2bit = validateBits(sym2bit)
 
-	var period = 8000.0 / frequency
+	var period = sampleRate / frequency
 	var duration = inputDataNoOp.length - startSample
 	
 	if(frequency == 0) {
@@ -1206,9 +1206,13 @@ function pskDemodulate() {
 
 	let samples = new Array()
 	
+	for (let i = 0; i<(averagingWindow/2); i++) {
+		samples.push( inputDataNoOp[0] )
+	}
+	
 	for (let j = period*phase; j < duration + (period*phase);) { 
 		for (let i=0; i<period; i++) {
-			samples.push( math.mean( inputDataNoOp.slice( parseInt(j), parseInt( j+(period/4) ) ) ) )
+			samples.push( math.mean( inputDataNoOp.slice( parseInt(j), parseInt( j+(period/8) ) ) ) )
 		}
 		j += period
     }
@@ -1337,7 +1341,7 @@ function fskDemodulate() {
 
 	var duration = inputDataNoOp.length - startSample
 	
-	let samples = new Array()
+	let samples = new Array(parseInt(averagingWindow/2)).fill(0)
 	let deltas = new Array(startSample).fill(0)
     
     let lastCross = 0
@@ -1371,6 +1375,10 @@ function fskDemodulate() {
     		samples.push(frequency)
     	}
     }
+    
+    for (let i = 0; i<(averagingWindow/2); i++) {
+		samples[i] = samples[parseInt(averagingWindow/2)+1]
+	}
     
     let averageSample = math.mean(samples)
     let maxSample = math.max(samples)
