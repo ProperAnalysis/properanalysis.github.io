@@ -1160,7 +1160,6 @@ function firFilter(coefs) {
 	
 	bits = newBits
 	delete newBits
-
 } 
 
 function addNoise(noise) {
@@ -1259,7 +1258,9 @@ function mfskModulate(lowF, shift, ary, rate) {
 	var ary = parseInt(ary)
 	
 	var symbol2pcm = []
-	var symbolLength = math.log(ary, 2)
+	var symbolLength = Math.log2(ary)
+	
+	console.log(symbolLength)
 	
 	for (let i = 0; i<ary; i++) {
 		symbol2pcm.push( sinePCM(lowF + (shift*i), 1/rate, 1, 60) )
@@ -1271,8 +1272,6 @@ function mfskModulate(lowF, shift, ary, rate) {
 	
 	for (let x = 0; x < bits.length; x+=symbolLength) {
 		newBits.push( ...symbol2pcm[ parseInt(bits.slice(x,x+symbolLength).join(''),2) ] )
-		console.log(bits.slice(x,x+symbolLength))
-		console.log( parseInt(bits.slice(x,x+symbolLength).join(''),2) )
 	}
 	
 	bits = newBits
@@ -2340,6 +2339,10 @@ function playAudio() {
 	audio.play();
 }
 
+
+
 </script>
+
+
 
 </body></html>
