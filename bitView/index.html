@@ -376,6 +376,9 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;mpskModulate&#39;, [1000,4,100]);">mpskModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;qamCustomModulate&#39;, [1000,100,'1,1 -1,1 -1,-1 1,-1']);">qamCustomModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;spreadSpecSwept&#39;, [1500,2500,25,'true']);">spreadSpecSwept</button>
+<button style="width: 100%;" onclick="addOperation(&#39;spreadSpecPhaseSwept&#39;, [2000,500,25]);">spreadSpecPhaseSwept</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addNoise&#39;, [1]);">addNoise</button>
 <button style="width: 100%;" onclick="addOperation(&#39;firFilter&#39;, [&#39;&#39;]);">FIR Filter</button>
 </div>
@@ -403,8 +406,45 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 
 <div id="addNoiseConfig" class="opsConfigHidden">
 <p>Add Noise</p>
-<p>Intended for use with PCM audio (8 bits / sample). Adds noise with a given amplitude.</p>
-<p>Amplitude: <input type="number" id="addNoise0" value="0"></p>
+<p>Intended for use with PCM audio (8 bits / sample). Adds noise at a given signal to noise ratio.</p>
+<p>SNR: <input type="number" id="addNoise0" value="0"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="spreadSpecPhaseSweptConfig" class="opsConfigHidden">
+<p>Spread Spectrum (phase swept)</p>
+<p>Produces a PCM audio stream of the bits, modulated using a frequency swept carrier, where the frequency level represents a BSPK. Can be demodulated through Frequency demodulation, followed by phase demodulation.</p>
+<p>Max frequency deviation is best effort, some combinations of baud rates and max deviations produce poor results - recommend trying different combinations.</p>
+<p>Center Frequency: <input type="number" id="spreadSpecPhaseSwept0" value="2000"></p>
+<p>Max Frequency Deviation: <input type="number" id="spreadSpecPhaseSwept1" value="500"></p>
+<p>Baud Rate: <input type="number" id="spreadSpecPhaseSwept2" value="20"></p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="spreadSpecSweptConfig" class="opsConfigHidden">
+<p>Spread Spectrum (swept)</p>
+<p>Produces a PCM audio stream of the bits, modulated using a frequency swept carrier, where up sweeps (low to high) represent a 1 and down sweeps (high to low) represet a 0. Can be demodulated through Frequency demodulation, followed by phase demodulation.</p>
+<p>Low Frequency: <input type="number" id="spreadSpecSwept0" value="1500"></p>
+<p>High Frequency: <input type="number" id="spreadSpecSwept1" value="2500"></p>
+<p>Baud Rate: <input type="number" id="spreadSpecSwept2" value="20"></p>
+<p>Pre filter: <select id="spreadSpecSwept3">
+<option value='true'>Yes</option>
+<option value='false'>No</option>
+</select>
+</p>
+<button onclick="updateOperation();">Apply</button>
+<button onclick="closeConfigureOperation();">Close</button>
+</div>
+
+<div id="qamCustomModulateConfig" class="opsConfigHidden">
+<p>Custom QAM Modulation</p>
+<p>Produces a PCM audio stream of the bits, modulated using a custom QAM constellation. Points are space separated in the format real,imaginary.</p>
+<p>Frequency: <input type="number" id="qamCustomModulate0" value="2000"></p>
+<p>Baud Rate: <input type="number" id="qamCustomModulate1" value="500"></p>
+<p>Constellation:</p>
+<p><textArea id="qamCustomModulate2">1,1 -1,1 -1,-1 1,-1</textArea></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -958,7 +998,7 @@ const positionOutput = document.getElementById('position');
 const operationsListHTML = document.getElementById('operationsList');
 var operationsList = [];
 
-var bits = Array(10000).fill(0);
+var bits = Array(1270).fill(0);
 additiveScramble("0,1,7","No","1","0","0");
 var bitsNoOp = [...bits];
 
@@ -1174,12 +1214,16 @@ function firFilter(coefs) {
 } 
 
 function addNoise(noise) {
+	noise = parseFloat(noise)
+	console.log(noise)
 	
 	var newBits = new Array()
 
 	for (let x = 0; x<bits.length; x+=8 ) {
 		let sample = (parseInt(bits.slice(x,x+8).join(''),2) - 127) / 127
-		sample = Math.round( 127 + (((sample * 100 + Math.random() * noise) / 200) * 127) )
+		sample = sample + ( Math.random(-1, 1) / noise )
+		sample = sample / (1 + (1/noise))
+		sample = Math.round( 127 + (127 * sample) )
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
 		newBits.push( ...sample )
 	}
@@ -1236,18 +1280,9 @@ function sinePCM(frequency, duration, phase=1, amplitude=60) {
 }
 
 function fskModulate(lowF, highF, rate) {
-	if ((8000 / parseFloat(rate)) % 1 > 0) {
-		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
+	rate = validateRate(rate)
+	if (rate == null) { return null }
 	
-		alert(
-			'Baud rate does not evenly divide into 8000.\n' +
-			'8000 / ' + rate + ' = ' + (8000/parseFloat(rate)) + '\n\n' + 
-			'The closest suitable rate is being used instead: ' + closestRate
-		)
-		
-		rate = closestRate
-	}
-
 	var lowPeriod = 8000 / parseFloat(lowF)
 	var highPeriod = 8000 / parseFloat(highF)
 	var symbolDuration = parseInt( 8000 / parseFloat(rate) )
@@ -1273,17 +1308,8 @@ function fskModulate(lowF, highF, rate) {
 
 
 function mfskModulate(lowF, shift, ary, rate) {
-	if ((8000 / parseFloat(rate)) % 1 > 0) {
-		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
-	
-		alert(
-			'Baud rate does not evenly divide into 8000.\n' +
-			'8000 / ' + rate + ' = ' + (8000/parseFloat(rate)) + '\n\n' + 
-			'The closest suitable rate is being used instead: ' + closestRate
-		)
-		
-		rate = closestRate
-	}
+	rate = validateRate(rate)
+	if (rate == null) { return null }
 	
 	var lowF = parseFloat(lowF)
 	var shift = parseFloat(shift)
@@ -1318,6 +1344,153 @@ function mfskModulate(lowF, shift, ary, rate) {
 }
 
 function mpskModulate(carrier, ary, rate) {
+	rate = validateRate(rate)
+	if (rate == null) { return null }
+	
+	var carrier = parseFloat(carrier)
+	var symbolDuration = 8000 / parseFloat(rate)
+	var ary = parseInt(ary)
+	
+	var constellation = new Array()
+	
+	
+	let phase = 180/ary
+	for (let i = 0; i<ary; i++) {
+		phase += 360/ary
+		let real = math.sin((math.pi/180) * phase )
+		let imaj = math.cos((math.pi/180) * phase )
+		constellation.push( math.complex(real, imaj) )
+	}
+	
+	console.log(constellation)
+	
+	let symbolLength = Math.log2(ary)
+	let complexSamples = new Array()
+	for (let x = 0; x < bits.length; x+=symbolLength) {
+		symbol = constellation[parseInt(bits.slice(x,x+symbolLength).join(''),2)]
+		for (let i = 0; i<symbolDuration; i++) {
+			complexSamples.push(symbol)
+		}
+	}
+		
+	var newBits = new Array()
+	let period = 8000 / carrier
+	for (let i = 0; i < complexSamples.length; i++) {
+		let carrierReal = Math.sin(2.0 * Math.PI * i / period)
+		let carrierImaj = Math.cos(2.0 * Math.PI * i / period)
+		let complexCarrier = math.complex(carrierReal, carrierImaj)
+		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
+		let realSignal = complexSignal.re
+		let sample = Math.round( 127 + (127 * realSignal ) )
+		if (sample > 254) {
+			console.log(sample)
+		}
+		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
+		newBits.push( ...sample )
+	}
+	
+	bits = newBits
+	delete newBits	
+
+}
+
+function spreadSpecSwept(lowFrequency, highFrequency, modulationRate, filter) {
+	modulationRate = validateRate(modulationRate)
+	if (modulationRate == null) { return null }
+	lowFrequency = parseFloat(lowFrequency)
+	highFrequency = parseFloat(highFrequency)
+	modulationRate = parseFloat(modulationRate)
+	filter = eval(filter)
+	
+	let modulationPeriod = 8000 / modulationRate
+	let frequencyRange = highFrequency - lowFrequency
+	let frequencyStep = (frequencyRange / modulationPeriod) / 2
+
+	let upSamples = new Array()
+	let downSamples = new Array()
+	
+	let frequency = lowFrequency
+	let amplitude = 1
+	for (let i=0; i<modulationPeriod; i++) {
+		if (filter) { amplitude = Math.sin( ((i*Math.PI)/modulationPeriod) ) }
+		let period = 8000 / frequency
+		let upSample = amplitude * Math.sin(2.0 * Math.PI * (i / period))
+		upSample = Math.round( 127 + (127 * upSample) )
+		upSample = ('0000000' + upSample.toString(2)).split('').slice(-8).map(makeInt)
+		upSamples.push( ...upSample)
+		frequency += frequencyStep
+	}
+	
+	frequency = highFrequency
+	for (let i=0; i<modulationPeriod; i++) {
+		if (filter) { amplitude = Math.sin( ((i*Math.PI)/modulationPeriod) ) }
+		let period = 8000 / frequency
+		let downSample = amplitude * Math.sin(2.0 * Math.PI * (i / period))
+		downSample = Math.round( 127 + (127 * downSample) )
+		downSample = ('0000000' + downSample.toString(2)).split('').slice(-8).map(makeInt)
+		downSamples.push(...downSample)
+		frequency -= frequencyStep
+	}
+	
+	let newBits = new Array()
+	
+	for (let x = 0; x < bits.length; x++) {
+		if (bits[x] == 1) {
+			newBits.push( ...upSamples )
+		} else {
+			newBits.push( ...downSamples )
+		}
+	}
+	
+	bits = newBits
+	delete newBits	
+}
+
+function spreadSpecPhaseSwept(centerFrequency, bandwidth, modulationRate) {
+	modulationRate = validateRate(modulationRate)
+	if (modulationRate == null) { return null }
+	centerFrequency = parseFloat(centerFrequency)
+	bandwidth = parseFloat(bandwidth)
+	modulationRate = parseFloat(modulationRate)
+	
+	bandwidth = parseInt( bandwidth / (modulationRate * 11) )
+	let cfPeriod = 8000 / centerFrequency
+	let modulationPeriod = 8000 / modulationRate
+	let upSamples = new Array()
+	let downSamples = new Array()
+	
+	let frequencyDelta = 0
+	for (let i=0; i<modulationPeriod; i++) {
+		frequencyDelta = bandwidth * Math.cos(2.0 * Math.PI * (i / modulationPeriod))
+		let upSample = Math.cos( (2.0 * Math.PI * (i / cfPeriod)) + (2.0 * Math.PI * frequencyDelta))
+		upSample = Math.round( 127 + (127 * upSample) )
+		upSample = ('0000000' + upSample.toString(2)).split('').slice(-8).map(makeInt)
+		upSamples.push( ...upSample)
+	}
+	
+	for (let i=0; i<modulationPeriod; i++) {
+		frequencyDelta = bandwidth * Math.cos(2.0 * Math.PI * (i / modulationPeriod)) * -1
+		let downSample = Math.cos( (2.0 * Math.PI * (i / cfPeriod)) + (2.0 * Math.PI * frequencyDelta))
+		downSample = Math.round( 127 + (127 * downSample) )
+		downSample = ('0000000' + downSample.toString(2)).split('').slice(-8).map(makeInt)
+		downSamples.push( ...downSample)
+	}
+	
+	let newBits = new Array()
+	
+	for (let x = 0; x < bits.length; x++) {
+		if (bits[x] == 1) {
+			newBits.push( ...upSamples )
+		} else {
+			newBits.push( ...downSamples )
+		}
+	}
+	
+	bits = newBits
+	delete newBits	
+}
+
+function validateRate(rate) {
 	if ((8000 / parseFloat(rate)) % 1 > 0) {
 		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
 	
@@ -1329,7 +1502,155 @@ function mpskModulate(carrier, ary, rate) {
 		
 		rate = closestRate
 	}
+	
+	let estLength = 8000 * 8 * (bits.length / rate)
+	
+	if (estLength > 80000000) {
+		alert('At this baud rate, with this many bits to send, the resulting PCM bits will exceed the array size limit. Either reduce the number of bits to send, or increase the modulation rate.')
+		rate = null
+	}
+	
+	return rate
+}
+
+function generateConstellation(xPoints, yPoints) {
+	var constellation = new Array()
+	let xOffset = 1 - (1/yPoints)
+	let yOffset = 1 - (1/yPoints)
+	if ( xPoints % 2 == 1 ) {xOffset = 1}
+	if ( yPoints % 2 == 1 ) {yOffset = 1}
+	for (let x = 0; x < xPoints; x++) {
+		for (let y = 0; y < yPoints; y++) {
+			let re = xOffset - (x/xPoints)*2
+			let im = yOffset - (y/yPoints)*2
+			constellation.push( math.complex(re , im) )
+		}
+	}
+	return constellation
+}
+
+function qamCustomModulate(carrier, rate, constellationString) {
+	constellation = new Array()
+	constellationString = constellationString.split(' ')
+	for (let i=0; i<constellationString.length; i++) {
+		let re = parseFloat(constellationString[i].split(',')[0])
+		let im = parseFloat(constellationString[i].split(',')[1])
+		constellation.push( math.complex(re, im) )
+	}
+	
+	bitsPerSymbol = Math.log2(constellation.length)
+
+	qamModulate(carrier, rate, constellation, bitsPerSymbol)
+}
+
+function qam8Modulate(carrier, rate) {
+	constellation = new Array()
+	constellation.push( math.complex(1, 0) )
+	constellation.push( math.complex(0, 1) )
+	constellation.push( math.complex(-1, 0) )
+	constellation.push( math.complex(0, -1) )
+	constellation.push( math.complex(0.5, 0.5) )
+	constellation.push( math.complex(-0.5, 0.5) )
+	constellation.push( math.complex(-0.5, -0.5) )
+	constellation.push( math.complex(0.5, -0.5) )
+	
+	qamModulate(carrier, rate, constellation, 3)
+}
+
+function qam16Modulate(carrier, rate) {
+	constellation = generateConstellation(4,4)
+	qamModulate(carrier, rate, constellation, 4)
+}
+
+function qamModulate(carrier, rate, constellation, bitsPerSymbol) {
+	rate = validateRate(rate)
+	if (rate == null) { return null }
+	
+	console.log(carrier, rate)
+	console.log(bitsPerSymbol)
+	console.log(constellation)
+	
+	var carrier = parseFloat(carrier)
+	var symbolDuration = 8000 / parseFloat(rate)
+	
+	let complexSamples = new Array()
+	for (let x = 0; x < bits.length; x+=bitsPerSymbol) {
+		symbol = constellation[parseInt(bits.slice(x,x+bitsPerSymbol).join(''),2)]
+		for (let i = 0; i<symbolDuration; i++) {
+			complexSamples.push(symbol)
+		}
+	}
 		
+	var newBits = new Array()
+	let period = 8000 / carrier
+	for (let i = 0; i < complexSamples.length; i++) {
+		let carrierReal = Math.sin(2.0 * Math.PI * i / period)
+		let carrierImaj = Math.cos(2.0 * Math.PI * i / period)
+		let complexCarrier = math.complex(carrierReal, carrierImaj)
+		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
+		let realSignal = complexSignal.re
+		let sample = Math.round( 127 + (127 * realSignal ) )
+		if (sample > 254) {
+			console.log(sample)
+		}
+		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
+		newBits.push( ...sample )
+	}
+	
+	bits = newBits
+	delete newBits	
+
+}
+
+function applyWindow(signal, func) {
+  var i, n=signal.length, args=[0,n]
+
+  // pass rest of args
+  for(i=2; i<arguments.length; i++) {
+    args[i] = arguments[i]
+  }
+
+  for(i=n-1; i>=0; i--) {
+    args[0] = i
+    signal[i][0] *= func.apply(null,args)
+  }
+  
+  for(i=n-1; i>=0; i--) {
+    args[0] = i
+    signal[i][i] *= func.apply(null,args)
+  }
+
+  return signal;
+}
+
+function hamming (i,N) {
+  return 0.54 - 0.46 * Math.cos(6.283185307179586*i/(N-1))
+}
+
+function blackmanHarris (i,N) {
+  var a0 = 0.35875,
+      a1 = 0.48829,
+      a2 = 0.14128,
+      a3 = 0.01168,
+      f = 6.283185307179586*i/(N-1)
+
+  return a0 - a1*Math.cos(f) +a2*Math.cos(2*f) - a3*Math.cos(3*f)
+}
+
+
+function old_mpskModulate(carrier, ary, rate) {
+	if ((8000 / parseFloat(rate)) % 1 > 0) {
+		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
+	
+		alert(
+			'Baud rate does not evenly divide into 8000.\n' +
+			'8000 / ' + rate + ' = ' + (8000/parseFloat(rate)) + '\n\n' + 
+			'The closest suitable rate is being used instead: ' + closestRate
+		)
+		
+		rate = closestRate
+	}
+	
 	var carrier = parseFloat(carrier)
 	var symbolDuration = 8000 / parseFloat(rate)
 	var ary = parseInt(ary)
