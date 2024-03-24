@@ -296,6 +296,8 @@ table {
 </div>
 <div id='FIR Filter Menu' class='sideMenuItemHidden'>
 </div>
+<div id='Generate Audio Menu' class='sideMenuItemHidden'>
+</div>
 
 		</div>
 	</div>
@@ -379,6 +381,14 @@ Apply FIR Filter
 <p>Filter Coefficients:</p>
 <textArea style='border: 1px solid var(--borderColor); margin-top: 10px; margin-bottom: 10px; width: 100%; height: 50%;' id='firFilterCoefs'></textArea>
 <p><button onclick='applyFIR()'>Apply Filter</button> <button onclick='removeFIR()'>Remove Filter</button>
+</div>
+
+<div id='Generate Audio' class='toolHidden' updateFunction='noUpdate()'>
+Generate Audio from Current Samples
+<p>&nbsp;</p>
+<p>Sample Rate: <input type="number" id="sampleRateInput" min=1 value=8000></input></p>
+<p><button onclick="playAudio();">Generate and Play</button></p>
+<p><audio controls="controls" id="audio" loop><source id="source" src="" type="audio/wav" /></audio></p>
 </div>
 
 	
@@ -1876,6 +1886,64 @@ function applyFIR() {
 	inputData = newSamples
 	updateUI()
 } 
+
+function number2LSFBArray(number, length) {
+	result = []
+	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
+	for (var i=0; i<number.length; i+=2) {
+		result.push( parseInt(number.substr(i,2), 16) );
+	}
+	return result.reverse();
+}
+
+function buildWavFile(bytes) {
+	var sampleRate = parseInt(document.getElementById("sampleRateInput").value);
+	var bitsPerSample = 8;
+	var channels = 1;
+	var magicNumber1 = (sampleRate * bitsPerSample * channels) / 8;
+	var magicNumber2 = (bitsPerSample * channels)
+
+	var wav = [];
+	wav.push(...[82, 73, 70, 70] ); //RIFF
+	wav.push(...number2LSFBArray(bytes.length + 36, 4) ); //size LSBF
+	wav.push(...[87, 65, 86, 69] ); //WAVE
+	wav.push(...[102, 109, 116, 32] ); //fmt 
+	wav.push(...[16, 0, 0, 0] ); //length of format data
+	wav.push(...[1, 0] ); //format
+	wav.push(...[channels, 0] ); //channels
+	wav.push(...number2LSFBArray(sampleRate, 4) ); //sample rate
+	wav.push(...number2LSFBArray(magicNumber1, 4) ); //magic number
+	wav.push(...number2LSFBArray(magicNumber2, 2) ); //magic number
+	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //magic number
+	wav.push(...[100, 97, 116, 97] ); //data
+	wav.push(...number2LSFBArray(bytes.length, 4) ); //size LSBF
+	//wav.push(...bytes);
+	
+	return new Uint8Array( wav );
+}
+
+function playAudio() {
+	var bytes = [];
+	for (let i = 0; i < inputData.length; i++) {
+		bytes.push( Math.round( 127 + (inputData[i]*127) ) );
+	}
+	
+	var wav = buildWavFile(bytes)
+	bytes = new Uint8Array(bytes)
+
+	// Create blob from Uint8Array & Object URL.
+	var blob = new Blob([wav, bytes], { type: 'audio/wav' });
+	var url = URL.createObjectURL(blob);
+
+	// Get DOM elements.
+	var audio = document.getElementById('audio');
+	var source = document.getElementById('source');
+
+	// Insert blob object URL into audio element & play.
+	source.src = url;
+	audio.load();
+	audio.play();
+}
 
 const topContainer = $('topContainer')
 const topContainerMenu = $('topContainerMenu')
