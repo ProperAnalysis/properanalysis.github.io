@@ -1434,10 +1434,10 @@ function updateIQscatter() {
 	let rangeX = maxX - minX
 	
 	if (autoScale) {
-		maxY = math.max(iSamples) + 0.1
-		minY = math.min(iSamples) - 0.1
-		maxX = math.max(qSamples) + 0.1
-		minX = math.min(qSamples) - 0.1
+		maxX = math.max(iSamples) + 0.1
+		minX = math.min(iSamples) - 0.1
+		maxY = math.max(qSamples) + 0.1
+		minY = math.min(qSamples) - 0.1
 		rangeY = maxY - minY
 		rangeX = maxX - minX
 		$('IQscatterMaxY').value = parseInt(maxY * 100)
