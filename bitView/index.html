@@ -371,12 +371,8 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button style="width: 100%;" onclick="addOperation(&#39;repeatBits&#39;, [0, 1]);">repeatBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;snipBits&#39;, [0, 0]);">snipBits</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addBits&#39;, [0, 1, &#39;&#39;]);">addBits</button>
-<button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,600,100]);">fskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;mfskModulate&#39;, [400,100,8,100]);">mfskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;bpskModulate&#39;, [1000,100]);">bpskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;mpskModulate&#39;, [1000,4,100]);">mpskModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;askModulate&#39;, [1000,100]);">askModulate</button>
-<button style="width: 100%;" onclick="addOperation(&#39;qamCustomModulate&#39;, [1000,100,'1,1 -1,1 -1,-1 1,-1']);">qamCustomModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;fskModulate&#39;, [400,200,2,100]);">fskModulate</button>
+<button style="width: 100%;" onclick="addOperation(&#39;qamModulate&#39;, [2000,500,0,'1,0 -1,0']);">qamModulate</button>
 <button style="width: 100%;" onclick="addOperation(&#39;spreadSpecSwept&#39;, [1500,2500,25,'true']);">spreadSpecSwept</button>
 <button style="width: 100%;" onclick="addOperation(&#39;spreadSpecPhaseSwept&#39;, [2000,500,25]);">spreadSpecPhaseSwept</button>
 <button style="width: 100%;" onclick="addOperation(&#39;addNoise&#39;, [1]);">addNoise</button>
@@ -438,31 +434,25 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
 
-<div id="qamCustomModulateConfig" class="opsConfigHidden">
-<p>Custom QAM Modulation</p>
-<p>Produces a PCM audio stream of the bits, modulated using a custom QAM constellation. Points are space separated in the format real,imaginary.</p>
-<p>Frequency: <input type="number" id="qamCustomModulate0" value="2000"></p>
-<p>Baud Rate: <input type="number" id="qamCustomModulate1" value="500"></p>
+<div id="qamModulateConfig" class="opsConfigHidden">
+<p>QAM Modulation</p>
+<p>Produces a PCM audio stream of the bits, modulated using a QAM constellation. Points are space separated in the format real,imaginary. Bits per symbol is automatically calculated based on the number of constellation points.</p>
+<p>Frequency: <input type="number" id="qamModulate0" value="2000"></p>
+<p>Baud Rate: <input type="number" id="qamModulate1" value="500"></p>
+<p>Harmonic Filters: <input type="number" id="qamModulate2" value="0"></p>
+<p>Preset Constellations: <select id='constellationSelector' onchange='populateConstellation()'>
+<option value='BPSK'>BPSK</option>
+<option value='QPSK'>QPSK</option>
+<option value='8PSK'>8PSK</option>
+<option value='16PSK'>16PSK</option>
+<option value='4QAM'>4QAM</option>
+<option value='8QAM'>8QAM</option>
+<option value='16QAM'>16QAM</option>
+<option value='ASKfull'>ASK Full</option>
+<option value='ASKhalf'>ASK Half</option>
+</select></p>
 <p>Constellation:</p>
-<p><textArea id="qamCustomModulate2">1,1 -1,1 -1,-1 1,-1</textArea></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="askModulateConfig" class="opsConfigHidden">
-<p>ASK Modulate</p>
-<p>Produces a PCM audio stream of the bits, modulated using amplitude shift keying. Note that Baud rates which are not integer factors of 8000 will produce fluctuating symbol lengths, which maybe difficult to demodulate.</p>
-<p>Frequency: <input type="number" id="askModulate0" value="1000"></p>
-<p>Baud Rate: <input type="number" id="askModulate1" value="100"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="bpskModulateConfig" class="opsConfigHidden">
-<p>BPSK Modulate</p>
-<p>Produces a PCM audio stream of the bits, modulated using binary phase shift keying. Note that Baud rates which are not integer factors of 8000 will produce fluctuating symbol lengths, which maybe difficult to demodulate.</p>
-<p>Frequency: <input type="number" id="bpskModulate0" value="1000"></p>
-<p>Baud Rate: <input type="number" id="bpskModulate1" value="100"></p>
+<p><textArea style='border: 1px solid; border-radius: 3px; width: calc(100% - 10px); height: 4em;' id="qamModulate3">1,0 -1,0</textArea></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -471,29 +461,9 @@ Bits to Test: <input type="number" id="columnBiasInput" value="100000">
 <p>FSK Modulate</p>
 <p>Produces a PCM audio stream of the bits, modulated using frequency shift keying. Note that Baud rates which are not integer factors of 8000 will produce fluctuating symbol lengths, which maybe difficult to demodulate.</p>
 <p>Low Frequency: <input type="number" id="fskModulate0" value="400"></p>
-<p>High Frequency: <input type="number" id="fskModulate1" value="600"></p>
-<p>Baud Rate: <input type="number" id="fskModulate2" value="100"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="mfskModulateConfig" class="opsConfigHidden">
-<p>M-ary FSK Modulate</p>
-<p>Produces a PCM audio stream of the bits, modulated using multi-frequency shift keying. Note that Baud rates which are not integer factors of 8000 will produce fluctuating symbol lengths, which maybe difficult to demodulate.</p>
-<p>Low Frequency: <input type="number" id="mfskModulate0" value="400"></p>
-<p>Shift: <input type="number" id="mfskModulate1" value="100"></p>
-<p>Number of Levels: <input type="number" id="mfskModulate2" value="8"></p>
-<p>Baud Rate: <input type="number" id="mfskModulate3" value="100"></p>
-<button onclick="updateOperation();">Apply</button>
-<button onclick="closeConfigureOperation();">Close</button>
-</div>
-
-<div id="mpskModulateConfig" class="opsConfigHidden">
-<p>M-ary PSK Modulate</p>
-<p>Produces a PCM audio stream of the bits, modulated using multi-phase shift keying. Note that Baud rates which are not integer factors of 8000 will produce fluctuating symbol lengths, which maybe difficult to demodulate.</p>
-<p>Low Frequency: <input type="number" id="mpskModulate0" value="1000"></p>
-<p>Phase levels: <input type="number" id="mpskModulate1" value="4"></p>
-<p>Baud Rate: <input type="number" id="mpskModulate2" value="100"></p>
+<p>Shift: <input type="number" id="fskModulate1" value="100"></p>
+<p>Number of Levels: <input type="number" id="fskModulate2" value="8"></p>
+<p>Baud Rate: <input type="number" id="fskModulate3" value="100"></p>
 <button onclick="updateOperation();">Apply</button>
 <button onclick="closeConfigureOperation();">Close</button>
 </div>
@@ -1254,60 +1224,7 @@ function frequencyShift(frequency) {
 	delete newBits
 }
 
-
-function sinePCM(frequency, duration, phase=1, amplitude=60) {
-
-	console.log(frequency)
-
-	var period = 8000 / frequency
-	var duration = parseInt(duration * 8000)
-	
-	if(frequency == 0) {
-		samples = '000000'.repeat(duration)
-		return samples.split('').map(makeInt)
-	}
-
-	var newBits = new Array()
-	var sample = 0
-	
-	for (let j = 0; j < duration; ++j) { 
-		sample = Math.round( Math.random() + 127 + (phase * amplitude * (Math.sin(2.0 * Math.PI * j / period))));
-		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
-		newBits.push( ...sample )
-    }
-    
-    return newBits
-}
-
-function fskModulate(lowF, highF, rate) {
-	rate = validateRate(rate)
-	if (rate == null) { return null }
-	
-	var lowPeriod = 8000 / parseFloat(lowF)
-	var highPeriod = 8000 / parseFloat(highF)
-	var symbolDuration = parseInt( 8000 / parseFloat(rate) )
-
-	var newBits = new Array()
-	var length = bits.length ;
-	
-	let j = 0
-	let period = lowPeriod
-	for (let x = 0; x < bits.length; x++) {
-		if (bits[x] == 1) { period = highPeriod} else { period = lowPeriod }
-		for (let i = 0; i<symbolDuration; i++) {
-			let sample = Math.round( Math.random() + 127 + (60 * (Math.sin(2.0 * Math.PI * j / period))));
-			sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
-			newBits.push( ...sample )
-			j++
-		}
-	}
-	
-	bits = newBits
-	delete newBits
-}
-
-
-function mfskModulate(lowF, shift, ary, rate) {
+function fskModulate(lowF, shift, ary, rate) {
 	rate = validateRate(rate)
 	if (rate == null) { return null }
 	
@@ -1336,62 +1253,10 @@ function mfskModulate(lowF, shift, ary, rate) {
 			newBits.push( ...sample )
 			j++
 		}
-		
 	}
 	
 	bits = newBits
 	delete newBits
-}
-
-function mpskModulate(carrier, ary, rate) {
-	rate = validateRate(rate)
-	if (rate == null) { return null }
-	
-	var carrier = parseFloat(carrier)
-	var symbolDuration = 8000 / parseFloat(rate)
-	var ary = parseInt(ary)
-	
-	var constellation = new Array()
-	
-	
-	let phase = 180/ary
-	for (let i = 0; i<ary; i++) {
-		phase += 360/ary
-		let real = math.sin((math.pi/180) * phase )
-		let imaj = math.cos((math.pi/180) * phase )
-		constellation.push( math.complex(real, imaj) )
-	}
-	
-	console.log(constellation)
-	
-	let symbolLength = Math.log2(ary)
-	let complexSamples = new Array()
-	for (let x = 0; x < bits.length; x+=symbolLength) {
-		symbol = constellation[parseInt(bits.slice(x,x+symbolLength).join(''),2)]
-		for (let i = 0; i<symbolDuration; i++) {
-			complexSamples.push(symbol)
-		}
-	}
-		
-	var newBits = new Array()
-	let period = 8000 / carrier
-	for (let i = 0; i < complexSamples.length; i++) {
-		let carrierReal = Math.sin(2.0 * Math.PI * i / period)
-		let carrierImaj = Math.cos(2.0 * Math.PI * i / period)
-		let complexCarrier = math.complex(carrierReal, carrierImaj)
-		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
-		let realSignal = complexSignal.re
-		let sample = Math.round( 127 + (127 * realSignal ) )
-		if (sample > 254) {
-			console.log(sample)
-		}
-		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
-		newBits.push( ...sample )
-	}
-	
-	bits = newBits
-	delete newBits	
-
 }
 
 function spreadSpecSwept(lowFrequency, highFrequency, modulationRate, filter) {
@@ -1513,7 +1378,7 @@ function validateRate(rate) {
 	return rate
 }
 
-function generateConstellation(xPoints, yPoints) {
+function generateQAMConstellation(xPoints, yPoints) {
 	var constellation = new Array()
 	let xOffset = 1 - (1/yPoints)
 	let yOffset = 1 - (1/yPoints)
@@ -1523,14 +1388,87 @@ function generateConstellation(xPoints, yPoints) {
 		for (let y = 0; y < yPoints; y++) {
 			let re = xOffset - (x/xPoints)*2
 			let im = yOffset - (y/yPoints)*2
-			constellation.push( math.complex(re , im) )
+			constellation.push( re + ',' + im )
 		}
 	}
-	return constellation
+	return constellation.join(' ')
 }
 
-function qamCustomModulate(carrier, rate, constellationString) {
-	constellation = new Array()
+function generatePSKconsetllation(points) {
+	var constellation = new Array()
+	let amplitude = 1
+	let angle = ((2 * Math.PI) / points) / 2
+	for (let x=0; x<points; x++) {
+		i = Math.round( Math.sin(angle) * 1000) / 1000
+		q = Math.round( Math.cos(angle) * 1000) / 1000
+		constellation.push(i + ',' + q)
+		angle += (2 * Math.PI) / points
+	}
+	console.log(constellation)
+	return constellation.join(' ')
+}
+
+
+function populateConstellation() {
+	let selectedConstellation = document.getElementById('constellationSelector').value
+	constellation = eval('constellation' + selectedConstellation + '()')
+	let textArea = document.getElementById('qamModulate3')
+	textArea.value = constellation
+}
+
+function constellationBPSK() {
+	let c = generatePSKconsetllation(2)
+	return c
+}
+
+function constellationQPSK() {
+	let c = generatePSKconsetllation(4)
+	return c
+}
+
+function constellation8PSK() {
+	let c = generatePSKconsetllation(8)
+	return c
+}
+
+function constellation16PSK() {
+	let c = generatePSKconsetllation(16)
+	return c
+}
+
+function constellation4QAM() {
+	let c = generateQAMConstellation(2,2)
+	return c
+}
+
+function constellation8QAM() {
+	let c = ''
+	c += '1,0 '
+	c += '0,1 '
+	c += '-1,0 '
+	c += '0,-1 '
+	c += '0.5,0.5 '
+	c += '-0.5,0.5 '
+	c += '-0.5,-0.5 '
+	c += '0.5,-0.5'
+	return c
+}
+
+function constellationASKfull() {
+	return '1,0 0,0'
+}
+
+function constellationASKhalf() {
+	return '2,0 1,0'
+}
+
+function constellation16QAM() {
+	let c = generateQAMConstellation(4,4)
+	return c
+}
+
+function qamModulate(carrier, rate, filterIterations, constellationString) {
+	let constellation = new Array()
 	constellationString = constellationString.split(' ')
 	for (let i=0; i<constellationString.length; i++) {
 		let re = parseFloat(constellationString[i].split(',')[0])
@@ -1538,31 +1476,8 @@ function qamCustomModulate(carrier, rate, constellationString) {
 		constellation.push( math.complex(re, im) )
 	}
 	
-	bitsPerSymbol = Math.log2(constellation.length)
-
-	qamModulate(carrier, rate, constellation, bitsPerSymbol)
-}
-
-function qam8Modulate(carrier, rate) {
-	constellation = new Array()
-	constellation.push( math.complex(1, 0) )
-	constellation.push( math.complex(0, 1) )
-	constellation.push( math.complex(-1, 0) )
-	constellation.push( math.complex(0, -1) )
-	constellation.push( math.complex(0.5, 0.5) )
-	constellation.push( math.complex(-0.5, 0.5) )
-	constellation.push( math.complex(-0.5, -0.5) )
-	constellation.push( math.complex(0.5, -0.5) )
+	let bitsPerSymbol = Math.log2(constellation.length)
 	
-	qamModulate(carrier, rate, constellation, 3)
-}
-
-function qam16Modulate(carrier, rate) {
-	constellation = generateConstellation(4,4)
-	qamModulate(carrier, rate, constellation, 4)
-}
-
-function qamModulate(carrier, rate, constellation, bitsPerSymbol) {
 	rate = validateRate(rate)
 	if (rate == null) { return null }
 	
@@ -1573,6 +1488,18 @@ function qamModulate(carrier, rate, constellation, bitsPerSymbol) {
 	var carrier = parseFloat(carrier)
 	var symbolDuration = 8000 / parseFloat(rate)
 	
+	let maxAmplitude = 0
+	for (let i=0; i<constellation.length; i++) {
+		let amplitude = constellation[i].toPolar().r
+		if (amplitude > maxAmplitude) {maxAmplitude = amplitude}
+	}
+	let scale = 1/maxAmplitude
+	
+	for (let i=0; i<constellation.length; i++) {
+		constellation[i].re = constellation[i].re * scale
+		constellation[i].im = constellation[i].im * scale
+	}
+	
 	let complexSamples = new Array()
 	for (let x = 0; x < bits.length; x+=bitsPerSymbol) {
 		symbol = constellation[parseInt(bits.slice(x,x+bitsPerSymbol).join(''),2)]
@@ -1580,7 +1507,24 @@ function qamModulate(carrier, rate, constellation, bitsPerSymbol) {
 			complexSamples.push(symbol)
 		}
 	}
+	
+	if (filterIterations) {
+	
+		let averagingWindow = parseInt(symbolDuration/1.5)
 		
+		for (let i = 0; i < averagingWindow*filterIterations; i++) {
+			complexSamples.push( math.complex(0,0) )
+			complexSamples.unshift( math.complex(0,0) )
+		}
+		
+		for (let i = 0; i < filterIterations; i++)
+			for (let x =0; x < complexSamples.length-averagingWindow; x++) {
+				let windowSamples = complexSamples.slice(x, x+averagingWindow) 
+				windowSamples = applyWindow(windowSamples, blackmanHarris)
+				complexSamples[x] = math.mean(windowSamples)
+		}
+	}
+	
 	var newBits = new Array()
 	let period = 8000 / carrier
 	for (let i = 0; i < complexSamples.length; i++) {
@@ -1589,8 +1533,8 @@ function qamModulate(carrier, rate, constellation, bitsPerSymbol) {
 		let complexCarrier = math.complex(carrierReal, carrierImaj)
 		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
 		let realSignal = complexSignal.re
-		let sample = Math.round( 127 + (127 * realSignal ) )
-		if (sample > 254) {
+		let sample = Math.round( Math.random() + 127 + (127 * realSignal ) )
+		if (sample > 255) {
 			console.log(sample)
 		}
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
@@ -1635,131 +1579,6 @@ function blackmanHarris (i,N) {
       f = 6.283185307179586*i/(N-1)
 
   return a0 - a1*Math.cos(f) +a2*Math.cos(2*f) - a3*Math.cos(3*f)
-}
-
-
-function old_mpskModulate(carrier, ary, rate) {
-	if ((8000 / parseFloat(rate)) % 1 > 0) {
-		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
-	
-		alert(
-			'Baud rate does not evenly divide into 8000.\n' +
-			'8000 / ' + rate + ' = ' + (8000/parseFloat(rate)) + '\n\n' + 
-			'The closest suitable rate is being used instead: ' + closestRate
-		)
-		
-		rate = closestRate
-	}
-	
-	var carrier = parseFloat(carrier)
-	var symbolDuration = 8000 / parseFloat(rate)
-	var ary = parseInt(ary)
-	
-	var symbol2phase = []
-	var symbolLength = Math.log2(ary)
-	
-	for (let i = 0; i<ary; i++) {
-		symbol2phase.push( i/ary + (1/(ary*2)) )
-	}
-	
-	console.log(symbol2phase)
-
-	var newBits = new Array()
-	
-	let j = 0
-	let period = 8000 / carrier
-	let amplitude = 60
-	for (let x = 0; x < bits.length; x+=symbolLength) {
-		phase = symbol2phase[parseInt(bits.slice(x,x+symbolLength).join(''),2)]
-		
-		for (let i = 0; i<symbolDuration; i++) {
-			let sample = Math.round( Math.random() + 127 + (amplitude * (Math.sin(2.0 * Math.PI * (j+(phase*period)) / period))));
-			sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
-			newBits.push( ...sample )
-			j++
-		}
-		
-	}
-	
-	bits = newBits
-	delete newBits
-}
-
-function bpskModulate(frequency, rate) {
-	if ((8000 / parseFloat(rate)) % 1 > 0) {
-		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
-	
-		alert(
-			'Baud rate does not evenly divide into 8000.\n' +
-			'8000 / ' + rate + ' = ' + (8000/parseFloat(rate)) + '\n\n' + 
-			'The closest suitable rate is being used instead: ' + closestRate
-		)
-		
-		rate = closestRate
-	}
-	
-	var frequency = parseInt(frequency)
-	var rate = parseInt(rate)
-
-	var newBits = new Array()
-	var low = sinePCM(frequency, 1/rate, 1, 60)
-	var high = sinePCM(frequency, 1/rate, -1, 60)
-	var nothing = sinePCM(frequency, 1/rate, 1, 0)
-	var length = bits.length;
-	if (length/rate > 130) { length = parseInt(130 * rate) }
-	
-	for (let x = 0; x < length; x++) {
-		if (bits.slice(x,x+24).join('') == '000000000000000000000000') { 
-			newBits.push( ...nothing )
-		} else {
-	
-			if (bits[x] == 1) {newBits.push( ...sinePCM(frequency, 1/rate, -1, 60) )} 
-			else {newBits.push( ...sinePCM(frequency, 1/rate, 1, 60) )}
-			
-		}
-	}
-	
-	bits = newBits
-	delete newBits
-}
-
-
-function askModulate(frequency, rate) {
-	if ((8000 / parseFloat(rate)) % 1 > 0) {
-		let closestRate = 8000 / parseInt(8000 / parseFloat(rate))
-	
-		alert(
-			'Baud rate does not evenly divide into 8000.\n' +
-			'8000 / ' + rate + ' = ' + (8000/parseFloat(rate)) + '\n\n' + 
-			'The closest suitable rate is being used instead: ' + closestRate
-		)
-		
-		rate = closestRate
-	}
-	
-	var frequency = parseFloat(frequency)
-	var rate = parseFloat(rate)
-
-	var newBits = new Array()
-	var low = sinePCM(frequency, 1/rate, 1, 6)
-	var high = sinePCM(frequency, 1/rate, 1, 60)
-	var nothing = sinePCM(frequency, 1/rate, 1, 0)
-	var length = bits.length;
-	if (length/rate > 130) { length = parseInt(130 * rate) }
-	
-	for (let x = 0; x < length; x++) {
-		if (bits.slice(x,x+24).join('') == '000000000000000000000000') { 
-			newBits.push( ...nothing )
-		} else {
-	
-			if (bits[x] == 1) {newBits.push( ...high )} 
-			else {newBits.push( ...low )}
-			
-		}
-	}
-	
-	bits = newBits
-	delete newBits
 }
 
 function findPattern(pattern, distance) {
