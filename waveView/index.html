@@ -294,6 +294,8 @@ table {
 </div>
 <div id='FSK Demodulate Menu' class='sideMenuItemHidden'>
 </div>
+<div id='ASK Demodulate Menu' class='sideMenuItemHidden'>
+</div>
 <div id='FIR Filter Menu' class='sideMenuItemHidden'>
 </div>
 <div id='Generate Audio Menu' class='sideMenuItemHidden'>
@@ -372,6 +374,18 @@ Demodulate Frequency Shift Keying
 <tr><td>Symbol Thresholds:</td><td><input type='text' id='fskDemodulateThresholds' value=''></td></tr>
 <tr><td>Symbol Mapping:</td><td><input type='text' id='fskDemodulateSym2Bit' value=''></td></tr>
 <tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button> <button onclick='fskDemodulateUndo()'>Undo Demodulation</button></td></tr>
+</table>
+</div>
+
+<div id='ASK Demodulate' class='toolHidden' updateFunction='noUpdate()'>
+Demodulate Amplitude Shift Keying
+<table>
+<tr><td style="width:30%;">Start Sample:</td><td><input type='number' id='askDemodulateStart' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td>Averaging Window:</td><td><input type='number' id='askDemodulateAveraging' value=16 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td>Symbol Rate:</td><td><input type='number' id='askDemodulateSymbolRate' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td>Symbol Thresholds:</td><td><input type='text' id='askDemodulateThresholds' value=''></td></tr>
+<tr><td>Symbol Mapping:</td><td><input type='text' id='askDemodulateSym2Bit' value=''></td></tr>
+<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button> <button onclick='askDemodulateUndo()'>Undo Demodulation</button></td></tr>
 </table>
 </div>
 
@@ -1489,12 +1503,64 @@ function pskDemodulateUndo() {
 	updateUI()
 }
 
+function reduceFraction(x, y) {
+    let d = __gcd(x, y);
+    x = parseInt(x / d);
+    y = parseInt(y / d);
+ 	return [x, y]
+}
+ 
+function __gcd(a, b) { 
+    if (b == 0) { return a }
+    return __gcd(b, a % b)
+}
+
+function interpolateZero(samples, rate) {
+	let newSamples = new Array()
+	for (let i=0; i<samples.length; i++) {
+		newSamples.push(samples[i])
+		for (let x=1; x<rate; x++) {
+			newSamples.push(0)
+		}
+	}
+	return newSamples
+}
+
+function interpolate(samples, rate) {
+	let newSamples = new Array()
+	for (let i=0; i<samples.length-1; i++) {
+		let delta = samples[i+1] - samples[i]
+		let deltaPerPoint = delta / rate
+		for (let x=0; x<rate; x++) {
+			newSamples.push( samples[i] + (deltaPerPoint*x) )
+		}
+	}
+	return newSamples
+}
+
+function decimate(samples, decimation) {
+	let newSamples = new Array()
+	for (let i=0; i<samples.length; i+=decimation) {
+		newSamples.push(samples[i])
+	}
+	
+	return newSamples
+}
+
+function resample(newRate) {
+	let factors = reduceFraction(newRate, sampleRate)
+	inputDataNoOp = interpolate(inputDataNoOp, factors[0])
+	inputDataNoOp = decimate(inputDataNoOp, factors[1])
+	inputData = inputDataNoOp
+	updateUI()
+}
+
 var iSamples = new Array()
 var qSamples = new Array()
 function pskDemodulate() {
 	let amplitude = parseFloat($('pskDemodulateAmplitude').value) / 100
 	let frequency = parseFloat($('pskDemodulateFrequency').value)
-	let phase = parseFloat($('pskDemodulatePhase').value) / 90
+	let phase = (parseFloat($('pskDemodulatePhase').value) / 90) * ((sampleRate/4) / frequency)
 	let averagingWindow = parseFloat($('pskDemodulateAveraging').value)
 	let symbolRate = parseFloat($('pskDemodulateSymbolRate').value)
 	let startSample = parseInt($('pskDemodulateStart').value)
@@ -1506,12 +1572,6 @@ function pskDemodulate() {
 	var period = (sampleRate / frequency) * -1
 	var duration = inputDataNoOp.length - startSample
 	
-	if(frequency == 0) {
-		inputData = [...inputDataNoOp.slice(startSample,inputDataNoOp.length)]
-		updateUI()
-		return null
-	}
-	
 	let symbolWindow = 1
 	if (symbolRate > 0) { symbolWindow = sampleRate / symbolRate }
 
@@ -1519,27 +1579,25 @@ function pskDemodulate() {
 	iSamples = new Array()
 	qSamples = new Array()
 	
+	if (frequency == 0) {
+	for (let i=0; i<inputDataNoOp.length-2; i++) {
+		let sample = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
+		samples.push(sample.re)
+		iSamples.push(sample.re)
+		qSamples.push(sample.im)
+	}
+	} else {
 	for (let i=0; i<inputDataNoOp.length-2; i++) {
 		let complexS = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
 		let carrierSin = Math.sin(2.0 * Math.PI * (i+phase) / period) * amplitude
 		let carrierCos = Math.cos(2.0 * Math.PI * (i+phase) / period) * amplitude
 		let complexC = math.complex(carrierSin, carrierCos)
 		let sample = math.multiply(complexS, complexC)
-		let angle = 1.80 + sample.toPolar().phi * 1.80/Math.PI
-		samples.push(angle)
+		samples.push(sample.re)
 		iSamples.push(sample.re)
 		qSamples.push(sample.im)
 	}
-	
-    let averageSample = math.mean(samples)
-    let maxSample = math.max(samples)
-    let minSample = math.min(samples)
-    let rangeSamples = maxSample - minSample
-    let scale = 3.6 / rangeSamples
-    
-    for (let i = 0; i<samples.length-averagingWindow; i++) {
-    	samples[i] = (samples[i] - averageSample) * scale
-    }
+	}
     
     if (averagingWindow > 1) {
     for (let i = 0; i<samples.length-averagingWindow; i++) {
@@ -1563,8 +1621,8 @@ function pskDemodulate() {
     let qAveraged = new Array()
     
     for (let s = startSample; s < iSamples.length;) {
-    	iAveraged.push( math.mean( iSamples.slice(s, s+symbolWindow) )  )
-    	qAveraged.push( math.mean( qSamples.slice(s, s+symbolWindow) )  )
+    	iAveraged.push( iSamples[parseInt(s)] )
+    	qAveraged.push( qSamples[parseInt(s)] )
     	s += symbolWindow
     }
     
@@ -1606,20 +1664,40 @@ function analyticSignalUndo() {
 	updateUI()
 }
 
+function analyticOperationNone(samples) {
+	return samples
+}
+
+function RMS(windowLength) {
+	 let samples = new Array()
+	 
+	 for (let i=0; i<inputDataNoOp.length-windowLength; i++) {
+	 	samples.push( math.max(inputDataNoOp.slice(i, i+windowLength)) / math.pow(2, 0.5) )
+	 }
+	 
+	 inputData = samples
+	 updateUI()
+}
+
 function analyticSignal() {
 	let frequency = parseFloat($('analyticFrequency').value)
 	let averagingWindow = parseFloat($('analyticAveraging').value)
 	let phase = parseFloat($('analyticPhase').value) / 90
 	let power = parseFloat($('analyticPower').value)
-
-	var period = (sampleRate / frequency) * -1
+	
+	var period = (sampleRate*power / frequency) * -1
 
 	let samples = new Array()
 	iSamples = new Array()
 	qSamples = new Array()
 	
-	for (let i=0; i<inputDataNoOp.length-2; i++) {
-		let complexS = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
+	let newSamples = inputDataNoOp
+	if (power >= 2) { newSamples = interpolate(newSamples,2) }
+	if (power >= 4) { newSamples = interpolate(newSamples,2) }
+	if (power == 8) { newSamples = interpolate(newSamples,2) }
+	
+	for (let i=0; i<newSamples.length-2; i++) {
+		let complexS = math.complex(newSamples[i], newSamples[i+1])
 		let carrierSin = Math.sin(2.0 * Math.PI * (i+phase) / period)
 		let carrierCos = Math.cos(2.0 * Math.PI * (i+phase) / period)
 		let complexC = math.complex(carrierSin, carrierCos)
@@ -1769,6 +1847,89 @@ function fskDemodulate() {
     
     updateUI()
 }
+
+function askDemodulateUndo() {
+	inputData = inputDataNoOp
+	updateUI()	
+}
+
+function askDemodulate() {
+	let averagingWindow = parseInt($('askDemodulateAveraging').value)
+	let symbolRate = parseFloat($('askDemodulateSymbolRate').value)
+	let startSample = parseInt($('askDemodulateStart').value)
+	let thresholds = $('askDemodulateThresholds').value.split(',')
+	let sym2bit = $('askDemodulateSym2Bit').value.split(',')
+	thresholds = validateThresholds(thresholds)
+	sym2bit = validateBits(sym2bit)
+
+	var duration = inputDataNoOp.length - startSample
+	
+	let samples = new Array(parseInt(averagingWindow/2)).fill(0)
+	let deltas = new Array(startSample).fill(0)
+    
+    let lastCross = 0
+    
+	if (symbolRate == 0) {
+		symbolWindow = 1
+	} else {
+		symbolWindow = sampleRate / symbolRate
+	}
+    
+	for (let i=0; i<inputDataNoOp.length; i++) {
+		samples.push( math.abs(inputDataNoOp[i]) )
+	}
+    
+    let averageSample = math.mean(samples)
+    let maxSample = math.max(samples)
+    let minSample = math.min(samples)
+    let rangeSamples = maxSample - minSample
+    let scale = 4 / rangeSamples
+    
+    for (let i = 0; i<samples.length-averagingWindow; i++) {
+    	samples[i] = (samples[i] - averageSample) * scale
+    }
+    
+    if (averagingWindow > 1) {
+    for (let i = 0; i<samples.length-averagingWindow; i++) {
+    	let windowSamples = samples.slice(i,i+averagingWindow)
+    	windowSamples = applyWindow(windowSamples, hamming)
+    	samples[i] = math.mean(windowSamples)
+    }
+    }
+    
+    let averaged = new Array()
+    
+    for (let s = startSample; s < samples.length;) {
+    	averaged.push( math.mean( samples.slice(s, s+symbolWindow) )  )
+    	s += symbolWindow
+    }
+    
+    inputData = averaged	
+    
+    if (thresholds.length != 0) {	
+    	for (let s = 0; s < inputData.length; s++) {
+    		let symbol = thresholds.length
+			for (let t = 0; t < thresholds.length; t++) {
+				if (inputData[s] > thresholds[t]) { break }
+				symbol -= 1
+			}
+			inputData[s] = symbol
+		}
+    }
+    
+    if (sym2bit.length != 0) {
+    	let newBits = new Array()
+    	
+    	for (let i = 0; i < inputData.length; i++) {
+    		newBits.push( ...sym2bit[ parseInt(inputData[i]) ] )
+    	}
+    	
+    	inputData = newBits
+    }
+    
+    updateUI()
+}
+
 
 function makeInt(string) {
 	return parseInt(string)
