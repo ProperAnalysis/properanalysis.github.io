@@ -1,0 +1,595 @@
+<html>
+<head>
+<style>
+:root {
+    --backgroundLight: #ffffff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #8d8d8d;
+    --buttonbgLight: #e5e5e5;
+    --entrybgLight: #efefef;
+    --backgroundLight: #e2fcff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #2c2c2c;
+    --buttonbgLight: #e2fcff;
+    --entrybgLight: #ffffff;
+    --buttonbgHoverLight: #54fff5;
+    --buttonbgSelectedLight: #54fff5;
+    --buttonfgSelectedLight: #000;
+    --textColorLight: #000;
+    --tableHeadColorLight: #005861;
+    --tableHighlightColorLight: #910000;
+    --tableHighlightColorLight2: #84006c;
+    --cellColorLight: #ffffff;
+    --cellBorderLight: #9e9e9e;
+    --cellBorderStrongLight: #666;
+    --shadowColorLight: #fff;
+    --tableTopLeftLight: #fff;
+    --bitRasterBgLight: #efefef;
+    
+    --backgroundDark: #092a30;
+    --midgroundDark: #000;
+    --borderColorDark: #bafbff;
+    --entrybgDark: #222;
+    --buttonbgDark: #003a2f;
+    --buttonbgHoverDark: #009a85;
+    --buttonbgSelectedDark: #00ffd1;
+    --buttonfgSelectedDark: #000;
+    --textColorDark: #ccfff8;
+    --tableHeadColorDark: #4bffc5;
+    --tableHighlightColorDark: #ff8383;
+    --tableHighlightColorDark2: #e78bff;
+    --cellColorDark: #050505;
+    --cellBorderDark: #606060;
+    --cellBorderStrongDark: #777;
+    --shadowColorDark: #000;
+    --tableTopLeftDark: #484848;
+    --bitRasterBgDark: #222;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --buttonbg: var(--buttonbgDark);
+    --entrybg: var(--entrybgDark);
+    --buttonbgHover: var(--buttonbgHoverDark);
+    --buttonbgSelected: var(--buttonbgSelectedDark);
+    --buttonfgSelected: var(--buttonfgSelectedDark);
+    --textColor: var(--textColorDark);
+    --tableHeadColor: var(--tableHeadColorDark);
+    --tableHighlightColor: var(--tableHighlightColorDark);
+    --tableHighlightColor2: var(--tableHighlightColorDark2);
+    --cellColor: var(--cellColorDark);
+    --cellBorder: var(--cellBorderDark);
+    --cellBorderStrong: var(--cellBorderStrongDark);
+    --shadowColor: var(--shadowColorDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --bitRasterBg: var(--bitRasterBgDark);
+}
+
+*::-webkit-scrollbar {
+    -webkit-appearance: none;
+}
+*::-webkit-scrollbar:vertical {
+    width: 1vh;
+}
+*::-webkit-scrollbar:horizontal {
+    height: 1vh;
+}
+*::-webkit-scrollbar-thumb {
+	border-radius: 1vh;
+    border: 1px solid var(--borderColor);
+    background-Color: var(--buttonbg);
+}
+*::-webkit-scrollbar-track { 
+	border-radius: 3px;
+    border: none;
+    background-Color: var(--midground);
+} 
+
+::-webkit-scrollbar-corner {
+    background-Color: var(--midground); 
+}
+
+html, body {
+	padding: 0px;
+	margin: 1vmax;
+	width: calc(100% - 2vmax);
+	height: calc(100% - 2vmax);
+	overflow: hidden;
+	background: var(--midground);
+}
+
+#container {
+	width: 100%;
+	height: 100%;
+}
+
+table {
+	font-size: 2vmax;
+	font-family: Monospace;
+	color: #fff;
+	width: 100%;
+}
+
+#specanContainer {
+    height: calc(20% - 1vmax);
+    width: calc(100% - 0.5vmax);
+    margin-bottom: 1vmax;
+    border: 2px solid var(--borderColor);
+    border-radius: 1vh;
+    outline: 1px solid var(--borderColor);
+    padding: inherit;
+    overflow: hidden;
+}
+
+#inputContainer {
+    background: #000;
+    height: calc(80% - 20vmax);
+    width: calc(100% - 0.5vmax);
+    overflow: scroll;
+    border: 2px solid var(--borderColor);
+    border-radius: 1vh;
+    display: table;
+    overflow: hidden;
+}
+
+textArea {
+	font-size: 2vmax;
+    color: #fff;
+    background: #000;
+    height: 100%;
+    width: 100%;
+    overflow: scroll;
+    border: 0px;
+    outline: 0px;
+}
+
+button, input::file-selector-button, input[type="number"], input[type="text"], select{
+	background-Color: var(--entrybg);
+	border: 1px var(--borderColor) solid;
+	border-radius: 2px;
+    color: var(--textColor);
+    margin: 0px;
+    font-family: Monospace;
+    outline: none;
+    font-size: 2vmax;
+    width: 100%;
+}
+
+button {
+	background-Color: var(--buttonbg);
+}
+
+button:hover, input::file-selector-button:hover{
+	background-Color: var(--buttonbgHover);
+}
+
+td {
+	padding-top: 1vh;
+}
+
+audio {
+	display: none;
+	width; 0px;
+	height; 0px;
+}
+
+</style>
+</head>
+<body>
+<audio controls="controls" id="audio"><source id="source" src="" type="audio/wav" /></audio>
+<div style='display: none;' id='hiddenspecanContainer'></div>
+<div id='container'>
+
+<div id='specanContainer'>
+<button id='displaySpecanButton'>Display SpecAn</button>
+<canvas style='filter: hue-rotate(270deg);' id='waterfallCanvas'></canvas>
+</div>
+
+<div id='inputContainer'>
+<textArea id='inputData'></textArea>
+</div>
+
+<table>
+<tr><td style='width: 50%;'>Modulation Type:</td>
+<td><select id='modulationCommand'>
+<option value='bpsk('>BPSK</option>
+<option value='askHalf('>ASK 50%</option>
+<option value='askFull('>ASK 100%</option>
+<option value='fsk(850, '>FSK 850Hz</option>
+<option value='fsk(450, '>FSK 450Hz</option>
+<option value='fsk(170, '>FSK 170Hz</option>
+<option value='fsk(85, '>FSK 85Hz</option>
+</select></td></tr>
+
+<tr><td>Modulation Rate:</td>
+<td><input id='modulationRate' type='number' min='1' max='2000' value='50'></input></td></tr>
+
+<tr><td>Frequency:</td>
+<td><input id='frequency' type='number' min='1' max='4000' value='2000'></input></td></tr>
+
+<tr><td colspan=2>
+<button style='width: 100%;' onclick='sendIt()'>Send it</button>
+</td></tr>
+
+</table>
+</div>
+</body>
+
+<script src="math.js" type="text/javascript"></script>
+
+<script type="module">
+const cmap = ["#555555","#000003","#000004","#000006","#010007","#010109","#01010b","#02020d","#02020f","#030311","#040313","#040415","#050417","#060519","#07051b","#08061d","#09071f","#0a0722","#0b0824","#0c0926","#0d0a28","#0e0a2a","#0f0b2c","#100c2f","#110c31","#120d33","#140d35","#150e38","#160e3a","#170f3c","#180f3f","#1a1041","#1b1044","#1c1046","#1e1049","#1f114b","#20114d","#221150","#231152","#251155","#261157","#281159","#2a115c","#2b115e","#2d1060","#2f1062","#301065","#321067","#341068","#350f6a","#370f6c","#390f6e","#3b0f6f","#3c0f71","#3e0f72","#400f73","#420f74","#430f75","#450f76","#470f77","#481078","#4a1079","#4b1079","#4d117a","#4f117b","#50127b","#52127c","#53137c","#55137d","#57147d","#58157e","#5a157e","#5b167e","#5d177e","#5e177f","#60187f","#61187f","#63197f","#651a80","#661a80","#681b80","#691c80","#6b1c80","#6c1d80","#6e1e81","#6f1e81","#711f81","#731f81","#742081","#762181","#772181","#792281","#7a2281","#7c2381","#7e2481","#7f2481","#812581","#822581","#842681","#852681","#872781","#892881","#8a2881","#8c2980","#8d2980","#8f2a80","#912a80","#922b80","#942b80","#952c80","#972c7f","#992d7f","#9a2d7f","#9c2e7f","#9e2e7e","#9f2f7e","#a12f7e","#a3307e","#a4307d","#a6317d","#a7317d","#a9327c","#ab337c","#ac337b","#ae347b","#b0347b","#b1357a","#b3357a","#b53679","#b63679","#b83778","#b93778","#bb3877","#bd3977","#be3976","#c03a75","#c23a75","#c33b74","#c53c74","#c63c73","#c83d72","#ca3e72","#cb3e71","#cd3f70","#ce4070","#d0416f","#d1426e","#d3426d","#d4436d","#d6446c","#d7456b","#d9466a","#da4769","#dc4869","#dd4968","#de4a67","#e04b66","#e14c66","#e24d65","#e44e64","#e55063","#e65162","#e75262","#e85461","#ea5560","#eb5660","#ec585f","#ed595f","#ee5b5e","#ee5d5d","#ef5e5d","#f0605d","#f1615c","#f2635c","#f3655c","#f3675b","#f4685b","#f56a5b","#f56c5b","#f66e5b","#f6705b","#f7715b","#f7735c","#f8755c","#f8775c","#f9795c","#f97b5d","#f97d5d","#fa7f5e","#fa805e","#fa825f","#fb8460","#fb8660","#fb8861","#fb8a62","#fc8c63","#fc8e63","#fc9064","#fc9265","#fc9366","#fd9567","#fd9768","#fd9969","#fd9b6a","#fd9d6b","#fd9f6c","#fda16e","#fda26f","#fda470","#fea671","#fea873","#feaa74","#feac75","#feae76","#feaf78","#feb179","#feb37b","#feb57c","#feb77d","#feb97f","#febb80","#febc82","#febe83","#fec085","#fec286","#fec488","#fec689","#fec78b","#fec98d","#fecb8e","#fdcd90","#fdcf92","#fdd193","#fdd295","#fdd497","#fdd698","#fdd89a","#fdda9c","#fddc9d","#fddd9f","#fddfa1","#fde1a3","#fce3a5","#fce5a6","#fce6a8","#fce8aa","#fceaac","#fcecae","#fceeb0","#fcf0b1","#fcf1b3","#fcf3b5","#fcf5b7","#fbf7b9","#fbf9bb","#fbfabd","#fbfcbf"]
+
+function $(string) { return document.getElementById(string) }
+
+import AudioMotionAnalyzer from 'https://cdn.skypack.dev/audiomotion-analyzer?min';
+var displaySpecanButton = $('displaySpecanButton')
+displaySpecanButton.onclick = createSpecAn
+var source = $('audio');
+
+var audioMotion = null
+
+function createSpecAn() {
+$('displaySpecanButton').style.setProperty('display', 'none')
+audioMotion = new AudioMotionAnalyzer(
+  document.getElementById('hiddenSpecanContainer'),
+  {
+    source: source,
+    mode: 10,
+    barSpace: 0,
+    ledBars: false,
+    frequencyScale: 'linear',
+    maxFreq: 4000,
+    smoothing: 0,
+    colorMode: 'gradient',
+    gradient: 'prism',
+    fftSize: 4096,
+    showBgColor: false,
+    lineWidth: 1,
+    fillAlpha: 0.5,
+    maxDecibels: 0,
+    showScaleX: false,
+    width: $('specanContainer').clientWidth / 2,
+    height: $('specanContainer').clientHeight / 2
+  }
+)
+
+audioMotion.registerGradient( 'myGradient', {
+    bgColor: '#000000', // background color (optional) - defaults to '#111'
+    colorStops: ['#00ffcc']
+})
+
+audioMotion.gradient = 'myGradient'
+
+updateWaterfall()
+	
+}
+
+var waterfallData = new Array()
+for (let i=0; i<1000; i++) {
+	waterfallData.push([])
+}
+
+var waterfallCounter = waterfallCounter = Date.now()
+var waterfallLine = false
+function updateWaterfall() {
+	let canvas = $('waterfallCanvas')
+	let ctx = canvas.getContext('2d')
+	canvas.width = canvas.parentElement.clientWidth
+	canvas.height = canvas.parentElement.clientHeight
+	
+	let bars = audioMotion.getBars()
+	let scale = canvas.width / bars.length
+	let newBars = new Array()
+	let cmapLen = cmap.length - 1
+	for (let i=0; i<bars.length; i++) {
+		newBars.push( parseInt( bars[i].value * cmapLen ) + 1 )
+	} 
+	
+	if (waterfallLine) { 
+		waterfallLine = false
+		for (let i=0; i<newBars.length; i++) {
+			if (i % 5 == 0) {
+				newBars[i] = 0
+			}
+		}
+	}
+	
+	waterfallData.unshift(newBars)
+	waterfallData.pop()
+	
+	for (let y = 0; y < waterfallData.length; y++) {
+		for (let x = 0; x < waterfallData[y].length; x++) {
+			ctx.fillStyle = cmap[ waterfallData[y][x] ]
+			ctx.fillRect(x*scale, y*scale, scale, scale)
+		}
+	}
+ 
+	if (Date.now() - waterfallCounter > 1000) {
+		waterfallCounter = Date.now()
+		waterfallLine = true
+	}
+	setTimeout(updateWaterfall, 10)
+}
+
+</script>
+
+<script>
+const packetStart = '10'.repeat(64)
+const packetEnd = ''
+const frameStart = '01000'
+const frameEnd = ''
+const sampleRate = 8000
+
+function $(string) {
+	return document.getElementById(string)
+}
+
+function sendIt() {
+	let inputData = $('inputData').value
+	let rate = parseFloat( $('modulationRate').value )
+	let frequency = parseFloat( $('frequency').value )
+	
+	let modulationCommand = $('modulationCommand').value
+	modulationCommand += 'frequency, rate, bits)'
+	console.log(modulationCommand)
+	
+	let bits = encodeData( inputData )
+	console.log(bits)
+	let samples = eval(modulationCommand)
+	
+	playAudio(samples)
+}
+
+function encodeData( text ) {
+	let output = new Array()
+	output.push( packetStart )
+	for (let i = 0; i<text.length; i++) {
+    	let bin = text[i].charCodeAt().toString(2);
+    	output.push( frameStart )
+   		output.push( Array(8-bin.length+1).join("0") + bin );
+   		output.push( frameEnd )
+   	}
+   	output.push(packetEnd)
+   	return output.join('')
+}
+
+function applyWindow(signal, func) {
+  var i, n=signal.length, args=[0,n]
+
+  // pass rest of args
+  for(i=2; i<arguments.length; i++) {
+    args[i] = arguments[i]
+  }
+
+  for(i=n-1; i>=0; i--) {
+    args[0] = i
+    signal[i][0] *= func.apply(null,args)
+  }
+  
+  for(i=n-1; i>=0; i--) {
+    args[0] = i
+    signal[i][i] *= func.apply(null,args)
+  }
+
+  return signal;
+}
+
+function hamming (i,N) {
+  return 0.54 - 0.46 * Math.cos(6.283185307179586*i/(N-1))
+}
+
+function blackmanHarris (i,N) {
+  var a0 = 0.35875,
+      a1 = 0.48829,
+      a2 = 0.14128,
+      a3 = 0.01168,
+      f = 6.283185307179586*i/(N-1)
+
+  return a0 - a1*Math.cos(f) +a2*Math.cos(2*f) - a3*Math.cos(3*f)
+}
+
+function bpsk(carrier, rate, bits) {
+	let constellation = [
+		math.complex(1,0),
+		math.complex(-1,0)
+	]
+	return qam(constellation, carrier, rate, bits)
+}
+
+function askHalf(carrier, rate, bits) {
+	let constellation = [
+		math.complex(1,0),
+		math.complex(0.5,0)
+	]
+	return qam(constellation, carrier, rate, bits)
+}
+
+function askFull(carrier, rate, bits) {
+	let constellation = [
+		math.complex(1,0),
+		math.complex(0,0)
+	]
+	return qam(constellation, carrier, rate, bits)
+}
+
+function qam(constellation, carrier, rate, bits) {
+	let bitsPerSymbol = Math.log2(constellation.length)
+	var symbolDuration = sampleRate / rate
+	
+	let maxAmplitude = 0
+	for (let i=0; i<constellation.length; i++) {
+		let amplitude = constellation[i].toPolar().r
+		if (amplitude > maxAmplitude) {maxAmplitude = amplitude}
+	}
+	let scale = 1/maxAmplitude
+	
+	for (let i=0; i<constellation.length; i++) {
+		constellation[i].re = constellation[i].re * scale
+		constellation[i].im = constellation[i].im * scale
+	}
+	
+	let complexSamples = new Array()
+	for (let x = 0; x < bits.length; x+=bitsPerSymbol) {
+		symbol = constellation[ parseInt(bits.substr(x,bitsPerSymbol), 2) ]
+		for (let i = 0; i<symbolDuration; i++) {
+			complexSamples.push(symbol)
+		}
+	}
+	
+	let averagingWindow = parseInt(symbolDuration/1.5)
+	let filterIterations = 2
+		
+	for (let i = 0; i < averagingWindow*filterIterations; i++) {
+		complexSamples.push( math.complex(0,0) )
+		complexSamples.unshift( math.complex(0,0) )
+	}
+	
+	for (let i = 0; i < filterIterations; i++)
+		for (let x =0; x < complexSamples.length-averagingWindow; x++) {
+			let windowSamples = complexSamples.slice(x, x+averagingWindow) 
+			windowSamples = applyWindow(windowSamples, blackmanHarris)
+			complexSamples[x] = math.mean(windowSamples)
+	}	
+	
+	var samples = new Array()
+	let period = sampleRate / carrier
+	for (let i = 0; i < complexSamples.length; i++) {
+		let carrierReal = Math.sin(2.0 * Math.PI * i / period)
+		let carrierImaj = Math.cos(2.0 * Math.PI * i / period)
+		let complexCarrier = math.complex(carrierReal, carrierImaj)
+		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
+		let realSignal = complexSignal.re
+		samples.push( complexSignal.re )
+	}
+	
+	return samples
+}
+
+function fskOld(shift, frequency, rate, bits) {
+	let symbolDuration = sampleRate / rate
+	let samples = new Array()
+	
+	let periodHigh = sampleRate / (frequency + shift)
+	let periodLow = sampleRate / frequency
+	let symbolMap = [periodHigh, periodLow]
+	
+	let j = 0
+	for (let x = 0; x < bits.length; x++) {
+		let period = symbolMap[ parseInt( bits[x] ) ]
+		for (let i = 0; i<symbolDuration; i++) {
+			samples.push( Math.sin(2.0 * Math.PI * j / period) );
+			j++
+		}
+	}
+	
+	return samples
+}
+
+function fsk(shift, frequency, rate, bits) {
+	let symbolDuration = sampleRate / rate
+	let complexSamples = new Array()
+	
+	let periodHigh = sampleRate / shift
+	let periodLow = sampleRate
+	let symbolMap = [periodHigh, periodLow]
+	
+	let j = 0
+	for (let x = 0; x < bits.length; x++) {
+		let period = symbolMap[ parseInt( bits[x] ) ]
+		for (let i = 0; i<symbolDuration; i++) {
+			let re = Math.sin(2.0 * Math.PI * i / period)
+			let im = Math.cos(2.0 * Math.PI * i / period)
+			complexSamples.push( math.complex(re,im) )
+			j++
+		}
+	}
+	
+	let averagingWindow = parseInt(periodHigh/2)
+	let filterIterations = 2
+		
+	for (let i = 0; i < averagingWindow*filterIterations; i++) {
+		complexSamples.push( math.complex(0,0) )
+		complexSamples.unshift( math.complex(0,0) )
+	}
+	
+	for (let i = 0; i < filterIterations; i++)
+		for (let x =0; x < complexSamples.length-averagingWindow; x++) {
+			let windowSamples = complexSamples.slice(x, x+averagingWindow) 
+			windowSamples = applyWindow(windowSamples, blackmanHarris)
+			complexSamples[x] = math.mean(windowSamples)
+	}	
+	
+	var samples = new Array()
+	let period = sampleRate / frequency
+	for (let i = 0; i < complexSamples.length; i++) {
+		let carrierReal = Math.sin(2.0 * Math.PI * i / period)
+		let carrierImaj = Math.cos(2.0 * Math.PI * i / period)
+		let complexCarrier = math.complex(carrierReal, carrierImaj)
+		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
+		let realSignal = complexSignal.re
+		samples.push( complexSignal.re )
+	}
+	
+	return samples
+}
+
+function number2LSFBArray(number, length) {
+	result = []
+	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
+	for (let i=0; i<number.length; i+=2) {
+		result.push( parseInt(number.substr(i,2), 16) );
+	}
+	return result.reverse();
+}
+
+function buildWavFile(bytes) {
+	let bitsPerSample = 8;
+	let channels = 1;
+	let magicNumber1 = (sampleRate * bitsPerSample * channels) / 8;
+	let magicNumber2 = (bitsPerSample * channels)
+
+	let wav = [];
+	wav.push(...[82, 73, 70, 70] ); //RIFF
+	wav.push(...number2LSFBArray(bytes.length + 36, 4) ); //size LSBF
+	wav.push(...[87, 65, 86, 69] ); //WAVE
+	wav.push(...[102, 109, 116, 32] ); //fmt 
+	wav.push(...[16, 0, 0, 0] ); //length of format data
+	wav.push(...[1, 0] ); //format
+	wav.push(...[channels, 0] ); //channels
+	wav.push(...number2LSFBArray(sampleRate, 4) ); //sample rate
+	wav.push(...number2LSFBArray(magicNumber1, 4) ); //magic number
+	wav.push(...number2LSFBArray(magicNumber2, 2) ); //magic number
+	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //magic number
+	wav.push(...[100, 97, 116, 97] ); //data
+	wav.push(...number2LSFBArray(bytes.length, 4) ); //size LSBF
+	//wav.push(...bytes);
+	
+	return new Uint8Array( wav );
+}
+
+function playAudio(samples) {
+	var bytes = [];
+	for (let i = 0; i < samples.length; i++) {
+		bytes.push( Math.round( 127 + (samples[i]*127) ) );
+	}
+	
+	var wav = buildWavFile(bytes)
+	bytes = new Uint8Array(bytes)
+
+	// Create blob from Uint8Array & Object URL.
+	var blob = new Blob([wav, bytes], { type: 'audio/wav' });
+	var url = URL.createObjectURL(blob);
+
+	// Get DOM elements.
+	var audio = $('audio');
+	var source = $('source');
+
+	// Insert blob object URL into audio element & play.
+	source.src = url;
+	audio.load();
+	audio.play();
+}
+
+</script>
