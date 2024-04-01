@@ -1191,7 +1191,7 @@ function addNoise(noise) {
 
 	for (let x = 0; x<bits.length; x+=8 ) {
 		let sample = (parseInt(bits.slice(x,x+8).join(''),2) - 127) / 127
-		sample = sample + ( Math.random(-1, 1) / noise )
+		sample = sample + ( math.random(-1, 1) * (1/noise) )
 		sample = sample / (1 + (1/noise))
 		sample = Math.round( 127 + (127 * sample) )
 		sample = ('0000000' + sample.toString(2)).split('').slice(-8).map(makeInt)
