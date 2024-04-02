@@ -1,4 +1,5 @@
 <html>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 <head>
 <style>
 :root {
@@ -81,7 +82,7 @@
     background-Color: var(--buttonbg);
 }
 *::-webkit-scrollbar-track { 
-	border-radius: 3px;
+	border-radius: 0.5vh;
     border: none;
     background-Color: var(--midground);
 } 
@@ -92,9 +93,9 @@
 
 html, body {
 	padding: 0px;
-	margin: 1vmax;
-	width: calc(100% - 2vmax);
-	height: calc(100% - 2vmax);
+	margin: 1vh;
+	width: calc(100% - 2vh);
+	height: calc(100% - 2vh);
 	overflow: hidden;
 	background: var(--midground);
 }
@@ -105,16 +106,16 @@ html, body {
 }
 
 table {
-	font-size: 2vmax;
+	font-size: 2vh;
 	font-family: Monospace;
 	color: #fff;
 	width: 100%;
 }
 
 #specanContainer {
-    height: calc(20% - 1vmax);
-    width: calc(100% - 0.5vmax);
-    margin-bottom: 1vmax;
+    height: calc(30% - 1vh);
+    width: calc(100% - 0.5vh);
+    margin-bottom: 1vh;
     border: 2px solid var(--borderColor);
     border-radius: 1vh;
     outline: 1px solid var(--borderColor);
@@ -124,8 +125,8 @@ table {
 
 #inputContainer {
     background: #000;
-    height: calc(80% - 20vmax);
-    width: calc(100% - 0.5vmax);
+    height: calc(70% - 24vh);
+    width: calc(100% - 0.5vh);
     overflow: scroll;
     border: 2px solid var(--borderColor);
     border-radius: 1vh;
@@ -134,7 +135,7 @@ table {
 }
 
 textArea {
-	font-size: 2vmax;
+	font-size: 2vh;
     color: #fff;
     background: #000;
     height: 100%;
@@ -152,7 +153,7 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
     margin: 0px;
     font-family: Monospace;
     outline: none;
-    font-size: 2vmax;
+    font-size: 2vh;
     width: 100%;
 }
 
@@ -196,10 +197,12 @@ audio {
 <option value='bpsk('>BPSK</option>
 <option value='askHalf('>ASK 50%</option>
 <option value='askFull('>ASK 100%</option>
-<option value='fsk(850, '>FSK 850Hz</option>
-<option value='fsk(450, '>FSK 450Hz</option>
-<option value='fsk(170, '>FSK 170Hz</option>
-<option value='fsk(85, '>FSK 85Hz</option>
+<option value='fsk(850, '>FSK 850 Hz</option>
+<option value='fsk(450, '>FSK 450 Hz</option>
+<option value='fsk(170, '>FSK 170 Hz</option>
+<option value='fsk(85, '>FSK 85 Hz</option>
+<option value='chirp(250, '>Chirp 250 Hz</option>
+<option value='chirp(500, '>Chirp 500 Hz</option>
 </select></td></tr>
 
 <tr><td>Modulation Rate:</td>
@@ -301,8 +304,10 @@ function updateWaterfall() {
 	
 	for (let y = 0; y < waterfallData.length; y++) {
 		for (let x = 0; x < waterfallData[y].length; x++) {
-			ctx.fillStyle = cmap[ waterfallData[y][x] ]
-			ctx.fillRect(x*scale, y*scale, scale, scale)
+			if (waterfallData[y][x] != 1) {
+				ctx.fillStyle = cmap[ waterfallData[y][x] ]
+				ctx.fillRect(x*scale, y*scale, scale, scale)
+			}
 		}
 	}
  
@@ -316,7 +321,7 @@ function updateWaterfall() {
 </script>
 
 <script>
-const packetStart = '10'.repeat(64)
+const packetStart = '10'
 const packetEnd = ''
 const frameStart = '01000'
 const frameEnd = ''
@@ -333,18 +338,18 @@ function sendIt() {
 	
 	let modulationCommand = $('modulationCommand').value
 	modulationCommand += 'frequency, rate, bits)'
-	console.log(modulationCommand)
 	
-	let bits = encodeData( inputData )
-	console.log(bits)
+	let bits = encodeData( inputData, rate )
 	let samples = eval(modulationCommand)
 	
 	playAudio(samples)
 }
 
-function encodeData( text ) {
+function encodeData( text, rate ) {
 	let output = new Array()
-	output.push( packetStart )
+	let pStartReps = parseInt(rate * 0.2)
+	if (pStartReps < 10) { pStartReps = 10 }
+	output.push( packetStart.repeat(pStartReps) )
 	for (let i = 0; i<text.length; i++) {
     	let bin = text[i].charCodeAt().toString(2);
     	output.push( frameStart )
@@ -381,7 +386,7 @@ function hamming (i,N) {
 }
 
 function blackmanHarris (i,N) {
-  var a0 = 0.35875,
+  let a0 = 0.35875,
       a1 = 0.48829,
       a2 = 0.14128,
       a3 = 0.01168,
@@ -530,6 +535,52 @@ function fsk(shift, frequency, rate, bits) {
 		let complexSignal = math.multiply(complexSamples[i], complexCarrier)
 		let realSignal = complexSignal.re
 		samples.push( complexSignal.re )
+	}
+	
+	return samples
+}
+
+function chirp(width, frequency, rate, bits) {
+	let lowFrequency = frequency - parseFloat(width)
+	let highFrequency = frequency + parseFloat(width)
+	return chirpSpreadSpectrum(lowFrequency, highFrequency, rate, bits)
+}
+
+function chirpSpreadSpectrum(lowFrequency, highFrequency, modulationRate, bits) {
+	let modulationPeriod = sampleRate / modulationRate
+	let frequencyRange = highFrequency - lowFrequency
+	let frequencyStep = (frequencyRange / modulationPeriod) / 2
+
+	let upSamples = new Array()
+	let downSamples = new Array()
+	
+	let frequency = lowFrequency
+	let amplitude = 1
+	for (let i=0; i<modulationPeriod; i++) {
+		amplitude = Math.sin( ((i*Math.PI)/modulationPeriod) )
+		let period = sampleRate / frequency
+		let upSample = amplitude * Math.sin(2.0 * Math.PI * (i / period))
+		upSamples.push( upSample )
+		frequency += frequencyStep
+	}
+	
+	frequency = highFrequency
+	for (let i=0; i<modulationPeriod; i++) {
+		amplitude = Math.sin( ((i*Math.PI)/modulationPeriod) )
+		let period = sampleRate / frequency
+		let downSample = amplitude * Math.sin(2.0 * Math.PI * (i / period))
+		downSamples.push( downSample )
+		frequency -= frequencyStep
+	}
+	
+	let samples = new Array()
+	
+	for (let x = 0; x < bits.length; x++) {
+		if (bits[x] == "1") {
+			samples.push( ...upSamples )
+		} else {
+			samples.push( ...downSamples )
+		}
 	}
 	
 	return samples
