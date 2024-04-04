@@ -113,7 +113,7 @@ table {
 }
 
 #specanContainer {
-    height: calc(30% - 1vh);
+    height: calc(100% - 34vh);
     width: calc(100% - 0.5vh);
     margin-bottom: 1vh;
     border: 2px solid var(--borderColor);
@@ -125,7 +125,7 @@ table {
 
 #inputContainer {
     background: #000;
-    height: calc(70% - 24vh);
+    height: 10vh;
     width: calc(100% - 0.5vh);
     overflow: scroll;
     border: 2px solid var(--borderColor);
@@ -183,12 +183,12 @@ audio {
 <div id='container'>
 
 <div id='specanContainer'>
-<button id='displaySpecanButton'>Display SpecAn</button>
+<button style='margin-top: calc(50% - 18vh); width: 30%; margin-left: 35%;' id='displaySpecanButton'>Load Waterfall</button>
 <canvas style='filter: hue-rotate(270deg);' id='waterfallCanvas'></canvas>
 </div>
 
 <div id='inputContainer'>
-<textArea id='inputData'></textArea>
+<textArea placeholder='Message text here...' id='inputData'></textArea>
 </div>
 
 <table>
@@ -197,10 +197,12 @@ audio {
 <option value='bpsk('>BPSK</option>
 <option value='askHalf('>ASK 50%</option>
 <option value='askFull('>ASK 100%</option>
-<option value='fsk(850, '>FSK 850 Hz</option>
-<option value='fsk(450, '>FSK 450 Hz</option>
-<option value='fsk(170, '>FSK 170 Hz</option>
-<option value='fsk(85, '>FSK 85 Hz</option>
+<option value='fsk(2,850, '>FSK 850 Hz</option>
+<option value='fsk(2,450, '>FSK 450 Hz</option>
+<option value='fsk(2,170, '>FSK 170 Hz</option>
+<option value='fsk(2,85, '>FSK 85 Hz</option>
+<option value='fsk(4,125, '>4FSK 125 Hz</option>
+<option value='fsk(8,125, '>8FSK 125 Hz</option>
 <option value='chirp(250, '>Chirp 250 Hz</option>
 <option value='chirp(500, '>Chirp 500 Hz</option>
 </select></td></tr>
@@ -253,8 +255,8 @@ audioMotion = new AudioMotionAnalyzer(
     fillAlpha: 0.5,
     maxDecibels: 0,
     showScaleX: false,
-    width: $('specanContainer').clientWidth / 2,
-    height: $('specanContainer').clientHeight / 2
+    width: document.getElementById('specanContainer').clientWidth,
+    height: 100
   }
 )
 
@@ -306,7 +308,7 @@ function updateWaterfall() {
 		for (let x = 0; x < waterfallData[y].length; x++) {
 			if (waterfallData[y][x] != 1) {
 				ctx.fillStyle = cmap[ waterfallData[y][x] ]
-				ctx.fillRect(x*scale, y*scale, scale, scale)
+				ctx.fillRect(x*scale, y, scale, 1)
 			}
 		}
 	}
@@ -444,6 +446,7 @@ function qam(constellation, carrier, rate, bits) {
 	}
 	
 	let averagingWindow = parseInt(symbolDuration/1.5)
+	if (averagingWindow > 100) { averagingWindow = 100 }
 	let filterIterations = 2
 		
 	for (let i = 0; i < averagingWindow*filterIterations; i++) {
@@ -472,37 +475,29 @@ function qam(constellation, carrier, rate, bits) {
 	return samples
 }
 
-function fskOld(shift, frequency, rate, bits) {
-	let symbolDuration = sampleRate / rate
-	let samples = new Array()
-	
-	let periodHigh = sampleRate / (frequency + shift)
-	let periodLow = sampleRate / frequency
-	let symbolMap = [periodHigh, periodLow]
-	
-	let j = 0
-	for (let x = 0; x < bits.length; x++) {
-		let period = symbolMap[ parseInt( bits[x] ) ]
-		for (let i = 0; i<symbolDuration; i++) {
-			samples.push( Math.sin(2.0 * Math.PI * j / period) );
-			j++
-		}
-	}
-	
-	return samples
-}
-
-function fsk(shift, frequency, rate, bits) {
+function fsk(levels, shift, frequency, rate, bits) {
 	let symbolDuration = sampleRate / rate
 	let complexSamples = new Array()
 	
-	let periodHigh = sampleRate / shift
-	let periodLow = sampleRate
-	let symbolMap = [periodHigh, periodLow]
+	let frequencyHigh = (shift*levels)
+	let periodHigh = sampleRate / frequencyHigh
+	let symbolMap = []
+	for (let i=0; i<levels; i++) {
+		symbolMap.push( sampleRate / (frequencyHigh - (shift*i)) )
+	}
+	let bitsPerSymbol = Math.log2(levels)
+	console.log(symbolMap)
+	console.log(bitsPerSymbol)
+	
+	while (bits.length % bitsPerSymbol != 0) {
+		bits += '0'
+	}
+	
+	console.log(bits.length / bitsPerSymbol)
 	
 	let j = 0
-	for (let x = 0; x < bits.length; x++) {
-		let period = symbolMap[ parseInt( bits[x] ) ]
+	for (let x = 0; x < bits.length; x+=bitsPerSymbol) {
+		let period = symbolMap[parseInt(bits.substr(x,bitsPerSymbol),2)]
 		for (let i = 0; i<symbolDuration; i++) {
 			let re = Math.sin(2.0 * Math.PI * i / period)
 			let im = Math.cos(2.0 * Math.PI * i / period)
