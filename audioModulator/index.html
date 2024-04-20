@@ -391,6 +391,7 @@ function encodeBinary( text ) {
 }
 
 function encodeITA2( text ) {
+	text = text.toLowerCase()
 	let output = new Array()
 	let state = 'lower'
 	for (let i = 0; i<text.length; i++) {
