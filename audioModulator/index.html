@@ -113,7 +113,7 @@ table {
 }
 
 #specanContainer {
-    height: calc(100% - 34vh);
+    height: calc(100% - 36vh);
     width: calc(100% - 0.5vh);
     margin-bottom: 1vh;
     border: 2px solid var(--borderColor);
@@ -135,7 +135,7 @@ table {
 }
 
 textArea {
-    font-size: 2vh;
+	font-size: 2vh;
     color: #fff;
     background: #000;
     height: 100%;
@@ -192,6 +192,13 @@ audio {
 </div>
 
 <table>
+<tr><td style='width: 50%;'>Encoding:</td>
+<td><select id='encoding'>
+<option value='ASCII'>ASCII</option>
+<option value='ITA2'>ITA2</option>
+<option value='Binary'>Binary</option>
+</select></td></tr>
+
 <tr><td style='width: 50%;'>Modulation Type:</td>
 <td><select id='modulationCommand'>
 <option value='bpsk('>BPSK</option>
@@ -323,9 +330,9 @@ function updateWaterfall() {
 </script>
 
 <script>
-const packetStart = '10'
+const packetStart = ''
 const packetEnd = ''
-const frameStart = '01000'
+const frameStart = ''
 const frameEnd = ''
 const sampleRate = 8000
 
@@ -337,21 +344,77 @@ function sendIt() {
 	let inputData = $('inputData').value
 	let rate = parseFloat( $('modulationRate').value )
 	let frequency = parseFloat( $('frequency').value )
+	let encoding = $('encoding').value
+	
+	let bits = ''
+	if (encoding == 'ASCII') {
+		bits = encodeData( inputData )
+	} else if (encoding == 'ITA2') {
+		bits = encodeITA2( inputData )
+		rate = rate * 2
+	} else if (encoding == 'Binary') {
+		bits = encodeBinary( inputData )
+	}
+	
+	console.log(bits)
 	
 	let modulationCommand = $('modulationCommand').value
 	modulationCommand += 'frequency, rate, bits)'
-	
-	let bits = encodeData( inputData, rate )
 	let samples = eval(modulationCommand)
 	
 	playAudio(samples)
 }
 
-function encodeData( text, rate ) {
+ITA2_lower_text = "abcdefghijklmnopqrstuvwxyz "
+ITA2_upper_text = "1234567890().,'=+/-:?%@ "
+ITA2_lower_binary = ["00011","11001","01110","01001","00001","01101","11010","10100","00110","01011","01111","10010","11100","01100","11000","10110","10111","01010","00101","10000","00111","11110","10011","11101","10101","10001","00100"]
+ITA2_upper_binary = ["11011","10111","10011","00001","01010","10000","10101","00111","00110","11000","10110","01111","10010","11100","01100","00101","11101","01110","11001","00100"]
+
+var ITA2_MAP_lower = {}
+var ITA2_MAP_upper = {}
+
+for (let i = 0; i < ITA2_lower_binary.length; i++) {
+	ITA2_MAP_lower[ ITA2_lower_text[i] ] = '00' + ITA2_lower_binary[i].replaceAll('0','00').replaceAll('1','11') + '111'
+}
+
+for (let i = 0; i < ITA2_upper_binary.length; i++) {
+	ITA2_MAP_upper[ ITA2_upper_text[i] ] = '00' + ITA2_upper_binary[i].replaceAll('0','00').replaceAll('1','11') + '111'
+}
+
+function encodeBinary( text ) {
 	let output = new Array()
-	let pStartReps = parseInt(rate * 0.2)
-	if (pStartReps < 10) { pStartReps = 10 }
-	output.push( packetStart.repeat(pStartReps) )
+	for (let i = 0; i<text.length; i++) {
+		if (text[i] == '1') { output.push('1') }
+		else if (text[i] == '0') { output.push('0') }
+	}
+	return output.join('')
+}
+
+function encodeITA2( text ) {
+	let output = new Array()
+	let state = 'lower'
+	for (let i = 0; i<text.length; i++) {
+		if (text[i] == ' ') {
+			output.push( ITA2_MAP_lower[ text[i] ] )
+		} else if (text[i] in ITA2_MAP_lower) {
+			if (state != 'lower') {
+				output.push( '001111111111111' )
+				state = 'lower'
+			}
+			output.push( ITA2_MAP_lower[ text[i] ] )
+		} else if (text[i] in ITA2_MAP_upper) {
+			if (state != 'upper') {
+				output.push( '001111001111111' )
+				state = 'upper'
+			}
+			output.push( ITA2_MAP_upper[ text[i] ] )
+		}
+	}
+	return output.join('')
+}
+
+function encodeData( text ) {
+	let output = new Array()
 	for (let i = 0; i<text.length; i++) {
     	let bin = text[i].charCodeAt().toString(2);
     	output.push( frameStart )
@@ -479,7 +542,7 @@ function fsk(levels, shift, frequency, rate, bits) {
 	let symbolDuration = sampleRate / rate
 	let complexSamples = new Array()
 	
-	let frequencyHigh = (shift*levels)
+	let frequencyHigh = (shift*(levels-1)/2)
 	let periodHigh = sampleRate / frequencyHigh
 	let symbolMap = []
 	for (let i=0; i<levels; i++) {
@@ -499,15 +562,15 @@ function fsk(levels, shift, frequency, rate, bits) {
 	for (let x = 0; x < bits.length; x+=bitsPerSymbol) {
 		let period = symbolMap[parseInt(bits.substr(x,bitsPerSymbol),2)]
 		for (let i = 0; i<symbolDuration; i++) {
-			let re = Math.sin(2.0 * Math.PI * i / period)
-			let im = Math.cos(2.0 * Math.PI * i / period)
+			let re = Math.sin(2.0 * Math.PI * j / period)
+			let im = Math.cos(2.0 * Math.PI * j / period)
 			complexSamples.push( math.complex(re,im) )
 			j++
 		}
 	}
 	
 	let averagingWindow = parseInt(periodHigh/2)
-	let filterIterations = 2
+	let filterIterations = 3
 		
 	for (let i = 0; i < averagingWindow*filterIterations; i++) {
 		complexSamples.push( math.complex(0,0) )
