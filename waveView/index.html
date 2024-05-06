@@ -108,7 +108,7 @@ div {
 #container {
 	width: 100%;
 	height: 100%;
-	font-family: 'Comic Sans MS', 'Comic Sans', monospace;
+	font-family: 'Comic Sans MS', 'Comic Sans', cursive;
 	font-size: 12pt;
 	color: var(--textColor);
 	position: absolute;
@@ -224,7 +224,7 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
 	border-radius: 2px;
     Color: var(--textColor);
     margin: 0px;
-    font-family: "Comic Sans MS", "Comic Sans", monospace;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
     outline: none;
     margin-bottom: 3px;
 }
@@ -235,7 +235,7 @@ button {
 
 input[type="number"], input[type="text"], select {
 	width: 100%;
-    font-family: "Comic Sans MS", "Comic Sans", monospace;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
 }
 
 button:hover, input::file-selector-button:hover{
@@ -340,13 +340,29 @@ Apply DSP Analyics
 <div id='PSK Demodulate' class='toolHidden' updateFunction='noUpdate()'>
 Demodulate Phase Shift Keying
 <table>
-<tr><td style="width:30%;">Frequency:</td><td><input type='number' id='pskDemodulateFrequency' value=2000 onchange='pskDemodulate()'></td></tr>
+<tr><td style="width:30%;">Step 1: Set the Frequency<td><td></td></tr>
+<tr><td>Frequency:</td><td><input type='number' id='pskDemodulateFrequency' value=2000 onchange='pskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button> <button onclick='pskDemodulateUndo()'>Undo Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 2: Adjust Tune <td><td></td></tr>
 <tr><td>Amplitude:</td><td><input type='number' id='pskDemodulateAmplitude' value=100  onchange='pskDemodulate()'></td></tr>
-<tr><td>Phase:</td><td><input type='number' id='pskDemodulatePhase' value=0  onchange='pskDemodulate()'></td></tr>
-<tr><td>Start Sample:</td><td><input type='number' id='pskDemodulateStart' value=0  onchange='pskDemodulate()'></td></tr>
 <tr><td>Averaging Window:</td><td><input type='number' id='pskDemodulateAveraging' value=16 min='0' onchange='pskDemodulate()'></td></tr>
-<tr><td>Symbol Rate:</td><td><input type='number' id='pskDemodulateSymbolRate' value=0  onchange='pskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 3: Offset and Phase<td><td></td></tr>
+<tr><td>Start Sample Offset:</td><td><input type='number' id='pskDemodulateStart' value=0  onchange='pskDemodulate()'></td></tr>
+<tr><td>Phase:</td><td><input type='number' id='pskDemodulatePhase' value=0  onchange='pskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Threshold/s<td><td></td></tr>
 <tr><td>Symbol Thresholds:</td><td><input type='text' id='pskDemodulateThresholds' value=''></td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 5: Set Symbol Rate<td><td></td></tr>
+<tr><td>Symbol Rate:</td><td><input type='number' id='pskDemodulateSymbolRate' value=0  onchange='pskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 6: Set Mapping<td><td></td></tr>
 <tr><td>Symbol Mapping:</td><td><input type='text' id='pskDemodulateSym2Bit' value=''></td></tr>
 <tr><td>Preset Symbols:</td><td>
 <select id='pskDemodulatePreset' onchange='applySelectedPreset()'>
@@ -357,35 +373,59 @@ Demodulate Phase Shift Keying
 <option value='16PSK'>16PSK</option>
 </select>
 </td></tr>
-<tr><td></td><td>
-<button onclick='pskDemodulate()'>Apply Demodulation</button> 
-<button onclick='pskDemodulateUndo()'>Undo Demodulation</button> 
-</td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>Step 7: Go look at the Bit Raster!</td><td></td></tr>
 </table>
 </div>
 
 <div id='FSK Demodulate' class='toolHidden' updateFunction='noUpdate()'>
 Demodulate Frequency Shift Keying
 <table>
-<tr><td style="width:30%;">Start Sample:</td><td><input type='number' id='fskDemodulateStart' value=0 min='0' onchange='fskDemodulate()'></td></tr>
+<tr><td style="width:30%;">Step 1: First Pass</td><td><button onclick='fskDemodulate()'>Apply Demodulation</button> <button onclick='fskDemodulateUndo()'>Undo Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 2: Adjust/Tune (Optional)</td><td></td></tr>
 <tr><td>Averaging Window:</td><td><input type='number' id='fskDemodulateAveraging' value=16 min='1' onchange='fskDemodulate()'></td></tr>
 <tr><td>Measurement Cross:</td><td><input type='number' id='fskDemodulateCrossPoint' value=1 onchange='fskDemodulate()'></td></tr>
-<tr><td>Symbol Rate:</td><td><input type='number' id='fskDemodulateSymbolRate' value=0 min='0' onchange='fskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 3: Set Threshold/s</td><td></td></tr>
 <tr><td>Symbol Thresholds:</td><td><input type='text' id='fskDemodulateThresholds' value=''></td></tr>
+<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Symbol Rate and Offset</td><td></td></tr>
+<tr><td>Start Sample Offset:</td><td><input type='number' id='fskDemodulateStart' value=0 min='0' onchange='fskDemodulate()'></td></tr>
+<tr><td>Symbol Rate:</td><td><input type='number' id='fskDemodulateSymbolRate' value=0 min='0' onchange='fskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Mapping (Optional)</td><td></td></tr>
 <tr><td>Symbol Mapping:</td><td><input type='text' id='fskDemodulateSym2Bit' value=''></td></tr>
-<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button> <button onclick='fskDemodulateUndo()'>Undo Demodulation</button></td></tr>
+<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>Step 5: Go look at the Bit Raster!</td><td></td></tr>
 </table>
 </div>
 
 <div id='ASK Demodulate' class='toolHidden' updateFunction='noUpdate()'>
 Demodulate Amplitude Shift Keying
 <table>
-<tr><td style="width:30%;">Start Sample:</td><td><input type='number' id='askDemodulateStart' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td style="width:30%;">Step 1: First Pass</td><td><button onclick='askDemodulate()'>Apply Demodulation</button> <button onclick='askDemodulateUndo()'>Undo Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 2: Adjust/Tune (Optional)</td><td></td></tr>
 <tr><td>Averaging Window:</td><td><input type='number' id='askDemodulateAveraging' value=16 min='0' onchange='askDemodulate()'></td></tr>
-<tr><td>Symbol Rate:</td><td><input type='number' id='askDemodulateSymbolRate' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 3: Set Threshold/s</td><td></td></tr>
 <tr><td>Symbol Thresholds:</td><td><input type='text' id='askDemodulateThresholds' value=''></td></tr>
+<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Symbol Rate and Offset</td><td></td></tr>
+<tr><td>Start Sample Offset:</td><td><input type='number' id='askDemodulateStart' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td>Symbol Rate:</td><td><input type='number' id='askDemodulateSymbolRate' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Mapping (Optional)</td><td></td></tr>
 <tr><td>Symbol Mapping:</td><td><input type='text' id='askDemodulateSym2Bit' value=''></td></tr>
-<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button> <button onclick='askDemodulateUndo()'>Undo Demodulation</button></td></tr>
+<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>Step 5: Go look at the Bit Raster!</td><td></td></tr>
 </table>
 </div>
 
