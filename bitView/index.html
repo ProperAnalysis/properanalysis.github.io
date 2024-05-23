@@ -109,7 +109,7 @@ div {
 #container {
 	width: 100%;
 	height: 100%;
-	font-family: 'Comic Sans MS', 'Comic Sans', monospace;
+	font-family: 'Comic Sans MS', 'Comic Sans', cursive;
 	font-size: 12pt;
 	color: var(--textColor);
 	position: absolute;
@@ -221,7 +221,7 @@ button, input::file-selector-button, input[type="number"], input[type="text"], s
 	border-radius: 2px;
     Color: var(--textColor);
     margin: 0px;
-    font-family: "Comic Sans MS", "Comic Sans", monospace;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
     outline: none;
     margin-bottom: 3px;
 }
@@ -232,7 +232,7 @@ button {
 
 input[type="number"], input[type="text"], select {
 	width: 6em;
-    font-family: "Comic Sans MS", "Comic Sans", monospace;
+    font-family: "Comic Sans MS", "Comic Sans", cursive;
 }
 
 button:hover, input::file-selector-button:hover{
@@ -272,6 +272,7 @@ textArea {
 <div id="bottomMenu">
 <button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);" style="">Input Select</button>
 <button id="findWidthButton" onclick="openToolbox(&#39;findWidth&#39;);">Find Width</button>
+<button id="findLFSRButton" onclick="openToolbox(&#39;findLFSR&#39;);">Find LFSR</button>
 <button id="columnBiasButton" onclick="openToolbox(&#39;columnBias&#39;);">Column Bias</button>
 <button id="asciiViewButton" onclick="openToolbox(&#39;asciiView&#39;); updateAsciiView();">ASCII View</button>
 <button id="hexViewButton" onclick="openToolbox(&#39;hexView&#39;); updateHexView();" style="">Hex View</button>
@@ -287,7 +288,7 @@ textArea {
 <p style="width: 100%;">Load from file:</p>
 <input type="file" id="fileSelector">
 <p style="width: 100%; border-top: 1px solid var(--borderColor); padding-top: 10px;">OR load from text:</p>
-<textarea id="textInputArea" style="font-family: 'Comic Sans MS', 'Comic Sans', monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); border: 1px solid var(--borderColor);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
+<textarea id="textInputArea" style="font-family: 'Comic Sans MS', 'Comic Sans', cursive; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); border: 1px solid var(--borderColor);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 <button onclick="loadTextInput(2);">Load Binary</button>
 <button onclick="loadTextInput(16);">Load Hex</button>
 </div>
@@ -317,8 +318,19 @@ textArea {
 <div style="padding-top: 5px; padding-right: 10px;">
 Min Width: <input type="number" id="minWidthInput" value="0">
 Max Width: <input type="number" id="maxWidthInput" value="1000">
-Bits to Test: <input type="number" id="testBitsInput" value="100000">
+Bits to Test: <input type="number" id="testBitsInput" value="10000">
 <button id="goFindWidthButton" onclick="findWidth();">Go</button>
+</div>
+</div>
+
+<div id="findLFSR" class="closedToolbox">
+<textarea disabled="" id="findLFSROutput" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ></textarea>
+<div style="padding-top: 5px; padding-right: 10px;">
+Min Degree: <input type="number" id="LFSRminDegreeInput" value=3 min=1>
+Max Degree: <input type="number" id="LFSRmaxDegreeInput" value=7 max=24>
+Bits to Test: <input type="number" id="LFSRtestBitsInput" value="10000">
+<button id="goFindLFSRButton1" onclick="findMaximalLFSR();">Find Maximals</button>
+<button id="goFindLFSRButton2" onclick="findLFSR();">Find All (much slower)</button>
 </div>
 </div>
 
@@ -1949,8 +1961,8 @@ function runOperation(operation) {
 }
 
 function applyDelta(offset) {
-	newBits = new Array(bits.length);
-	for (let i = 0; i < bits.length-1; i++) { 
+	newBits = new Array(bits.length-offset);
+	for (let i = 0; i < bits.length-offset; i++) { 
 		newBits[i] = (bits[i] + bits[i+parseInt(offset)]) % 2;
 	}
 	bits = newBits;
@@ -2102,6 +2114,8 @@ function columnBias(width, checkBits) {
 	var delta = 0;
 	checkBits = parseInt(checkBits);
 	
+	console.log(checkBits)
+	
 	for (var i=0; i<width; i++){
 		count = 0;
 		total = 0;
@@ -2121,9 +2135,145 @@ function columnBias(width, checkBits) {
 	return delta / 0.5;
 }
 
+function add(accumulator, a) {
+  return accumulator + a;
+}
+
+function bitBias() {
+	let total = bits.reduce(add, 0)
+	return Math.pow( parseInt( ( Math.abs(0.5 - (total / bits.length)) / 0.5 ) * 1000 ), 2 ) / 10000
+}
+
+function maximalTaps() {
+	taps = []
+	taps.push('0,2,3')
+	taps.push('0,3,4')
+	taps.push('0,3,5')
+	taps.push('0,5,6')
+	taps.push('0,6,7')
+	taps.push('0,4,5,6,8')
+	taps.push('0,5,9')
+	taps.push('0,7,10')
+	taps.push('0,9,11')
+	taps.push('0,4,10,11,12')
+	taps.push('0,8,11,12,13')
+	taps.push('0,2,12,13,14')
+	taps.push('0,14,15')
+	taps.push('0,4,13,15,16')
+	taps.push('0,14,17')
+	taps.push('0,11,18')
+	taps.push('0,14,17,18,19')
+	taps.push('0,17,20')
+	taps.push('0,19,21')
+	taps.push('0,21,22')
+	taps.push('0,18,23')
+	taps.push('0,17,22,23,24')
+	
+	taps.push('0,1,3')
+	taps.push('0,1,4')
+	taps.push('0,1,5')
+	taps.push('0,1,6')
+	taps.push('0,1,7')
+	taps.push('0,2,3,4,8')
+	taps.push('0,4,9')
+	taps.push('0,3,10')
+	taps.push('0,2,11')
+	taps.push('0,1,2,8,12')
+	taps.push('0,1,2,5,13')
+	taps.push('0,1,2,12,14')
+	taps.push('0,1,15')
+	taps.push('0,1,2,8,16')
+	taps.push('0,3,17')
+	taps.push('0,7,18')
+	taps.push('0,1,2,5,19')
+	taps.push('0,3,20')
+	taps.push('0,2,21')
+	taps.push('0,1,22')
+	taps.push('0,5,23')
+	taps.push('0,1,2,7,24')
+	return taps
+}
+
+function allTheTaps(minDegree, maxDegree) {
+	let results = []
+	for (let i = minDegree+1; i < maxDegree+2; i++) {
+		for (let x = 1; x < Math.pow(2, i-1); x+=2 ) {
+			tapBinary = '1' + x.toString(2).padStart(i-1, "0")
+			taps = []
+			for (let a = 0; a < tapBinary.length; a++) {
+				if (tapBinary[a] == '1') { taps.push(a) }
+			}
+			results.push(taps.join(','))
+		}
+	}
+	return results
+}
+
+function testLFSR(taps) {
+	let preBits = [...bits]
+	feedThruDescramble(taps, 'No');
+	let result = bitBias();
+	bits = [...preBits]
+	return result
+}
+
+function findMaximalLFSR() {
+	var minDegree = parseInt(document.getElementById('LFSRminDegreeInput').value);
+	var maxDegree = parseInt(document.getElementById('LFSRmaxDegreeInput').value);
+	var checkBits = parseInt(document.getElementById('LFSRtestBitsInput').value);
+	
+	let results = []
+	let longest_taps = 0
+	let tests = maximalTaps()
+	
+	tests.forEach( function(taps) {
+		let length = parseInt( taps.split(',').pop() )
+		if ( minDegree <= length & length <= maxDegree ) {
+			result = testLFSR(taps)
+			if (taps.length > longest_taps) {longest_taps = taps.length}
+			results.push([taps, result]);
+		}
+	})
+	
+	results.sort((a, b) => b[1] - a[1])
+	results = results.map( function(a,b) { return a[0] + ' '.repeat(longest_taps + 2 - a[0].length) + a[1] } )
+	
+	results = results.join('\n')
+	
+	document.getElementById('findLFSROutput').innerHTML = results
+	
+}
+
+function findLFSR() {
+	var minDegree = parseInt(document.getElementById('LFSRminDegreeInput').value);
+	var maxDegree = parseInt(document.getElementById('LFSRmaxDegreeInput').value);
+	var checkBits = parseInt(document.getElementById('LFSRtestBitsInput').value);
+	
+	let results = []
+	let longest_taps = 0
+	let tests = allTheTaps(minDegree, maxDegree)
+	let maximals = maximalTaps()
+	
+	tests.forEach( function(taps) {
+		result = testLFSR(taps)
+		if (maximals.includes(taps)) { taps = taps + ' (maximal)'}
+		if (taps.length > longest_taps) {longest_taps = taps.length}
+		results.push([taps, result]);
+	})
+	
+	results.sort((a, b) => b[1] - a[1])
+	results = results.map( function(a,b) { return a[0] + ' '.repeat(longest_taps + 2 - a[0].length) + a[1] } )
+	
+	results = results.join('\n')
+	
+	document.getElementById('findLFSROutput').innerHTML = results
+	
+}
+
+
 function findWidth() {
 	setTimeout(clearWidthGraph, 0);
-	setTimeout(runFindWidth, 200);
+	setTimeout(runFindWidth, 1000);
 }
 
 function clearWidthGraph () {
@@ -2136,7 +2286,7 @@ function clearWidthGraph () {
 	var ctx = graph.getContext("2d");
 	var text = ctx.measureText("Testing Widths...")
 	ctx.clearRect(0, 0, graph.width, graph.height);
-	ctx.font = "20px 'Comic Sans MS', 'Comic Sans', monospace";
+	ctx.font = "20px 'Comic Sans MS', 'Comic Sans', cursive";
 	ctx.fillStyle = "#fff";
 	ctx.fillText("Testing Widths...", (graph.width/2)-text.width, graph.height/2)-text.height;
 }
@@ -2259,7 +2409,7 @@ function runColumnBias() {
 	var ctx = graph.getContext("2d");
 	ctx.clearRect(0, 0, graph.width, graph.height);
 	ctx.strokeStyle = lineColor;
-	ctx.beginPath();feedThruScramble
+	ctx.beginPath();
 	for (var i = 0; i < results.length; i++) {
 		ctx.lineTo(i*pixPerResult, graph.height-(results[i][1]*graph.height));
 	}
@@ -2273,6 +2423,8 @@ function runFindWidth() {
 	var checkBits = parseInt(document.getElementById('testBitsInput').value);
 	
 	var graph = document.getElementById("findWidthGraph");
+	console.log(graph.width)
+	console.log(maxWidth - minWidth)
 
 	pixPerResult = graph.width / (maxWidth - minWidth);
 	var maxResult = 0;
