@@ -273,6 +273,7 @@ textArea {
 <button id="inputMenuButton" onclick="openToolbox(&#39;inputMenu&#39;);" style="">Input Select</button>
 <button id="findWidthButton" onclick="openToolbox(&#39;findWidth&#39;);">Find Width</button>
 <button id="findLFSRButton" onclick="openToolbox(&#39;findLFSR&#39;);">Find LFSR</button>
+<button id="findLFSRFillButton" onclick="openToolbox(&#39;findLFSRFill&#39;);">Find LFSR Fill</button>
 <button id="columnBiasButton" onclick="openToolbox(&#39;columnBias&#39;);">Column Bias</button>
 <button id="asciiViewButton" onclick="openToolbox(&#39;asciiView&#39;); updateAsciiView();">ASCII View</button>
 <button id="hexViewButton" onclick="openToolbox(&#39;hexView&#39;); updateHexView();" style="">Hex View</button>
@@ -291,6 +292,7 @@ textArea {
 <textarea id="textInputArea" style="font-family: 'Comic Sans MS', 'Comic Sans', cursive; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground); border: 1px solid var(--borderColor);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"></textarea>
 <button onclick="loadTextInput(2);">Load Binary</button>
 <button onclick="loadTextInput(16);">Load Hex</button>
+<button onclick="loadTextInputASCII();">Load ASCII</button>
 </div>
 
 <div id="playAudio" class="closedToolbox">
@@ -328,9 +330,17 @@ Bits to Test: <input type="number" id="testBitsInput" value="10000">
 <div style="padding-top: 5px; padding-right: 10px;">
 Min Degree: <input type="number" id="LFSRminDegreeInput" value=3 min=1>
 Max Degree: <input type="number" id="LFSRmaxDegreeInput" value=7 max=24>
-Bits to Test: <input type="number" id="LFSRtestBitsInput" value="10000">
 <button id="goFindLFSRButton1" onclick="findMaximalLFSR();">Find Maximals</button>
 <button id="goFindLFSRButton2" onclick="findLFSR();">Find All (much slower)</button>
+</div>
+</div>
+
+<div id="findLFSRFill" class="closedToolbox">
+<textarea disabled="" id="findLFSRFillOutput" style="font-family: monospace; color: var(--textColor); width: 100%; height: 265px; background-color: var(--midground);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" ></textarea>
+<div style="padding-top: 5px; padding-right: 10px;">
+Taps: <input type="text" id="LFSRFillTaps" value="0,1,7">
+Length: <input type="number" id="LFSRFillLength" value=127>
+<button id="goFindLFSRFillButton" onclick="findLFSRFill();">Find Fill</button>
 </div>
 </div>
 
@@ -980,7 +990,7 @@ const positionOutput = document.getElementById('position');
 const operationsListHTML = document.getElementById('operationsList');
 var operationsList = [];
 
-var bits = Array(1270).fill(0);
+var bits = Array(10000).fill(0);
 additiveScramble("0,1,7","No","1","0","0");
 var bitsNoOp = [...bits];
 
@@ -2429,7 +2439,6 @@ function testLFSR(taps) {
 function findMaximalLFSR() {
 	var minDegree = parseInt(document.getElementById('LFSRminDegreeInput').value);
 	var maxDegree = parseInt(document.getElementById('LFSRmaxDegreeInput').value);
-	var checkBits = parseInt(document.getElementById('LFSRtestBitsInput').value);
 	
 	let results = []
 	let longest_taps = 0
@@ -2450,13 +2459,11 @@ function findMaximalLFSR() {
 	results = results.join('\n')
 	
 	document.getElementById('findLFSROutput').innerHTML = results
-	
 }
 
 function findLFSR() {
 	var minDegree = parseInt(document.getElementById('LFSRminDegreeInput').value);
 	var maxDegree = parseInt(document.getElementById('LFSRmaxDegreeInput').value);
-	var checkBits = parseInt(document.getElementById('LFSRtestBitsInput').value);
 	
 	let results = []
 	let longest_taps = 0
@@ -2479,6 +2486,50 @@ function findLFSR() {
 	
 }
 
+function allTheFills(length) {
+	let result = [];
+
+    function generate(prefix, n) {
+        if (n === 0) {
+            result.push(prefix);
+        } else {
+            generate(prefix + '0', n - 1);
+            generate(prefix + '1', n - 1);
+        }
+    }
+
+    generate('', length);
+    return result;
+}
+
+function testFill(taps, length, fill) {
+	let preBits = [...bits]
+	additiveScramble(taps,"No",fill,length,"0");
+	let result = bitBias();
+	bits = [...preBits]
+	return result
+}
+
+function findLFSRFill() {
+	var taps = document.getElementById('LFSRFillTaps').value;
+	var length = parseInt(document.getElementById('LFSRFillLength').value);
+	
+	let results = []
+	let registerLength = parseInt(taps.split(',').pop())
+	let tests = allTheFills(registerLength)
+	
+	tests.forEach( function(fill) {
+		result = testFill(taps, length, fill)
+		results.push([fill, result]);
+	})
+	
+	results.sort((a, b) => b[1] - a[1])
+	results = results.map( function(a,b) { return a[0] + '  ' + a[1] } )
+	
+	results = results.join('\n')
+	
+	document.getElementById('findLFSRFillOutput').innerHTML = results
+}
 
 function findWidth() {
 	setTimeout(clearWidthGraph, 0);
@@ -2526,7 +2577,6 @@ function applyWidth(event) {
 	
 	widthInput.value = bestResult;
 	updateBitRaster();
-	
 }
 
 function getMousePos(event) {
@@ -2571,7 +2621,6 @@ function getBitLocation(event) {
 	document.getElementById('cursorColumn').value = column;
 	document.getElementById('cursorRow').value = row;
 	document.getElementById('cursorBit').value = bit;
-
 }
 
 
@@ -2592,7 +2641,6 @@ function singleColumnBias(column, width, checkBits) {
 	
 	bias = parseFloat(total) / parseFloat(count);
 	return bias;
-
 }
 
 
@@ -2624,7 +2672,6 @@ function runColumnBias() {
 	}
 	ctx.stroke();
 }
-
 
 function runFindWidth() {
 	var minWidth = parseInt(document.getElementById('minWidthInput').value);
@@ -2679,7 +2726,6 @@ function closeToolbox(item) {
 	document.getElementById(item+"Button").style.backgroundColor = "";
 	document.getElementById(item+"Button").style.color = "";
 	document.getElementById(item).className = "closedToolbox";
-	//document.getElementById("bitRaster").className = "withClosedToolbox";
 	openBox = "none";
 	setTimeout(updateBitRaster, 1);
 }
@@ -2693,7 +2739,6 @@ function openToolbox(item) {
 		document.getElementById(item+"Button").style.backgroundColor = "var(--buttonbgSelected)";
 		document.getElementById(item+"Button").style.color = "var(--buttonfgSelected)";
 		document.getElementById(item).className = "openToolbox";
-		//document.getElementById("bitRaster").className = "withOpenToolbox";
 		if (item == "findWidth") {
 			setTimeout(showFindWidthGraph, 1000);
 			setTimeout(findWidth, 1001);
@@ -2793,30 +2838,50 @@ function updateBitRaster() {
 }
 
 
+function dec2bin(dec) {
+	return ('0000000' + dec.toString(2)).substr(-8).split('');
+}
+
 function hex2bin(hexByte) {
 	return ('0000000' + parseInt(hexByte, 16).toString(2)).substr(-8).split('');
 }
 
+function loadTextInputASCII() {
+	let data = document.getElementById('textInputArea').value;
+	let tempBits = [];
+	for (var x=0; x<data.length; x++) {
+		tempBits.push( ...dec2bin( data.charCodeAt(x) ) );
+	}
+	
+	tempBits = tempBits.map(makeInt)
+	bitsNoOp = [...tempBits]
+	bits = [...tempBits]
+	updateBitRaster();
+	updateOtherDisplays();
+}
+
 function loadTextInput(base) {
-	data = document.getElementById('textInputArea').value;
+	let data = document.getElementById('textInputArea').value;
 	data = data.split('\n').join('');
 	data = data.split(' ').join('');
 	
-	bits = [];
+	let tempBits = [];
 	
 	if (base === 2) {
 		for (var x=0; x<data.length; x++) {
-			bits.push( parseInt( data[x] ) );
+			tempBits.push( parseInt( data[x] ) );
 		}
 	}
 	
 	if (base === 16) {
 		for (var x=0; x<data.length; x+=2) {
-			bits.push( ...hex2bin(data.substring(x, x+2)) );
+			tempBits.push( ...hex2bin(data.substring(x, x+2)) );
 		}
 	}
 	
-	bitsNoOp = [...bits]
+	tempBits = tempBits.map(makeInt)
+	bitsNoOp = [...tempBits]
+	bits = [...tempBits]
 	updateBitRaster();
 	updateOtherDisplays();
 }
@@ -2891,7 +2956,7 @@ function updateOtherDisplays(startBit) {
 
 document.onload = updateBitRaster();
 
-function number2LSFBArray(number, length) {
+function number2LSBFArray(number, length) {
 	result = []
 	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2);
 	for (var i=0; i<number.length; i+=2) {
@@ -2909,18 +2974,18 @@ function buildWavFile(bytes) {
 
 	var wav = [];
 	wav.push(...[82, 73, 70, 70] ); //RIFF
-	wav.push(...number2LSFBArray(bytes.length + 36, 4) ); //size LSBF
+	wav.push(...number2LSBFArray(bytes.length + 36, 4) ); //size LSBF
 	wav.push(...[87, 65, 86, 69] ); //WAVE
 	wav.push(...[102, 109, 116, 32] ); //fmt 
 	wav.push(...[16, 0, 0, 0] ); //length of format data
 	wav.push(...[1, 0] ); //format
 	wav.push(...[channels, 0] ); //channels
-	wav.push(...number2LSFBArray(sampleRate, 4) ); //sample rate
-	wav.push(...number2LSFBArray(magicNumber1, 4) ); //magic number
-	wav.push(...number2LSFBArray(magicNumber2, 2) ); //magic number
-	wav.push(...number2LSFBArray(bitsPerSample, 2) ); //magic number
+	wav.push(...number2LSBFArray(sampleRate, 4) ); //sample rate
+	wav.push(...number2LSBFArray(magicNumber1, 4) ); //magic number
+	wav.push(...number2LSBFArray(magicNumber2, 2) ); //magic number
+	wav.push(...number2LSBFArray(bitsPerSample, 2) ); //magic number
 	wav.push(...[100, 97, 116, 97] ); //data
-	wav.push(...number2LSFBArray(bytes.length, 4) ); //size LSBF
+	wav.push(...number2LSBFArray(bytes.length, 4) ); //size LSBF
 	//wav.push(...bytes);
 	
 	return new Uint8Array( wav );
