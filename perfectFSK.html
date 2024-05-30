@@ -19,6 +19,7 @@ a {
 <p>Low Freq: <input type='number 'id='lowFreqInput' value=400></input></p>
 <p>High Freq: <input id='highFreqInput' value=800></input></p>
 <p>Baud Rate: <input id='baudRateInput' value=50></input></p>
+<p>Ring Rate: <input id='ringRateInput' value=10></input></p>
 <p>Sample Rate: <input id='sampleRateInput' value=8000></input></p>
 <p><button onclick="generate();">Generate and Play</button></p>
 <p><audio controls="controls" id="audio" loop=""><source id="source" src="" type="audio/wav"></audio></p>
@@ -68,11 +69,12 @@ function generate() {
 	let lowFrequency = parseFloat( $("lowFreqInput").value )   //Hz
 	let highFrequency = parseFloat( $("highFreqInput").value ) // Hz
 	let symbolRate = parseFloat( $("baudRateInput").value )    // Symbols per second (Hz)
-	let sampleRate = parseFloat( $("sampleRateInput").value )  // Samples per second (Hz)
+	let sampleRate = parseFloat( $("sampleRateInput").value )  // Samples per second (Hz).
+	let ringRate = parseInt( $("ringRateInput").value )  // rings per symbol - should be even for best results
 	
 	let bits = ascii2bits(text)
 	if (text == '') {bits = randomBinary().split('').map(makeInt)}
-	let samples = perfectFSK(bits, lowFrequency, highFrequency, symbolRate, sampleRate)
+	let samples = perfectFSK(bits, lowFrequency, highFrequency, symbolRate, sampleRate, ringRate)
 	
 	samples = samples.map(sample2byte)
 	playAudio(samples, sampleRate)
@@ -132,11 +134,36 @@ function playAudio(bytes, sampleRate) {
 
 // ----------------------------------------------------------------------------
 
-function buildSymbol(halfSymbolLength, rotationalVelocity) {
+function buildSymbol_NoRing(halfSymbolLength, rotationalVelocity) {
     // produces the frequency map for a single symbol
 	// halfSymbolLength is the half duration of a symbol in samples (int)
 	// rotationalVelocity is the frequency in radians per sample (float)
 	return new Array(halfSymbolLength).fill(rotationalVelocity)
+}
+
+function buildSymbol(halfSymbolLength, lowVelocity, highVelocity, ringRate) {
+    // produces the frequency map for a single symbol
+	// halfSymbolLength is the half duration of a symbol in samples (int)
+	// rotationalVelocity is the frequency in radians per sample (float)
+	let lowSymbol = new Array(halfSymbolLength)
+	let highSymbol = new Array(halfSymbolLength)
+	let delta = highVelocity - lowVelocity
+	let f1 = ringRate // frequency of ring around - should be even 
+	
+	if (f1 == 0) {
+		lowSymbol = buildSymbol_NoRing(halfSymbolLength, lowVelocity)
+		highSymbol = buildSymbol_NoRing(halfSymbolLength, highVelocity)
+		return [lowSymbol, highSymbol]
+	}
+	
+	let a1 = Math.pow(2, f1+1) // dampening of ring around - should be 2 to the power of f1+1
+	
+	for (let x = 0; x < halfSymbolLength; x++) {
+		lowSymbol[x] = lowVelocity + ( Math.cos( (Math.PI * x) / (halfSymbolLength/f1) ) * (delta/-a1) + (delta/a1) )
+		highSymbol[x] = lowVelocity + ( Math.cos( (Math.PI * x) / (halfSymbolLength/f1) ) * (delta/a1) + delta + (delta/-a1) )
+	}
+	
+	return [lowSymbol, highSymbol]
 }
 
 function buildTransition (halfSymbolLength, startVelocity, stopVelocity) {
@@ -167,13 +194,14 @@ function frequency2rotationalVelocity(frequency, sampleRate) {
 	return (2*Math.PI) / period
 }
 
-function buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sampleRate) {
+function buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sampleRate, ringRate) {
 	let halfSymbolLength = parseInt ( (1/symbolRate) * sampleRate / 2 )
 	let lowVelocity = frequency2rotationalVelocity(lowFrequency, sampleRate)
 	let highVelocity = frequency2rotationalVelocity(highFrequency, sampleRate)
 	
-	let highSwatch = buildSymbol(halfSymbolLength, highVelocity)
-	let lowSwatch = buildSymbol(halfSymbolLength, lowVelocity)
+	let symbols = buildSymbol(halfSymbolLength, lowVelocity, highVelocity, ringRate)
+	let highSwatch = symbols[1]
+	let lowSwatch = symbols[0]
 	let tLowHighSwatch = buildTransition(halfSymbolLength, lowVelocity, highVelocity)
 	let tHighLowSwatch = buildTransition(halfSymbolLength, highVelocity, lowVelocity)
 	
@@ -222,12 +250,12 @@ function buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sample
 	return frequencyMap.flat(1)
 }
 
-function perfectFSK(bits, lowFrequency, highFrequency, symbolRate, sampleRate) {
+function perfectFSK(bits, lowFrequency, highFrequency, symbolRate, sampleRate, ringRate) {
 	
 	// build the frequency map
 	// the frequency map is actually an array of values which are the
 	// rotational velocities: high angular velocity = high frequency
-	let frequencyMap = buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sampleRate)
+	let frequencyMap = buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sampleRate, ringRate)
 	
 	// set the angle to zero and init the samples array
 	let angle = 0.0
