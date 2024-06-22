@@ -322,6 +322,8 @@ Apply DSP Analyics
 <tr><td style="width:30%;">Frequency:</td><td><input type='number' id='analyticFrequency' value=0 onchange='analyticSignal()'></td></tr>
 <tr><td>Phase:</td><td><input type='number' id='analyticPhase' value=0  onchange='analyticSignal()'></td></tr>
 <tr><td>Averaging Window:</td><td><input type='number' id='analyticAveraging' value=16 min='0' onchange='analyticSignal()'></td></tr>
+<tr><td>Decimation:</td><td><input type='number' id='analyticDecimation' value=1 min='0' onchange='analyticSignal()'></td></tr>
+<tr><td>Decimation Cut:</td><td><input type='number' id='analyticDecimationCut' value=0 min='0' onchange='analyticSignal()'></td></tr>
 <tr><td>Analytic:</td><td>
 <select id='analyticPower' onchange='analyticSignal()'>
 <option value='1'>None</option>
@@ -501,20 +503,6 @@ Generate Audio from Current Samples
 <p><button onclick='stopStartAnimateFrequencyDomain()'>Animate / Stop</button></p>
 </div>
 
-<div id='Symbol Rate View Menu' class='sideMenuItemHidden'>
-<p>Start Sample: <input id='symbolRateViewStartSample' type='number' value=0 onchange='updateSymbolRateView()'></p>
-<p>End Sample: <input id='symbolRateViewEndSample' type='number' value=8000 onchange='updateSymbolRateView()'></p>
-<p>Max Symbol Rate: <input id='symbolRateViewMaxFrequency' type='number' value=2000 onchange='updateSymbolRateView()'></p>
-<p>Symbol Rate Marker: <input id='symbolRateViewXmarker' type='number' min=0 value=0 onchange='updateSymbolRateView()'></p>
-<p>Display Grids:
-<select id='symbolRateViewGridsOn' onchange='updateSymbolRateView()'>
-<option value='true'>Yes</option>
-<option value='false'>No</option>
-</select>
-</p>
-</div>
-
-
 <div id='Spectrogram Menu' class='sideMenuItemHidden'>
 <p>Start Sample: <input type='number' id='spectroStartSample' value=0 onchange='updateSpectrogram()'></p>
 <p>End Sample: <input type='number' id='spectroEndSample' value=64000 onchange='updateSpectrogram()'></p>
@@ -637,10 +625,6 @@ Generate Audio from Current Samples
 
 <div id='Frequency Domain' class='toolHidden' updateFunction='updateFrequencyDomain()'>
 <canvas id='frequencyDomainCanvas'>
-</div>
-
-<div id='Symbol Rate View' class='toolHidden' updateFunction='updateSymbolRateView()'>
-<canvas id='symbolRateViewCanvas'>
 </div>
 
 <div id='Spectrogram' class='toolHidden' updateFunction='updateSpectrogram()'>
@@ -1106,7 +1090,7 @@ function updateFrequencyDomain() {
 		psds[p] = psds[p] * (1/averages)
 	}
 	
-	psds = psds.slice(1,-1)
+	psds = psds.slice(1,-1)	
 	psds = advancedFunction(psds)
 	
 	let maxY = math.max(psds)
@@ -1702,6 +1686,7 @@ function pskDemodulate() {
 function analyticSignalUndo() {
 	inputData = inputDataNoOp
 	updateUI()
+	sampleRate = sampleRateNoOp
 }
 
 function analyticOperationNone(samples) {
@@ -1719,9 +1704,12 @@ function RMS(windowLength) {
 	 updateUI()
 }
 
+
 function analyticSignal() {
 	let frequency = parseFloat($('analyticFrequency').value)
 	let averagingWindow = parseFloat($('analyticAveraging').value)
+	let decimation = parseInt($('analyticDecimation').value)
+	let decimationCut = parseInt($('analyticDecimationCut').value)
 	let phase = parseFloat($('analyticPhase').value) / 90
 	let power = parseFloat($('analyticPower').value)
 	
@@ -1735,6 +1723,12 @@ function analyticSignal() {
 	if (power >= 2) { newSamples = interpolate(newSamples,2) }
 	if (power >= 4) { newSamples = interpolate(newSamples,2) }
 	if (power == 8) { newSamples = interpolate(newSamples,2) }
+	
+	if (power >=2) { 
+		sampleRate = sampleRateNoOp * power
+	} else {
+		sampleRate = sampleRateNoOp
+	}
 	
 	for (let i=0; i<newSamples.length-2; i++) {
 		let complexS = math.complex(newSamples[i], newSamples[i+1])
@@ -1775,6 +1769,20 @@ function analyticSignal() {
     iSamples = iSamples.slice(0, iSamples.length-averagingWindow)
     qSamples = qSamples.slice(0, qSamples.length-averagingWindow)
     
+    }
+    
+    if (decimation > 1) {
+    let decimatedSamples = []
+    let decimatedIsamples = []
+    let decimatedQsamples = []
+    for (let i = decimationCut; i<samples.length-decimation; i+=decimation) {
+    	decimatedSamples.push(samples[i])
+    	decimatedIsamples.push(iSamples[i])
+    	decimatedQsamples.push(qSamples[i])
+    }
+    samples = decimatedSamples
+    iSamples = decimatedIsamples
+    qSamples = decimatedQsamples
     }
     
     inputData = samples
@@ -2098,7 +2106,8 @@ function number2LSFBArray(number, length) {
 }
 
 function buildWavFile(bytes) {
-	var sampleRate = parseInt(document.getElementById("sampleRateInput").value);
+	sampleRate = parseInt(document.getElementById("sampleRateInput").value);
+	sampleRateNoOp = sampleRate
 	var bitsPerSample = 8;
 	var channels = 1;
 	var magicNumber1 = (sampleRate * bitsPerSample * channels) / 8;
@@ -2162,6 +2171,7 @@ var inputDataNoOp = new Array()
 var samples = new Array()
 var samplesNoOp = new Array()
 var sampleRate = 8000
+var sampleRateNoOp = 8000
 var topContainerCollapsed = false
 
 
