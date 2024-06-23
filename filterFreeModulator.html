@@ -76,8 +76,8 @@ canvas {
 
 	<tr>
 		<td>Frequency / Amplitude Deviation:</td>
-		<td><input id='deviationInput' value=100></input></td>
-		<td>// For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power.</td>
+		<td><input id='deviationInput' value=90></input></td>
+		<td>// For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power</td>
 	</tr>
 
 	<tr>
@@ -96,9 +96,9 @@ canvas {
 		<td>Modulation Type:</td>
 		<td>
 			<select id='modulationTypeInput'>
-			<option value='FSK'>FSK</option>
 			<option value='ASK'>ASK</option>
 			<option value='BPSK'>PSK (BPSK)</option>
+			<option value='FSK'>FSK</option>
 			</select>
 		</td>
 		<td> </td>
@@ -325,7 +325,7 @@ function updatePlots() {
 
 // detect the scroll wheel and zoom in/out on all of the plots
 // this is done by adjusting the number of samples to show on the plots (plotSamples)
-var plotSamples = 1000
+var plotSamples = 4000
 window.addEventListener("wheel", event => {
 	if (plotNotReady) {return null}
     let delta = Math.sign(event.deltaY)
