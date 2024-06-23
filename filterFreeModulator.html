@@ -14,6 +14,32 @@ a {
 
 input, button, select{
 	width: 12em;
+	border: 1px solid white;
+	background: black;
+	color: white;
+	border-radius: 3px;
+	font-family: monospace;
+}
+
+button:hover {
+	background: #333;
+}
+
+button:active {
+	background: #555;
+}
+
+table {
+	width: 100%;
+	border-collapse: collapse;
+	border: 0px;
+}
+
+canvas {
+	width: 100%;
+    height: 128px;
+    border: 1px solid #555;
+    border-radius: 10px;
 }
 
 </style>
@@ -24,11 +50,11 @@ input, button, select{
 <p>
 	This tool attempts to produce decent quality modulated waveforms without the need for filters.
 	This is achieved by gradually accelerating the state of carrier toward the symbol value,
-	rather than instantaneously modulating the carrier to the symbol value.
-	Probably not surprising that the resulting waveform looks alot like a filtered waveform -
-	So there's no real gain here in terms of the waveform, however in does remove the need for
-	filters, and therefore runs much quicker in JavaScript (especially for lower modulation rates,
-	which usually require very sharp filters).
+	rather than instantaneously modulating the carrier to the symbol value. Probably not
+	surprising that the resulting waveform looks like a filtered waveform - So there's no real
+	gain here in terms of the waveform quality, however in does remove the need for filters, and
+	therefore runs much quicker in JavaScript (especially for lower modulation rates, which usually
+	require very sharp filters).
 </p>
 
 <p>&nbsp;</p>
@@ -42,21 +68,21 @@ input, button, select{
 	</tr>
 
 	<tr>
-		<td>Carrier Freq:</td>
-		<td><input type='number 'id='lowFreqInput' value=400></input></td>
+		<td>Carrier Frequency:</td>
+		<td><input type='number 'id='carrierFreqInput' value=400></input></td>
 		<td></td>
 	</tr>
 
 
 	<tr>
-		<td>Freq / Amplitude Deviation:</td>
-		<td><input id='highFreqInput' value=100></input></td>
-		<td>// For FSK this is the shift, in ASK this is the amount (100 = 100%, 50 = 50%)</td>
+		<td>Frequency / Amplitude Deviation:</td>
+		<td><input id='deviationInput' value=100></input></td>
+		<td>// For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power.</td>
 	</tr>
 
 	<tr>
 		<td>Baud Rate:</td>
-		<td><input id='baudRateInput' value=50></input></td>
+		<td><input id='symbolRateInput' value=50></input></td>
 		<td>// Rate of modulation</td>
 	</tr>
 
@@ -82,20 +108,44 @@ input, button, select{
 	
 	<tr>
 		<td></td>
-		<td><button onclick="generate();">Generate and Play</button></td>
+		<td><button onclick="generateAndPlay()">Generate and Play</button></td>
+		<td></td>
+	</tr>
+	
+	<tr>
+		<td></td>
+		<td><button onclick="playPause()">Play/Pause</button></td>
+		<td></td>
+	</tr>
+	
+	<tr>
+		<td></td>
+		<td><button onclick="downloadAudio()">Download Audio</button></td>
 		<td></td>
 	</tr>
 
 </table>
 
 <p>&nbsp;</p>
+<p>&nbsp;</p>
 
-<p><audio controls="controls" id="audio" loop=""><source id="source" src="" type="audio/wav"></audio></p>
+<p><audio hidden=true controls="controls" id="audio" loop=""><source id="source" src="" type="audio/wav"></audio></p>
 
+<table>
+<tr><td>Binary Data: Square wave = infinite harmonics  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
+<tr><td> <canvas id='binaryDataView'> </td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>Modulating Wave: Smoothed wave = less harmonics  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
+<tr><td> <canvas id='modulatingWaveView'> </td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>Modulating Wave on Carrier Wave  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
+<tr><td> <canvas id='carrierWaveView'> </td></tr>
+</table>
 
 <script>
 
 // helper and wrapper functions
+// includes functions for building, playing, pausing and dowloading audio
 // ----------------------------------------------------------------------------
 
 function randomBinary () {
@@ -104,23 +154,25 @@ function randomBinary () {
 }
 
 function $(id) {
+	// function to shorten the getElementById call
 	return document.getElementById(id)
 }
 
 function makeInt(str) {
+	// to allow the use of array mapping
+	// from a list of strings to ints
 	return parseInt(str)
 }
 
 function dec2bin(dec) {
+	// returns an 8 bit representation of a decimal number
 	return ('0000000' + dec.toString(2)).substr(-8).split('').map(makeInt)
 }
 
 function char2dec(cha) {
+	// to allow the use of array mapping:
+	// from a list of characters to their decimal ASCII code
 	return cha.charCodeAt()
-}
-
-function dec2hex(dec) {
-	return ('00' + dec.toString(16)).substr(-2)
 }
 
 function ascii2bits(ascii) {
@@ -137,7 +189,18 @@ function sample2byte(sample) {
 	return 127 + parseInt( (Math.random()-0.5) + (sample * 127) )
 }
 
+function frequency2rotationalVelocity(frequency, sampleRate) {
+	// converts from a frequency at a given sample rate to a rotational velocity
+	// period is sampleRate / frequency, i.e. 8000 Hz / 500 Hz = a period of 16 samples
+	let period = sampleRate / frequency
+	// one cycle is 2PI radians and velocity is radians per sample
+	// 2PI radians / period = radians per sample (the rotational velocity)
+	return (2*Math.PI) / period
+}
+
 function number2LSBFArray(number, length) {
+	// covert from a decimal number to a least significant byte first array
+	// this is for the building of WAV file headers
 	result = []
 	number = ('0'.repeat(length*2) + number.toString(16)).substr(length*-2)
 	for (var i=0; i<number.length; i+=2) {
@@ -147,6 +210,8 @@ function number2LSBFArray(number, length) {
 }
 
 function buildWavHeader(bytes, sampleRate) {
+	// take some byte samples (1 byte per sample), offset (8o)
+	// and convert them into a valid WAV file
 	var bitsPerSample = 8
 	var channels = 1
 	var magicNumber1 = (sampleRate * bitsPerSample * channels) / 8
@@ -170,147 +235,288 @@ function buildWavHeader(bytes, sampleRate) {
 	return new Uint8Array( wav );
 }
 
+// function to play or pause the audio
+// so that the default audio player can be hidden away
+var playing = false
+function playPause() {
+	if (playing) {
+		$("audio").pause()
+		playing = false
+	} else {
+		$("audio").play()
+		playing = true
+	}
+}
+
+// function to download the audio
+// so that the default audio player can be hidden away
+function downloadAudio() {
+  let a = document.createElement('a')
+  a.href = $("source").src
+  a.download = Date.now() + ".wav"
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+}
+
+
 function playAudio(bytes, sampleRate) {
+	// take some byte samples, build a WAV file and play it as audio
+	// bytes must be 1 byte per sample audio, offset (8o)
 	var wav = buildWavHeader(bytes, sampleRate)
 	bytes = new Uint8Array(bytes)
 
 	// Create blob from Uint8Array & Object URL.
-	var blob = new Blob([wav, bytes], { type: 'audio/wav' })
+	var blob = new Blob([wav, bytes], { type: "audio/wav" })
 	var url = URL.createObjectURL(blob)
 
-	// Get DOM elements.
-	var audio = document.getElementById('audio')
-	var source = document.getElementById('source')
-
 	// Insert blob object URL into audio element & play.
-	source.src = url
-	audio.load()
-	audio.play()
+	$("source").src = url
+	$("audio").load()
+	$("audio").play()
+	playing = true
 }
 
-function generate() {
+function generateAndPlay() {
+	// take the UI inputs, generate the samples and play them
+	
 	let text = $("messageInput").value
-	let lowFrequency = parseFloat( $("lowFreqInput").value )   //Hz
-	let highFrequency = parseFloat( $("highFreqInput").value ) // Hz
-	let symbolRate = parseFloat( $("baudRateInput").value )    // Symbols per second (Hz)
-	let sampleRate = parseFloat( $("sampleRateInput").value )  // Samples per second (Hz).
+	let carrierFrequency = parseFloat( $("carrierFreqInput").value )   //Hz
+	let deviation = parseFloat( $("deviationInput").value ) // Hz
+	symbolRate = parseFloat( $("symbolRateInput").value )    // Symbols per second (Hz)
+	sampleRate = parseFloat( $("sampleRateInput").value )  // Samples per second (Hz).
 	let modulation = eval($("modulationTypeInput").value) // ASK or FSK
 	
-	let bits = ascii2bits(text)
+	bits = ascii2bits(text)
 	// if there's no text - just send random bits
 	if (text == '') {bits = randomBinary().split('').map(makeInt)}
-	let samples = modulation(bits, lowFrequency, highFrequency, symbolRate, sampleRate)
+	[modulationMap, samples] = modulation(bits, carrierFrequency, deviation, symbolRate, sampleRate)
 	
+	// the samples are just floats, they will need to be packed into bytes before they
+	// can be played. sample2byte will fit them into a byte usuing 8 bits per sample, offset
 	samples = samples.map(sample2byte)
+	
+	// plot the values on the canvas for visualisation
+	// plotValues(canvas, dataToPlot, dataRepeatCount)
+	updatePlots()
+	
+	// play the audio
 	playAudio(samples, sampleRate)
+}
+
+// plotting functions
+// ----------------------------------------------------------------------------
+
+// make the following variables global, to enable the dynamic construction of
+// plots (allows the plots to zoom and pan, without needing to pass variables around
+var bits = []
+var sampleRate = 0
+var symbolRate = 0
+var modulationMap = []
+var samples = []
+var plotNotReady = true
+
+// update all three plots
+function updatePlots() {
+	plotValues( $('binaryDataView'), bits, parseInt(sampleRate/symbolRate) )
+	plotValues( $('modulatingWaveView'), modulationMap, 0 )
+	plotValues( $('carrierWaveView'), samples, 0 )
+}
+
+// detect the scroll wheel and zoom in/out on all of the plots
+// this is done by adjusting the number of samples to show on the plots (plotSamples)
+var plotSamples = 1000
+window.addEventListener("wheel", event => {
+	if (plotNotReady) {return null}
+    let delta = Math.sign(event.deltaY)
+    plotSamples = plotSamples + ( delta * (plotSamples/10) )
+	if (plotSamples < 100) { plotSamples = 100 }
+	if (startSample + plotSamples > samples.length) { plotSamples = samples.length - startSample }
+	updatePlots()
+});
+
+
+// detect the left/right arrow keys and pan all of the plots
+// this is done by adjusting which sample the plots start at (startSample)
+var startSample = 0
+window.onkeydown = checkKey;
+function checkKey(e) {
+	if (plotNotReady) {return null}
+    e = e || window.event;
+	
+    if (e.keyCode == '37') {
+       // left arrow
+	   startSample = startSample - parseInt( plotSamples/40 )
+	   if (startSample < 0) { startSample = 0 }
+	   updatePlots()
+    }
+    else if (e.keyCode == '39') {
+       // right arrow
+	   startSample = startSample + parseInt( plotSamples/40 )
+	   	if (startSample + plotSamples > samples.length) { startSample = samples.length - plotSamples }
+		updatePlots()
+    }
+
+}
+
+function plotValues(canvas, data, dataRepeatCount) {
+	// function for plotting data on a canvas
+
+	// dataRepeatCount enables the binary data plot to line up with the other plots
+	if (dataRepeatCount > 1) {
+		let newData = new Array()
+		data.forEach( function(d) {
+			newData.push( new Array(dataRepeatCount).fill(d) )
+		})
+		data = newData.flat()
+		data = data.slice( parseInt(dataRepeatCount/2) , data.length)
+	}
+	
+	// only plot as many samples as the zoom level specifies
+	// starting at the pan point specified start sample
+	data = data.slice( startSample, startSample+plotSamples )
+
+	// make the canvas fill the parent element
+	canvas.width = canvas.parentElement.clientWidth;
+	canvas.height = canvas.parentElement.clientHeight;
+
+	// init the contect and clear it
+	let ctx = canvas.getContext('2d')
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	
+	// automatically fit the vertical scale to the data
+	let yMax = Math.max(...data)
+	let yMin = Math.min(...data)
+	
+	origYmax = yMax + 0
+	if (yMax > 0) { yMax = yMax * 1.1 } else if (yMax == 0) {yMax = 0.1} else { yMax = yMax * 0.9 }
+	yMin = yMin - (yMax - origYmax)
+	
+	let range = yMax - yMin
+	let pw = canvas.width / plotSamples
+	let ph = canvas.height / range
+
+	// plot all the data with a bright green sharp line 
+	
+	ctx.beginPath()
+	
+	x = 0
+	for (let s = 0; s < plotSamples; s++) {
+		let y = canvas.height - ((data[s] - yMin) * (ph) )
+		ctx.lineTo(x, y)
+		x += pw
+	}
+	
+	ctx.lineWidth = 1.0
+	ctx.strokeStyle = "#0f0"
+	// double stroke makes it a nice solid line
+	// due to anti-aliasing, a single stroke is soft and not as bright
+	ctx.stroke()
+	ctx.stroke()
+
+	// enable the plot zoom and pan functions
+	plotNotReady = false
 }
 
 // ----------------------------------------------------------------------------
 
-function buildSymbol(halfSymbolLength, rotationalVelocity) {
-    // produces the frequency map for a single symbol
-	// halfSymbolLength is the half duration of a symbol in samples (int)
-	// rotationalVelocity is the frequency in radians per sample (float)
-	return new Array(halfSymbolLength).fill(rotationalVelocity)
+function buildSymbol(symbolLength, value) {
+    // produces the modulation map for a single symbol
+	// symbolLength is the half duration of a symbol in samples (int)
+	// value is the an int or float representing the modulation
+	return new Array(symbolLength).fill(value)
 }
 
-function buildTransition (halfSymbolLength, startVelocity, stopVelocity) {
-	// produces the frequency map for a transition (start to stop)
-	// halfSymbolLength is the half duration of a symbol in samples (int)
-	// startVelocity is the start frequency in radians per sample (float)
-	// stopVelocity is the stop frequency in radians per sample (float)
-	let tArray = new Array(halfSymbolLength).fill(startVelocity)
-	let delta = stopVelocity - startVelocity
+function buildTransition (symbolLength, startValue, endValue) {
+	// produces the modulation map for a transition (start to stop)
+	// symbolLength is the duration of a symbol in samples (int)
+	// startValue is the start value of the modulation (float)
+	// endValue is the end value of the modulation (float)
+	let tArray = new Array(symbolLength).fill(startValue)
+	let delta = endValue - startValue
 	
-	// produce a cosine half-wave starting at the startVelocity, ramping up
-	// to the stop frequency. Minimum acceleration is at the first and last
+	// produce a cosine half-wave starting at the startValue, ramping up
+	// to the end value. Minimum acceleration is at the first and last
 	// transitions, with maximum acceleration around the middle transitions
-	// the last point in the transition array should be equal to stopVelocity
-	for (let x = 0; x < halfSymbolLength; x++) {
-		tArray[x] += Math.cos( (Math.PI * x) / (halfSymbolLength-1) ) * (delta / -2) + delta / 2
+	// the last point in the transition array should be equal to endValue
+	for (let x = 0; x < symbolLength; x++) {
+		tArray[x] += Math.cos( (Math.PI * x) / (symbolLength-1) ) * (delta / -2) + delta / 2
 	}
 
 	return tArray
 }
 
-function frequency2rotationalVelocity(frequency, sampleRate) {
-	if (frequency <= 1) { return frequency }
-	// 10 Hz at 50 samples per second = 50/10 = 5 (samples per cycle)
-	let period = sampleRate / frequency
-	// one cycle is 2PI radians
-	// velocity is radians per sample
-	// 2PI radians / 5 = rotational velocity (radians per sample)
-	return (2*Math.PI) / period
-}
-
-function buildAmplitudeMap(bits, lowAmplitude, highAmplitude, symbolRate, sampleRate) {
-	// very similar to the build frequencyMap function, 
-	// except intead of frequency modulation, we're trying to do amplitude modulation
-	// so we're just going to make use of the buildFrequencyMap function and get it 
-	// to output values between the low and high amplitudes (high is probably always 1)
+function buildModulationMap(bits, lowValue, highValue, symbolRate, sampleRate) {
+	// builds a modulation map to represent the modulating bits
+	// Binary 0 is represented by the modulating value of lowValue
+	// Binary 1 is represented by the modulating value of highValue
 	
-	// the frequency2rotationalVelocity function has been made to just return the input
-	// value, if the input value is less than or equal to 1, so it won't modify the
-	// amplitude values passed to it
-	
-	return buildFrequencyMap(bits, lowAmplitude, highAmplitude, symbolRate, sampleRate)
-
-}
-
-function buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sampleRate) {
+	// calculate the duration of each symbol in samples
 	let symbolLength = parseInt( (1/symbolRate) * sampleRate )
-	let lowVelocity = frequency2rotationalVelocity(lowFrequency, sampleRate)
-	let highVelocity = frequency2rotationalVelocity(highFrequency, sampleRate)
 	
-	let highSwatch = buildSymbol(symbolLength, highVelocity)
-	let lowSwatch = buildSymbol(symbolLength, lowVelocity)
-	let tLowHighSwatch = buildTransition(symbolLength, lowVelocity, highVelocity)
-	let tHighLowSwatch = buildTransition(symbolLength, highVelocity, lowVelocity)
+	// create the swatches for both a pure high and pure low value
+	let lowSwatch = buildSymbol(symbolLength, lowValue)
+	let highSwatch = buildSymbol(symbolLength, highValue)
 	
-	// duplicate last bit so that it gets a full symbol duration
-	// as the symbol usually includes a transition
-	bits.push(bits[-1])
+	// create the swatches for the transitions: low to high and high to low
+	// could just create one and then reverse the array for the alternate
+	// this is just a bit clearer and easier to read
+	// also only runs once, so minimal gain to be made here.
+	let tLowHighSwatch = buildTransition(symbolLength, lowValue, highValue)
+	let tHighLowSwatch = buildTransition(symbolLength, highValue, lowValue)
 	
-	let frequencyMap = new Array()
+	// so that the first and last bit aren't lost, add a zero bit to the
+	// start and end of the message.
+	bits.push( 0 )
+	bits.unshift( 0 )
+	
+	// init the modulationMap and the state
+	let modulationMap = new Array()
 	let state = bits[0]
-	let lastSwatch = lowSwatch
-	
 	
 	for (let i=1; i<bits.length; i++) {
 		// if there was no change, just keep tx-ing
 		// the current state, with no change
 		if (state == bits[i]) {
 			if (state == 0) {
-				frequencyMap.push( lowSwatch )
+				modulationMap.push( lowSwatch )
 			} else {
-				frequencyMap.push( highSwatch )
+				modulationMap.push( highSwatch )
 			}
 		// if it changes from one to zero
 		// tx the high-to-low transition
 		} else if ( state > bits[i] ) {
-			frequencyMap.push( tHighLowSwatch )
+			modulationMap.push( tHighLowSwatch )
 		// if it changes from zer to one
 		// tx the low-to-high transition
 		} else {
-			frequencyMap.push( tLowHighSwatch )
+			modulationMap.push( tLowHighSwatch )
 		}
 		
+		// set the sate to the current bit value
 		state = bits[i]
 	}
 	
-	return frequencyMap.flat(1)
+	return modulationMap.flat(1)
 }
 
 function FSK(bits, lowFrequency, frequencyDeviation, symbolRate, sampleRate) {
+	// produces samples representing an FSK modulated carrier
+	// lowFrequency = the tone to play for a binary zero
+	// highFrequency = the tone to playe for a binary one
+	// symbolRate = the rate of modulation, or the number of bits per second in this case
+	// sample rate = the audio sample rate
 	
 	// build the frequency map
-	// the frequency map is actually an array of values which are the
-	// rotational velocities: high angular velocity = high frequency
+	// the frequency map is an array of rotational velocities
+	// high frequency = high rotational velocity
 	let highFrequency = lowFrequency + frequencyDeviation
-	let frequencyMap = buildFrequencyMap(bits, lowFrequency, highFrequency, symbolRate, sampleRate)
+	let lowVelocity = frequency2rotationalVelocity(lowFrequency, sampleRate)
+	let highVelocity = frequency2rotationalVelocity(highFrequency, sampleRate)
+	let frequencyMap = buildModulationMap(bits, lowVelocity, highVelocity, symbolRate, sampleRate)
 	
 	// set the angle to zero and init the samples array
-	let angle = 0.0
+	let angle = Math.PI/2 // so that frequencies of zero don't have constant amplitudes of 1
 	let samples = new Array()
 	
 	frequencyMap.forEach( function(f) {
@@ -320,12 +526,18 @@ function FSK(bits, lowFrequency, frequencyDeviation, symbolRate, sampleRate) {
 		samples.push( Math.cos(angle) )
 	})
 	
-	return samples
+	return [frequencyMap, samples]
 }
 
 function ASK(bits, carrierFrequency, amplitudeDeviation, symbolRate, sampleRate) {
+	// produces samples representing an ASK modulated carrier
+	// carrier frequency at 100% amplitude = a binary one
+	// amplitude reduced by the amplitude deviation = a binary zero
+	// symbolRate = the rate of modulation, or the number of bits per second in this case
+	// sample rate = the audio sample rate
+
 	if (amplitudeDeviation > 200) {
-		alert('Are you sure you want an amplitude deviation that high?')
+		alert('Amplitude deviation is more than 200% Will probably produce bad results.')
 	}
 	
 	// build the amplitude map
@@ -333,11 +545,13 @@ function ASK(bits, carrierFrequency, amplitudeDeviation, symbolRate, sampleRate)
 	// for Amplitude Modulation (AM) on the carrier
 	let lowAmplitude = 1 - ( 1 * (amplitudeDeviation/100) )
 	let highAmplitude = 1
-	let amplitudeMap = buildAmplitudeMap(bits, lowAmplitude, highAmplitude, symbolRate, sampleRate)
+	let amplitudeMap = buildModulationMap(bits, lowAmplitude, highAmplitude, symbolRate, sampleRate)
 	
 	// set the angle to zero and init the samples array
 	let angle = 0.0
 	let samples = new Array()
+	
+	// calculate the rotational velocity of the carrier frequency
 	let f = frequency2rotationalVelocity(carrierFrequency, sampleRate)
 	
 	amplitudeMap.forEach( function(amplitude) {
@@ -347,13 +561,19 @@ function ASK(bits, carrierFrequency, amplitudeDeviation, symbolRate, sampleRate)
 		samples.push( amplitude * Math.cos(angle) )
 	})
 	
-	return samples
+	return [amplitudeMap, samples]
 }
 
 function BPSK(bits, carrierFrequency, nothing, symbolRate, sampleRate) {
+	// produces samples representing an BPSK modulated carrier
+	// carrier frequency in phase = a binary one
+	// out of phase 180 degrees = a binary zero
+	// symbolRate = the rate of modulation, or the number of bits per second in this case
+	// sample rate = the audio sample rate
+
 	// BPSK can be accomplished just through ASK with a 200% amplitude deviation
-	// as 100% - 200% = -100% or -1]
-	// -1 amplitude is the same as being 180 degrees out of phase
+	// as 100% - 200% = -100%
+	// -100% amplitude is the same as being 180 degrees out of phase
 	return ASK(bits, carrierFrequency, 200, symbolRate, sampleRate)
 }
 
