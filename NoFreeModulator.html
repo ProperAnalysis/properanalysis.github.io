@@ -1,5 +1,5 @@
 <html>
-<title>Filter Free Modulator</title>
+<title>No Filter Modulator</title>
 <head><style>
 
 body {
@@ -46,7 +46,7 @@ canvas {
 
 </head>
 
-<h1>Filter Free Modulator</h1>
+<h1>No Filter Modulator</h1>
 <p>
 	This tool attempts to produce decent quality modulated waveforms without the need for filters.
 	This is achieved by gradually accelerating the state of carrier toward the symbol value,
@@ -64,7 +64,7 @@ canvas {
 	<tr>
 		<td>Message:</td>
 		<td><input id='messageInput' value='hello world!'></input></td>
-		<td>// If left blank, data will be random 1270 bits (0,1,7)</td>
+		<td>// If left blank, data will be random bits (0,1,7) for 10 seconds (5 seconds QPSK, 3.3 seconds 8PSK)</td>
 	</tr>
 
 	<tr>
@@ -78,6 +78,12 @@ canvas {
 		<td>Frequency / Amplitude Deviation:</td>
 		<td><input id='deviationInput' value=90></input></td>
 		<td>// For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power</td>
+	</tr>
+	
+	<tr>
+		<td>Number of levels</td>
+		<td><input id='levelsInput' value=2></input></td>
+		<td>// Specifies how many amplitude / frequency / phase levels are used</td>
 	</tr>
 
 	<tr>
@@ -97,7 +103,7 @@ canvas {
 		<td>
 			<select id='modulationTypeInput'>
 			<option value='ASK'>ASK</option>
-			<option value='BPSK'>PSK (BPSK)</option>
+			<option value='PSK'>PSK</option>
 			<option value='FSK'>FSK</option>
 			</select>
 		</td>
@@ -149,8 +155,8 @@ canvas {
 // ----------------------------------------------------------------------------
 
 function randomBinary () {
-	// 127 bits of 0,1,7 repeated 10 times (1270 bits)
-	return '0000001000001100001010001111001000101100111010100111110100001110001001001101101011011110110001101001011101110011001010101111111'.repeat(10)
+	// 127 bits of 0,1,7 repeated 100 times (12700 bits)
+	return '0000001000001100001010001111001000101100111010100111110100001110001001001101101011011110110001101001011101110011001010101111111'.repeat(100)
 }
 
 function $(id) {
@@ -181,6 +187,23 @@ function ascii2bits(ascii) {
 	bits = bits.map(char2dec)
 	bits = bits.map(dec2bin)
 	return bits.flat(1)
+}
+
+function bits2symbols(bits, bitsPerSymbol) {
+	// take some bits, and depending on the number of bits per symbol
+	// convert them into symbols. For example [0,1,1,0,0,0,1,1] 2 bits per symbol
+	// would become [1,2,0,3]
+	if (bitsPerSymbol == 1) { return bits }
+	
+	let symbols = []
+	
+	while (bits.length % bitsPerSymbol != 0) { bits.push(0) }
+	
+	for (let i=0; i<bits.length; i+=bitsPerSymbol) {
+		symbols.push( parseInt( bits.slice(i,i+bitsPerSymbol).join(''),2) )
+	}
+
+	return symbols
 }
 
 function sample2byte(sample) {
@@ -281,16 +304,17 @@ function generateAndPlay() {
 	// take the UI inputs, generate the samples and play them
 	
 	let text = $("messageInput").value
-	let carrierFrequency = parseFloat( $("carrierFreqInput").value )   //Hz
+	let carrierFrequency = parseFloat( $("carrierFreqInput").value ) //Hz
 	let deviation = parseFloat( $("deviationInput").value ) // Hz
-	symbolRate = parseFloat( $("symbolRateInput").value )    // Symbols per second (Hz)
-	sampleRate = parseFloat( $("sampleRateInput").value )  // Samples per second (Hz).
+	let ary = parseInt( $("levelsInput").value ) // number of levels (ary)
+	symbolRate = parseFloat( $("symbolRateInput").value ) // Symbols per second (Hz)
+	sampleRate = parseFloat( $("sampleRateInput").value ) // Samples per second (Hz).
 	let modulation = eval($("modulationTypeInput").value) // ASK or FSK
 	
 	bits = ascii2bits(text)
 	// if there's no text - just send random bits
-	if (text == '') {bits = randomBinary().split('').map(makeInt)}
-	[modulationMap, samples] = modulation(bits, carrierFrequency, deviation, symbolRate, sampleRate)
+	if (text == '') {bits = randomBinary().split('').map(makeInt).slice(0, parseInt((symbolRate*10)))}
+	[modulationMap, samples] = modulation(bits, carrierFrequency, deviation, ary, symbolRate, sampleRate)
 	
 	// the samples are just floats, they will need to be packed into bytes before they
 	// can be played. sample2byte will fit them into a byte usuing 8 bits per sample, offset
@@ -309,7 +333,7 @@ function generateAndPlay() {
 
 // make the following variables global, to enable the dynamic construction of
 // plots (allows the plots to zoom and pan, without needing to pass variables around
-var bits = []
+var symbols = []
 var sampleRate = 0
 var symbolRate = 0
 var modulationMap = []
@@ -318,7 +342,7 @@ var plotNotReady = true
 
 // update all three plots
 function updatePlots() {
-	plotValues( $('binaryDataView'), bits, parseInt(sampleRate/symbolRate) )
+	plotValues( $('binaryDataView'), symbols, parseInt(sampleRate/symbolRate) )
 	plotValues( $('modulatingWaveView'), modulationMap, 0 )
 	plotValues( $('carrierWaveView'), samples, 0 )
 }
@@ -420,18 +444,12 @@ function plotValues(canvas, data, dataRepeatCount) {
 
 // ----------------------------------------------------------------------------
 
-function buildSymbol(symbolLength, value) {
-    // produces the modulation map for a single symbol
-	// symbolLength is the half duration of a symbol in samples (int)
-	// value is the an int or float representing the modulation
-	return new Array(symbolLength).fill(value)
-}
-
-function buildTransition (symbolLength, startValue, endValue) {
+function buildTransition (symbolLength, startValue, endValue, distance) {
 	// produces the modulation map for a transition (start to stop)
 	// symbolLength is the duration of a symbol in samples (int)
 	// startValue is the start value of the modulation (float)
 	// endValue is the end value of the modulation (float)
+	// distance is the relative distance between the levels (int)
 	let tArray = new Array(symbolLength).fill(startValue)
 	let delta = endValue - startValue
 	
@@ -439,81 +457,89 @@ function buildTransition (symbolLength, startValue, endValue) {
 	// to the end value. Minimum acceleration is at the first and last
 	// transitions, with maximum acceleration around the middle transitions
 	// the last point in the transition array should be equal to endValue
-	for (let x = 0; x < symbolLength; x++) {
+	let x = 0
+	
+	while (x < symbolLength) {
 		tArray[x] += Math.cos( (Math.PI * x) / (symbolLength-1) ) * (delta / -2) + delta / 2
+		x++
 	}
 
 	return tArray
 }
 
-function buildModulationMap(bits, lowValue, highValue, symbolRate, sampleRate) {
-	// builds a modulation map to represent the modulating bits
-	// Binary 0 is represented by the modulating value of lowValue
-	// Binary 1 is represented by the modulating value of highValue
+function buildModulationMap(symbols, levels, symbolRate, sampleRate) {
+	// builds a modulation map to represent the modulating symbols
+	// depending on the number of levels, different length binary words can be 
+	// represented by different levels (with transitions which are as gradual as possible).
 	
 	// calculate the duration of each symbol in samples
 	let symbolLength = parseInt( (1/symbolRate) * sampleRate )
 	
-	// create the swatches for both a pure high and pure low value
-	let lowSwatch = buildSymbol(symbolLength, lowValue)
-	let highSwatch = buildSymbol(symbolLength, highValue)
-	
-	// create the swatches for the transitions: low to high and high to low
-	// could just create one and then reverse the array for the alternate
-	// this is just a bit clearer and easier to read
-	// also only runs once, so minimal gain to be made here.
-	let tLowHighSwatch = buildTransition(symbolLength, lowValue, highValue)
-	let tHighLowSwatch = buildTransition(symbolLength, highValue, lowValue)
-	
-	// so that the first and last bit aren't lost, add a zero bit to the
+	// create the swatches for each level
+	// the nested loop iterates through each combination of values
+	// then assigns that combination of values to a swatch
+	// for example the value [0,1] would be represented by a transition from low to high
+	// where as the value [1,1] would be represented by remaining high (no transition)
+	let swatches = {}
+	for (let x = 0; x < levels.length; x++) {
+		for (let y = 0; y < levels.length; y++) {
+			// build the swatch and store it into the swatches dictionary
+			swatches[[x,y]] = buildTransition(symbolLength, levels[x], levels[y])
+		}
+	}
+
+	// so that the first and last symbol aren't lost, add a zero symbol to the
 	// start and end of the message.
-	bits.push( 0 )
-	bits.unshift( 0 )
+	symbols.push( 0 )
+	symbols.unshift( 0 )
 	
 	// init the modulationMap and the state
 	let modulationMap = new Array()
-	let state = bits[0]
+	let state = symbols[0]
 	
-	for (let i=1; i<bits.length; i++) {
-		// if there was no change, just keep tx-ing
-		// the current state, with no change
-		if (state == bits[i]) {
-			if (state == 0) {
-				modulationMap.push( lowSwatch )
-			} else {
-				modulationMap.push( highSwatch )
-			}
-		// if it changes from one to zero
-		// tx the high-to-low transition
-		} else if ( state > bits[i] ) {
-			modulationMap.push( tHighLowSwatch )
-		// if it changes from zer to one
-		// tx the low-to-high transition
-		} else {
-			modulationMap.push( tLowHighSwatch )
-		}
+	for (let i=1; i<symbols.length; i++) {
+		// look up the previous state, and the current state in the
+		// swatches to determine which swatch needs to be sent
+		modulationMap.push( swatches[ [state, symbols[i]] ] )
 		
 		// set the sate to the current bit value
-		state = bits[i]
+		state = symbols[i]
 	}
 	
 	return modulationMap.flat(1)
 }
 
-function FSK(bits, lowFrequency, frequencyDeviation, symbolRate, sampleRate) {
+function FSK(bits, lowFrequency, frequencyDeviation, ary, symbolRate, sampleRate) {
 	// produces samples representing an FSK modulated carrier
 	// lowFrequency = the tone to play for a binary zero
-	// highFrequency = the tone to playe for a binary one
+	// frequencyDeviation = the total frequency deviation to use (from lowest to highest frequency)
+	// ary = how many levels to use, for example 2 = FSK, 4 = 4MFSK, 8 = 8MFSK
 	// symbolRate = the rate of modulation, or the number of bits per second in this case
 	// sample rate = the audio sample rate
 	
+	// build the array of frequency levels, in rotational velocities
+	// rotational velocity is frequency / sample rate
+	// it is the rate of phase change of a signal
+	// constant rotational velocity = a constant rate of phase change = constant frequency
+	let shift = frequencyDeviation / ary
+	let levels = []
+	for (let i=0; i<ary; i++) {
+		let rotationalVelocity = frequency2rotationalVelocity(lowFrequency + (shift*i), sampleRate)
+		levels.push( rotationalVelocity )
+	}
+
+	// convert the bits into symbols
+	// for 2 level systems, the bits are the symbols
+	// for higher order systems each symbol represents multiple bits
+	// the number of bits per symbol is the log2 of ary
+	// for example 8 ary can represent 3 bits per symbol: 000 through 111
+	let bitsPerSymbol = Math.log2(ary)
+	symbols = bits2symbols(bits, bitsPerSymbol)
+	console.log(symbols)
+
 	// build the frequency map
 	// the frequency map is an array of rotational velocities
-	// high frequency = high rotational velocity
-	let highFrequency = lowFrequency + frequencyDeviation
-	let lowVelocity = frequency2rotationalVelocity(lowFrequency, sampleRate)
-	let highVelocity = frequency2rotationalVelocity(highFrequency, sampleRate)
-	let frequencyMap = buildModulationMap(bits, lowVelocity, highVelocity, symbolRate, sampleRate)
+	let frequencyMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
 	
 	// set the angle to zero and init the samples array
 	let angle = Math.PI/2 // so that frequencies of zero don't have constant amplitudes of 1
@@ -529,10 +555,11 @@ function FSK(bits, lowFrequency, frequencyDeviation, symbolRate, sampleRate) {
 	return [frequencyMap, samples]
 }
 
-function ASK(bits, carrierFrequency, amplitudeDeviation, symbolRate, sampleRate) {
+function ASK(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
 	// produces samples representing an ASK modulated carrier
 	// carrier frequency at 100% amplitude = a binary one
 	// amplitude reduced by the amplitude deviation = a binary zero
+	// ary = how many levels to use, for example 2 = ASK, 4 = 4ASK, 8 = 8ASK
 	// symbolRate = the rate of modulation, or the number of bits per second in this case
 	// sample rate = the audio sample rate
 
@@ -540,12 +567,27 @@ function ASK(bits, carrierFrequency, amplitudeDeviation, symbolRate, sampleRate)
 		alert('Amplitude deviation is more than 200% Will probably produce bad results.')
 	}
 	
+	// convert the bits into symbols
+	// for 2 level systems, the bits are the symbols
+	// for higher order systems each symbol represents multiple bits
+	// the number of bits per symbol is the log2 of ary
+	// for example 8 ary can represent 3 bits per symbol: 000 through 111
+	let bitsPerSymbol = Math.log2(ary)
+	symbols = bits2symbols(bits, bitsPerSymbol)
+	console.log(symbols)
+	
 	// build the amplitude map
 	// the amplitude map is an array of amplitude values
 	// for Amplitude Modulation (AM) on the carrier
-	let lowAmplitude = 1 - ( 1 * (amplitudeDeviation/100) )
 	let highAmplitude = 1
-	let amplitudeMap = buildModulationMap(bits, lowAmplitude, highAmplitude, symbolRate, sampleRate)
+	let shift = (amplitudeDeviation/100) / (ary-1)
+	let levels = []
+	for (let i=0; i<ary; i++) {
+		levels.unshift( highAmplitude - (shift*i) )
+	}
+	console.log(levels)
+	
+	let amplitudeMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
 	
 	// set the angle to zero and init the samples array
 	let angle = 0.0
@@ -564,17 +606,49 @@ function ASK(bits, carrierFrequency, amplitudeDeviation, symbolRate, sampleRate)
 	return [amplitudeMap, samples]
 }
 
-function BPSK(bits, carrierFrequency, nothing, symbolRate, sampleRate) {
-	// produces samples representing an BPSK modulated carrier
-	// carrier frequency in phase = a binary one
-	// out of phase 180 degrees = a binary zero
+function PSK(bits, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
+	// produces samples representing an PSK modulated carrier
+	// ary = how many levels to use, for example 2 = BPSK, 4 = QPSK, 8 = 8PSK
 	// symbolRate = the rate of modulation, or the number of bits per second in this case
 	// sample rate = the audio sample rate
 
-	// BPSK can be accomplished just through ASK with a 200% amplitude deviation
-	// as 100% - 200% = -100%
-	// -100% amplitude is the same as being 180 degrees out of phase
-	return ASK(bits, carrierFrequency, 200, symbolRate, sampleRate)
+
+	// convert the bits into symbols
+	// for 2 level systems, the bits are the symbols
+	// for higher order systems each symbol represents multiple bits
+	// the number of bits per symbol is the log2 of ary
+	// for example 8 ary can represent 3 bits per symbol: 000 through 111
+	let bitsPerSymbol = Math.log2(ary)
+	symbols = bits2symbols(bits, bitsPerSymbol)
+	console.log(symbols)
+	
+	// build the phase map
+	// the phase map is an array of phase values
+	// for Phase Modulation (PM) on the carrier
+	let shift = (2*Math.PI) / ary
+	let levels = []
+	for (let i=0; i<ary; i++) {
+		levels.unshift( shift*i )
+	}
+	console.log(levels)
+	
+	let phaseMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	
+	// set the angle to zero and init the samples array
+	let angle = 0.0
+	let samples = new Array()
+	
+	// calculate the rotational velocity of the carrier frequency
+	let f = frequency2rotationalVelocity(carrierFrequency, sampleRate)
+	
+	phaseMap.forEach( function(phase) {
+		// change the angle by the rotational velocity
+		angle += f
+		// caculate the amplitude and push it to the samples
+		samples.push( Math.cos(angle+phase) )
+	})
+	
+	return [phaseMap, samples]
 }
 
 </script>
