@@ -321,7 +321,7 @@ Apply DSP Analyics
 <table>
 <tr><td style="width:30%;">Frequency:</td><td><input type='number' id='analyticFrequency' value=0 onchange='analyticSignal()'></td></tr>
 <tr><td>Phase:</td><td><input type='number' id='analyticPhase' value=0  onchange='analyticSignal()'></td></tr>
-<tr><td>Averaging Window:</td><td><input type='number' id='analyticAveraging' value=16 min='0' onchange='analyticSignal()'></td></tr>
+<tr><td>Averaging Window:</td><td><input type='number' id='analyticAveraging' value=1 min='1' onchange='analyticSignal()'></td></tr>
 <tr><td>Decimation:</td><td><input type='number' id='analyticDecimation' value=1 min='0' onchange='analyticSignal()'></td></tr>
 <tr><td>Decimation Cut:</td><td><input type='number' id='analyticDecimationCut' value=0 min='0' onchange='analyticSignal()'></td></tr>
 <tr><td>Analytic:</td><td>
@@ -348,20 +348,20 @@ Demodulate Phase Shift Keying
 <tr><td>&nbsp;</td><td></td></tr>
 <tr><td>Step 2: Adjust Tune <td><td></td></tr>
 <tr><td>Amplitude:</td><td><input type='number' id='pskDemodulateAmplitude' value=100  onchange='pskDemodulate()'></td></tr>
-<tr><td>Averaging Window:</td><td><input type='number' id='pskDemodulateAveraging' value=16 min='0' onchange='pskDemodulate()'></td></tr>
+<tr><td>Averaging Window:</td><td><input type='number' id='pskDemodulateAveraging' value=1 min='1' onchange='pskDemodulate()'></td></tr>
 <tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 3: Offset and Phase<td><td></td></tr>
+<tr><td>Step 3: Set Symbol Rate<td><td></td></tr>
+<tr><td>Symbol Rate:</td><td><input type='number' id='pskDemodulateSymbolRate' value=0  onchange='pskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Offset and Phase<td><td></td></tr>
 <tr><td>Start Sample Offset:</td><td><input type='number' id='pskDemodulateStart' value=0  onchange='pskDemodulate()'></td></tr>
 <tr><td>Phase:</td><td><input type='number' id='pskDemodulatePhase' value=0  onchange='pskDemodulate()'></td></tr>
 <tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 4: Set Threshold/s<td><td></td></tr>
+<tr><td>Step 5: Set Threshold/s<td><td></td></tr>
 <tr><td>Symbol Thresholds:</td><td><input type='text' id='pskDemodulateThresholds' value=''></td></tr>
-<tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
-<tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 5: Set Symbol Rate<td><td></td></tr>
-<tr><td>Symbol Rate:</td><td><input type='number' id='pskDemodulateSymbolRate' value=0  onchange='pskDemodulate()'></td></tr>
 <tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
 <tr><td>Step 6: Set Mapping<td><td></td></tr>
@@ -373,6 +373,8 @@ Demodulate Phase Shift Keying
 <option value='QPSK'>QPSK</option>
 <option value='8PSK'>8PSK</option>
 <option value='16PSK'>16PSK</option>
+<option value='Pi2BPSK'>Pi/2 BPSK</option>
+<option value='Pi4QPSK'>Pi/4 QPSK</option>
 </select>
 </td></tr>
 <tr><td></td><td><button onclick='pskDemodulate()'>Apply Demodulation</button></td></tr>
@@ -390,13 +392,13 @@ Demodulate Frequency Shift Keying
 <tr><td>Measurement Cross:</td><td><input type='number' id='fskDemodulateCrossPoint' value=1 onchange='fskDemodulate()'></td></tr>
 <tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 3: Set Threshold/s</td><td></td></tr>
-<tr><td>Symbol Thresholds:</td><td><input type='text' id='fskDemodulateThresholds' value=''></td></tr>
-<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
-<tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 4: Set Symbol Rate and Offset</td><td></td></tr>
+<tr><td>Step 3: Set Symbol Rate and Offset</td><td></td></tr>
 <tr><td>Start Sample Offset:</td><td><input type='number' id='fskDemodulateStart' value=0 min='0' onchange='fskDemodulate()'></td></tr>
 <tr><td>Symbol Rate:</td><td><input type='number' id='fskDemodulateSymbolRate' value=0 min='0' onchange='fskDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Threshold/s</td><td></td></tr>
+<tr><td>Symbol Thresholds:</td><td><input type='text' id='fskDemodulateThresholds' value=''></td></tr>
 <tr><td></td><td><button onclick='fskDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
 <tr><td>Step 4: Set Mapping (Optional)</td><td></td></tr>
@@ -415,13 +417,13 @@ Demodulate Amplitude Shift Keying
 <tr><td>Averaging Window:</td><td><input type='number' id='askDemodulateAveraging' value=16 min='0' onchange='askDemodulate()'></td></tr>
 <tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 3: Set Threshold/s</td><td></td></tr>
-<tr><td>Symbol Thresholds:</td><td><input type='text' id='askDemodulateThresholds' value=''></td></tr>
-<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
-<tr><td>&nbsp;</td><td></td></tr>
-<tr><td>Step 4: Set Symbol Rate and Offset</td><td></td></tr>
+<tr><td>Step 3: Set Symbol Rate and Offset</td><td></td></tr>
 <tr><td>Start Sample Offset:</td><td><input type='number' id='askDemodulateStart' value=0 min='0' onchange='askDemodulate()'></td></tr>
 <tr><td>Symbol Rate:</td><td><input type='number' id='askDemodulateSymbolRate' value=0 min='0' onchange='askDemodulate()'></td></tr>
+<tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
+<tr><td>&nbsp;</td><td></td></tr>
+<tr><td>Step 4: Set Threshold/s</td><td></td></tr>
+<tr><td>Symbol Thresholds:</td><td><input type='text' id='askDemodulateThresholds' value=''></td></tr>
 <tr><td></td><td><button onclick='askDemodulate()'>Apply Demodulation</button></td></tr>
 <tr><td>&nbsp;</td><td></td></tr>
 <tr><td>Step 4: Set Mapping (Optional)</td><td></td></tr>
@@ -610,6 +612,8 @@ Generate Audio from Current Samples
 <option value='thresholdsQPSK()'>QPSK</option>
 <option value='thresholds8PSK()'>8PSK</option>
 <option value='thresholds16PSK()'>16PSK</option>
+<option value='thresholdsPi2BPSK()'>Pi/2 BPSK</option>
+<option value='thresholdsPi4QPSK()'>Pi/4 QPSK</option>
 </select>
 </p>
 <p><button onclick='updateIQscatter()'>Update</button></p>
@@ -1179,129 +1183,6 @@ function updateFrequencyDomain() {
 	ctx.stroke()
 }
 
-function updateSymbolRateView() {
-	let scale = 1000
-	let canvas = $('symbolRateViewCanvas')
-	let ctx = canvas.getContext('2d')
-	let startSample = parseInt( $('symbolRateViewStartSample').value )
-	let endSample = parseInt( $('symbolRateViewEndSample').value )
-	let xMarker = parseInt(parseFloat( $('symbolRateViewXmarker').value ) * scale)
-	let gridsOn = eval( $('symbolRateViewGridsOn').value )
-	let maxFrequency = parseInt( $('symbolRateViewMaxFrequency').value ) * scale
-	let samples = [...inputData.slice(startSample, endSample)]
-	let results = new Array(scale*sampleRate+1).fill(0)
-	
-	let lastValue = 0
-	let runLength = 1
-	for (let i=0; i<samples.length; i++) {
-		if (samples[i] == lastValue) {
-			runLength++
-		} else {
-			let bin = parseInt((sampleRate*scale)/runLength)
-			results[bin] += 1
-			runLength = 1
-			lastValue = samples[i]
-		}
-	}
-
-	for (let i=0; i<results.length; i++) {
-		if (results[i] > 0) {
-			results[i*2] += (results[i] * 2 * results[i*2])
-			results[i*3] += (results[i] * 3 * results[i*3])
-			results[i*5] += (results[i] * 5 * results[i*5])
-			results[i*7] += (results[i] * 7 * results[i*7])
-		}
-	}
-	
-	results = results.slice(1, maxFrequency+1)
-	
-	let maxY = math.max(results)
-	let minY = math.min(results)
-	let range = maxY - minY
-	if (range == 0) {range = 1}
-	
-	canvas.width = canvas.parentElement.clientWidth;
-	canvas.height = canvas.parentElement.clientHeight;
-	let scaleWidth = 30
-	let scaleHeight = 20
-	let width = canvas.width - scaleWidth
-	let height = canvas.height - scaleHeight
-	let pw = width / results.length
-	let ph = height / range
-		
-	ctx.fillStyle = '#bafbff'
-	ctx.fillRect(0, height, width, 1)
-	
-	let tickRate = parseInt( results.length / 10 )
-	let tick = 0
-	ctx.font = "12px Monospace";
-	ctx.fillStyle = '#bafbff'
-	ctx.fillRect(0, height-5, 1, scaleHeight+5)
-	ctx.fillText("0 Hz", 3, height+scaleHeight);
-	tick += tickRate
-
-	while (tick < results.length) {
-		let x = tick * pw
-		ctx.fillStyle = '#333'
-		ctx.fillRect(x, 0, 1, height)
-		ctx.fillStyle = '#bafbff'
-		ctx.fillRect(x, height-5, 1, scaleHeight+5)
-		ctx.fillText(tick/scale, x+3, height+scaleHeight-2);
-		tick += tickRate
-	}
-	ctx.fillStyle = '#bafbff'
-	ctx.fillRect(width, 0, 1, height)
-	
-	tickRate = range / 10.0
-	tick = tickRate
-
-	while (tick <= range+(tickRate/2)) {
-		let y = (tick / range ) * height
-		ctx.fillStyle = '#333'
-		ctx.fillRect(0, canvas.height-y, width, 1)
-		ctx.fillStyle = '#bafbff'
-		ctx.fillRect(width-5, canvas.height-y, 10, 1)
-		ctx.fillText(tick.toFixed(1), width+6, canvas.height-y+5);
-		tick += tickRate
-	}
-	ctx.fillText('#', width+6, 12);
-	
-	if (xMarker < 1) {xMarker = maxFrequency*2}
-	let x1 = xMarker * pw
-	xMarker = xMarker * pw
-	ctx.beginPath()
-	ctx.strokeStyle = "red"
-	ctx.moveTo(xMarker, 0)
-	ctx.lineTo(xMarker, canvas.height)
-	ctx.stroke()
-	
-	if (gridsOn) {
-		console.log('grids on')
-		console.log(xMarker)
-		ctx.beginPath()
-		ctx.strokeStyle = "red"
-		let x = xMarker
-		while (x < width) {
-			ctx.moveTo(x, 0)
-			ctx.lineTo(x, height)
-			x+= xMarker
-		}	
-		ctx.stroke()
-	}
-	
-	ctx.fillStyle = 'white'
-
-	let x = pw
-	for (let s = 0; s < results.length; s++) {
-		let y1 = height - ( ( results[s] - minY ) * ph )
-		let y2 = ( results[s] - minY ) * ph
-		ctx.fillRect(x, y1, 1, y2)
-		x += pw
-	}
-	
-	
-}
-
 function noFunction(samples) {
 	return samples
 }
@@ -1382,12 +1263,12 @@ function validateBits(sym2bit) {
 function applySelectedPreset() {
 	let thresholds = eval( 'thresholds' + $('pskDemodulatePreset').value + '()' )
 	let sym2bit = eval( 'sym2bit' + $('pskDemodulatePreset').value + '()' )
-	$('pskDemodulateThresholds').value = thresholds.slice(0,-1).join(',')
+	$('pskDemodulateThresholds').value = thresholds[1].join(',')
 	$('pskDemodulateSym2Bit').value = sym2bit.join(',')
 }
 
 function thresholdsNone() {
-	return []
+	return [[],[]]
 }
 
 function sym2bitNone() {
@@ -1395,41 +1276,58 @@ function sym2bitNone() {
 }
 
 function thresholdsBPSK() {
-	return [180,0]
+	return [[270,90],[270,90]]
 }
 
 function sym2bitBPSK() {
-	return ['1','0']
+	return ['1','0','1']
 }
 
 function thresholdsQPSK() {
-	return [270,180,90,0]
+	return [[270,180,90,0],[270,180,90]]
 }
 
 function sym2bitQPSK() {
 	return ['11','10','01','00']
 }
 
+function thresholdsPi2BPSK() {
+	return [[270,180,90,0],[270,180,90]]
+}
+
+function sym2bitPi2BPSK() {
+	return ['1','1','0','0']
+}
+
 function thresholds8PSK() {
-	return [315,270,225,180,135,90,45,0]
+	// what to draw, what to use for demod thresholds (ususally 1 less)
+	return [[360-22.5,270+22.5,270-22.5,180+22.5,180-22.5,90+22.5,90-22.5,22.5], [360-22.5,270+22.5,270-22.5,180+22.5,180-22.5,90+22.5,90-22.5,22.5]]
 }
 
 function sym2bit8PSK() {
-	return ['111','110','101','100','011','010','001','000']
+	return ['111','110','101','100','011','010','001','000','111']
+}
+
+function thresholdsPi4QPSK() {
+	return thresholds8PSK()
+}
+
+function sym2bitPi4QPSK() {
+	return ["11","11","10","10","01","01","00","00","11"]
 }
 
 function thresholds16PSK() {
 	let result = new Array()
-	let x = 360
+	let x = 360-(360/32)
 	while (x > 0) {
-		x -= 360/16
 		result.push(x)
+		x -= 360/16
 	}
-	return result
+	return [result,result]
 }
 
 function sym2bit16PSK() {
-	return ['1111','1110','1101','1100','1011','1010','1001','1000','0111','0110','0101','0100','0011','0010','0001','0000']
+	return ['1111','1110','1101','1100','1011','1010','1001','1000','0111','0110','0101','0100','0011','0010','0001','0000','1111']
 }
 
 function buildThresholds() {
@@ -1452,7 +1350,7 @@ function updateIQscatter() {
 	let canvas = $('IQscatterCanvas')
 	let ctx = canvas.getContext('2d')
 	let drawLines = eval( $('IQscatterLines').value )
-	let thresholds = eval( $('IQmodulationSectors').value )
+	let thresholds = eval( $('IQmodulationSectors').value )[0]
 	let demodSectors = buildSectors(thresholds)
 	let autoScale = eval( $('IQscatterScale').value )
 	
@@ -1476,6 +1374,10 @@ function updateIQscatter() {
 		minX = math.min(iSamples) - 0.1
 		maxY = math.max(qSamples) + 0.1
 		minY = math.min(qSamples) - 0.1
+		
+		if (maxX > maxY) {maxY = maxX} else {maxX = maxY}
+		if (minX < minY) {minY = minX} else {minX = minY}
+		
 		rangeY = maxY - minY
 		rangeX = maxX - minX
 		$('IQscatterMaxY').value = parseInt(maxY * 100)
@@ -1488,27 +1390,39 @@ function updateIQscatter() {
 	let scaleX = canvas.width / rangeX
 	
 	if (drawLines) {
-	ctx.beginPath()
-	ctx.strokeStyle = "#cccc00"
-	ctx.moveTo( (iSamples[0]-minX)*scaleX, (qSamples[0]-minY)*scaleY ) 
+		ctx.beginPath()
+		ctx.strokeStyle = "#030303"
+		ctx.moveTo( (iSamples[0]-minX)*scaleX, (qSamples[0]-minY)*scaleY ) 
 	
-	for (let i=startSample; i<samplesLength+startSample; i++) {
-		ctx.lineTo( (iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY ) 
-	}	
-	ctx.stroke()
+		for (let i=startSample; i<samplesLength+startSample; i++) {
+			ctx.lineTo( (iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY ) 
+		}	
+		ctx.stroke()
+		ctx.beginPath()
+		ctx.globalAlpha = 0.05;
+		ctx.strokeStyle = "#00ffff"
+		ctx.moveTo( (iSamples[0]-minX)*scaleX, (qSamples[0]-minY)*scaleY ) 
+	
+		for (let i=startSample; i<samplesLength+startSample; i++) {
+			ctx.lineTo( (iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY ) 
+		}	
+		ctx.stroke()
+		ctx.globalAlpha = 1.0;
 	}
+
 	
-	ctx.fillStyle = 'white'
+	ctx.globalAlpha = 0.2;
+	ctx.fillStyle = '#ffffff'
 	for (let i=startSample; i<samplesLength+startSample; i++) {
-		ctx.fillRect((iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY, 1, 1)
+		ctx.fillRect((iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY, 2, 2)
 	}
+	ctx.globalAlpha = 1.0;
+	
 	
 	ctx.beginPath()
-	ctx.strokeStyle = "#ff0000"
+	ctx.strokeStyle = "#ffffff"
 	ctx.moveTo( (0-minX)*scaleX, (0-minY)*scaleY ) 
 	console.log( (0-minX)*scaleX, (0-minY)*scaleY )
-	
-	console.log(demodSectors)
 	
 	for (let i=0; i<demodSectors.length; i++) {
 		ctx.lineTo( (demodSectors[i][0]-minX)*scaleX, (demodSectors[i][1]-minY)*scaleY )
@@ -1595,68 +1509,72 @@ function pskDemodulate() {
 
 	var period = (sampleRate / frequency) * -1
 	var duration = inputDataNoOp.length - startSample
-	
-	let symbolWindow = 1
-	if (symbolRate > 0) { symbolWindow = sampleRate / symbolRate }
 
 	let samples = new Array()
 	iSamples = new Array()
 	qSamples = new Array()
 	
 	if (frequency == 0) {
-	for (let i=0; i<inputDataNoOp.length-2; i++) {
-		let sample = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
-		samples.push(sample.re)
-		iSamples.push(sample.re)
-		qSamples.push(sample.im)
-	}
+		for (let i=0; i<inputDataNoOp.length-2; i++) {
+			let sample = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
+			samples.push(sample.re)
+			iSamples.push(sample.re)
+			qSamples.push(sample.im)
+		}
 	} else {
-	for (let i=0; i<inputDataNoOp.length-2; i++) {
-		let complexS = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
-		let carrierSin = Math.sin(2.0 * Math.PI * (i+phase) / period) * amplitude
-		let carrierCos = Math.cos(2.0 * Math.PI * (i+phase) / period) * amplitude
-		let complexC = math.complex(carrierSin, carrierCos)
-		let sample = math.multiply(complexS, complexC)
-		samples.push(sample.re)
-		iSamples.push(sample.re)
-		qSamples.push(sample.im)
-	}
+		for (let i=0; i<inputDataNoOp.length-2; i++) {
+			let complexS = math.complex(inputDataNoOp[i], inputDataNoOp[i+1])
+			let carrierSin = Math.sin(2.0 * Math.PI * (i+phase) / period) * amplitude
+			let carrierCos = Math.cos(2.0 * Math.PI * (i+phase) / period) * amplitude
+			let complexC = math.complex(carrierSin, carrierCos)
+			let sample = math.multiply(complexS, complexC)
+			samples.push(sample.re)
+			iSamples.push(sample.re)
+			qSamples.push(sample.im)
+		}
 	}
     
     if (averagingWindow > 1) {
-    for (let i = 0; i<samples.length-averagingWindow; i++) {
-    	let windowSamples = iSamples.slice(i, i+averagingWindow)
-    	windowSamples = applyWindow(windowSamples, hamming)
-    	iSamples[i] = math.mean(windowSamples)
+    	for (let i = 0; i<samples.length-averagingWindow; i++) {
+    		let windowSamples = iSamples.slice(i, i+averagingWindow)
+    		windowSamples = applyWindow(windowSamples, hamming)
+    		iSamples[i] = math.mean(windowSamples)
     	
-    	windowSamples = qSamples.slice(i, i+averagingWindow)
-    	windowSamples = applyWindow(windowSamples, hamming)
-    	qSamples[i] = math.mean(windowSamples)
+    		windowSamples = qSamples.slice(i, i+averagingWindow)
+    		windowSamples = applyWindow(windowSamples, hamming)
+    		qSamples[i] = math.mean(windowSamples)
     	
-    	samples[i] = math.complex(1.80 + iSamples[i], qSamples[i]).toPolar().phi * 1.80/Math.PI
-    }
-    iSamples = iSamples.slice(0, iSamples.length-averagingWindow)
-    qSamples = qSamples.slice(0, qSamples.length-averagingWindow)
-    
-    }
-    
-    let averaged = new Array()
-    let iAveraged = new Array()
-    let qAveraged = new Array()
-    
-    for (let s = startSample; s < iSamples.length;) {
-    	iAveraged.push( iSamples[parseInt(s)] )
-    	qAveraged.push( qSamples[parseInt(s)] )
-    	s += symbolWindow
+    		samples[i] = ( ( math.complex(iSamples[i], qSamples[i]).toPolar().phi / Math.PI ) + 1 ) * 1.8
+  		}
+   		iSamples = iSamples.slice(0, iSamples.length-averagingWindow)
+    	qSamples = qSamples.slice(0, qSamples.length-averagingWindow)
+    } else {
+    	for (let i = 0; i<samples.length; i++) {
+    		samples[i] = ( ( math.complex(iSamples[i], qSamples[i]).toPolar().phi / Math.PI ) + 1 ) * 1.8
+    	}
     }
     
-    for (let s = 0; s < iAveraged.length; s++ ) {
-    	averaged.push( 1.80 + math.complex( iAveraged[s], qAveraged[s] ).toPolar().phi * 1.80/Math.PI )
+    if (symbolRate == 0) {
+		decimation = 1
+	} else {
+		decimation = sampleRate / symbolRate
+	}
+    
+    if (decimation > 1) {
+    let decimatedSamples = []
+    let decimatedIsamples = []
+    let decimatedQsamples = []
+    for (let i = startSample; i<samples.length; i+=decimation) {
+    	decimatedSamples.push(samples[parseInt(i)])
+    	decimatedIsamples.push(iSamples[parseInt(i)])
+    	decimatedQsamples.push(qSamples[parseInt(i)])
+    }
+    samples = decimatedSamples
+    iSamples = decimatedIsamples
+    qSamples = decimatedQsamples
     }
     
-    inputData = averaged
-    iSamples = iAveraged
-    qSamples = qAveraged
+    inputData = samples
         
     if (thresholds.length != 0) {	
     	for (let s = 0; s < inputData.length; s++) {
@@ -1813,12 +1731,6 @@ function fskDemodulate() {
     
     let lastCross = 0
     
-	if (symbolRate == 0) {
-		symbolWindow = 1
-	} else {
-		symbolWindow = sampleRate / symbolRate
-	}
-    
     let state = 0
     for (let i = startSample; i < duration; i++) {
     	if (inputDataNoOp[i] < crossPoint & inputDataNoOp[i+1] > crossPoint & state < 1 ) {
@@ -1863,14 +1775,7 @@ function fskDemodulate() {
     	samples[i] = math.mean(windowSamples)
     }
     
-    let averaged = new Array()
-    
-    for (let s = startSample; s < samples.length;) {
-    	averaged.push( math.mean( samples.slice(s, s+symbolWindow) )  )
-    	s += symbolWindow
-    }
-    
-    inputData = averaged	
+    inputData = samples
     
     if (thresholds.length != 0) {	
     	for (let s = 0; s < inputData.length; s++) {
@@ -1881,6 +1786,20 @@ function fskDemodulate() {
 			}
 			inputData[s] = symbol
 		}
+    }
+    
+    
+    if (symbolRate == 0) {
+		decimation = 1
+	} else {
+		decimation = sampleRate / symbolRate
+	}
+    if (decimation > 1) {
+        decimatedData = []
+    	for (let i=0; i<inputData.length; i+=decimation) {
+    		decimatedData.push(inputData[parseInt(i)])
+    	}
+    	inputData = decimatedData
     }
     
     if (sym2bit.length != 0) {
