@@ -37,7 +37,7 @@ table {
 
 canvas {
 	width: 100%;
-    height: 128px;
+    height: 64px;
     border: 1px solid #555;
     border-radius: 10px;
 }
@@ -138,14 +138,17 @@ canvas {
 <p><audio hidden=true controls="controls" id="audio" loop=""><source id="source" src="" type="audio/wav"></audio></p>
 
 <table>
-<tr><td>Binary Data: Square wave = infinite harmonics  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
-<tr><td> <canvas id='binaryDataView'> </td></tr>
+<tr><td>Symbols: Square wave = infinite harmonics  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
+<tr><td> <canvas id='plot1'> </td></tr>
 <tr><td>&nbsp;</td></tr>
-<tr><td>Modulating Wave: Smoothed wave = less harmonics  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
-<tr><td> <canvas id='modulatingWaveView'> </td></tr>
+<tr><td> <p id='plot2Title'> </p></td></tr>
+<tr><td> <canvas id='plot2'> </td></tr>
 <tr><td>&nbsp;</td></tr>
-<tr><td>Modulating Wave on Carrier Wave  (scroll to zoom in/out, left/right arrows to pan)</td></tr>
-<tr><td> <canvas id='carrierWaveView'> </td></tr>
+<tr><td> <p id='plot3Title'></p> </td></tr>
+<tr><td> <canvas id='plot3'> </td></tr>
+<tr><td>&nbsp;</td></tr>
+<tr><td>Modulating Waves on Carrier Wave</td></tr>
+<tr><td> <canvas id='plot4'> </td></tr>
 </table>
 
 <script>
@@ -219,6 +222,12 @@ function frequency2rotationalVelocity(frequency, sampleRate) {
 	// one cycle is 2PI radians and velocity is radians per sample
 	// 2PI radians / period = radians per sample (the rotational velocity)
 	return (2*Math.PI) / period
+}
+
+function randomSign() {
+	let x = Math.random()
+	if (x > 0.5) { return 1 }
+	return -1
 }
 
 function number2LSBFArray(number, length) {
@@ -314,7 +323,7 @@ function generateAndPlay() {
 	bits = ascii2bits(text)
 	// if there's no text - just send random bits
 	if (text == '') {bits = randomBinary().split('').map(makeInt).slice(0, parseInt((symbolRate*10)))}
-	[modulationMap, samples] = modulation(bits, carrierFrequency, deviation, ary, symbolRate, sampleRate)
+	modulation(bits, carrierFrequency, deviation, ary, symbolRate, sampleRate)
 	
 	// the samples are just floats, they will need to be packed into bytes before they
 	// can be played. sample2byte will fit them into a byte usuing 8 bits per sample, offset
@@ -336,15 +345,17 @@ function generateAndPlay() {
 var symbols = []
 var sampleRate = 0
 var symbolRate = 0
-var modulationMap = []
+var plot2Values = []
+var plot3Values = []
 var samples = []
 var plotNotReady = true
 
 // update all three plots
 function updatePlots() {
-	plotValues( $('binaryDataView'), symbols, parseInt(sampleRate/symbolRate) )
-	plotValues( $('modulatingWaveView'), modulationMap, 0 )
-	plotValues( $('carrierWaveView'), samples, 0 )
+	plotValues( $('plot1'), symbols, parseInt(sampleRate/symbolRate) )
+	plotValues( $('plot2'), plot2Values, 0)
+	plotValues( $('plot3'), plot3Values, 0)
+	plotValues( $('plot4'), samples, 0 )
 }
 
 // detect the scroll wheel and zoom in/out on all of the plots
@@ -383,7 +394,7 @@ function checkKey(e) {
 
 }
 
-function plotValues(canvas, data, dataRepeatCount) {
+function plotValues(canvas, data, dataRepeatCount, line=true) {
 	// function for plotting data on a canvas
 
 	// dataRepeatCount enables the binary data plot to line up with the other plots
@@ -422,6 +433,8 @@ function plotValues(canvas, data, dataRepeatCount) {
 
 	// plot all the data with a bright green sharp line 
 	
+	if (line) {
+	
 	ctx.beginPath()
 	
 	x = 0
@@ -437,6 +450,18 @@ function plotValues(canvas, data, dataRepeatCount) {
 	// due to anti-aliasing, a single stroke is soft and not as bright
 	ctx.stroke()
 	ctx.stroke()
+	
+	} else {
+	
+	ctx.fillStyle = "0f0"
+	x = 0
+	for (let s = 0; s < plotSamples; s++) {
+		let y = canvas.height - ((data[s] - yMin) * (ph) )
+		ctx.fillRect(x, y, 1, 1)
+		x += pw
+	}
+	
+	}
 
 	// enable the plot zoom and pan functions
 	plotNotReady = false
@@ -444,12 +469,12 @@ function plotValues(canvas, data, dataRepeatCount) {
 
 // ----------------------------------------------------------------------------
 
-function buildTransition (symbolLength, startValue, endValue, distance) {
+
+function buildTransition(symbolLength, startValue, endValue) {
 	// produces the modulation map for a transition (start to stop)
 	// symbolLength is the duration of a symbol in samples (int)
 	// startValue is the start value of the modulation (float)
 	// endValue is the end value of the modulation (float)
-	// distance is the relative distance between the levels (int)
 	let tArray = new Array(symbolLength).fill(startValue)
 	let delta = endValue - startValue
 	
@@ -457,11 +482,8 @@ function buildTransition (symbolLength, startValue, endValue, distance) {
 	// to the end value. Minimum acceleration is at the first and last
 	// transitions, with maximum acceleration around the middle transitions
 	// the last point in the transition array should be equal to endValue
-	let x = 0
-	
-	while (x < symbolLength) {
-		tArray[x] += Math.cos( (Math.PI * x) / (symbolLength-1) ) * (delta / -2) + delta / 2
-		x++
+	for (let x=0; x<symbolLength; x++) {
+		tArray[x] += Math.cos((Math.PI * x) / symbolLength) * (delta / -2) + (delta / 2)
 	}
 
 	return tArray
@@ -487,11 +509,6 @@ function buildModulationMap(symbols, levels, symbolRate, sampleRate) {
 			swatches[[x,y]] = buildTransition(symbolLength, levels[x], levels[y])
 		}
 	}
-
-	// so that the first and last symbol aren't lost, add a zero symbol to the
-	// start and end of the message.
-	symbols.push( 0 )
-	symbols.unshift( 0 )
 	
 	// init the modulationMap and the state
 	let modulationMap = new Array()
@@ -535,24 +552,34 @@ function FSK(bits, lowFrequency, frequencyDeviation, ary, symbolRate, sampleRate
 	// for example 8 ary can represent 3 bits per symbol: 000 through 111
 	let bitsPerSymbol = Math.log2(ary)
 	symbols = bits2symbols(bits, bitsPerSymbol)
-	console.log(symbols)
+	symbols.push( 0 )
+	symbols.unshift( 0 )
 
 	// build the frequency map
 	// the frequency map is an array of rotational velocities
-	let frequencyMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	let fmMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	samples = new Array()
 	
 	// set the angle to zero and init the samples array
 	let angle = Math.PI/2 // so that frequencies of zero don't have constant amplitudes of 1
-	let samples = new Array()
 	
-	frequencyMap.forEach( function(f) {
+	
+	fmMap.forEach( function(f) {
 		// change the angle by the rotational velocity
 		angle += f
 		// caculate the amplitude and push it to the samples
 		samples.push( Math.cos(angle) )
 	})
 	
-	return [frequencyMap, samples]
+	// update the plot data, visibilities and titles
+	plot2Values = fmMap
+	plot3Values = fmMap
+	$('plot2Title').innerHTML = 'Frequency Modulation: Smoothed wave = less harmonics'
+	$('plot2Title').style.display='block' 
+	$('plot3Title').style.display='none' 
+	$('plot2').style.display='block' 
+	$('plot3').style.display='none' 
+	
 }
 
 function ASK(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
@@ -574,8 +601,9 @@ function ASK(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sample
 	// for example 8 ary can represent 3 bits per symbol: 000 through 111
 	let bitsPerSymbol = Math.log2(ary)
 	symbols = bits2symbols(bits, bitsPerSymbol)
-	console.log(symbols)
-	
+	symbols.push( 0 )
+	symbols.unshift( 0 )
+
 	// build the amplitude map
 	// the amplitude map is an array of amplitude values
 	// for Amplitude Modulation (AM) on the carrier
@@ -585,29 +613,58 @@ function ASK(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sample
 	for (let i=0; i<ary; i++) {
 		levels.unshift( highAmplitude - (shift*i) )
 	}
-	console.log(levels)
 	
-	let amplitudeMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	let amMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	samples = new Array()
 	
-	// set the angle to zero and init the samples array
+	// set the angle to zero
 	let angle = 0.0
-	let samples = new Array()
 	
 	// calculate the rotational velocity of the carrier frequency
 	let f = frequency2rotationalVelocity(carrierFrequency, sampleRate)
 	
-	amplitudeMap.forEach( function(amplitude) {
+	amMap.forEach( function(amplitude) {
 		// change the angle by the rotational velocity
 		angle += f
 		// caculate the amplitude and push it to the samples
 		samples.push( amplitude * Math.cos(angle) )
 	})
 	
-	return [amplitudeMap, samples]
+	// update the plot data, visibilities and titles
+	plot2Values = amMap
+	plot3Values = amMap
+	$('plot2Title').innerHTML = 'Amplitude Modulation: Smoothed wave = less harmonics'
+	$('plot2Title').style.display='block' 
+	$('plot3Title').style.display='none' 
+	$('plot2').style.display='block' 
+	$('plot3').style.display='none' 
+
 }
 
-function PSK(bits, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
-	// produces samples representing an PSK modulated carrier
+function PSK(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
+	// generate the constellation plot as phase/angle points, then convert them to
+	// a IQ constellation map
+	let constellationPoints = []
+	let shift = (2*Math.PI) / ary
+	let offset = shift/2
+	let levels = []
+	for (let i=0; i<ary; i++) {
+		I = Math.round( Math.cos( offset + shift*i ) * 1000) / 1000
+		Q = Math.round( Math.sin( offset + shift*i ) * 1000) / 1000
+		constellationPoints.push([I,Q])
+	}
+	
+	// BPSK ends up on the quadrature using the above method
+	// so rather than try and make the above work for this special case
+	// BPSK is just specified here:
+	if (ary == 2) { constellationPoints = [[1,0],[-1,0]] }
+	
+	// Use the Quadtrature Amplitude modulator
+	QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+}
+
+function QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate) {
+	// produces samples representing an QAM modulated carrier
 	// ary = how many levels to use, for example 2 = BPSK, 4 = QPSK, 8 = 8PSK
 	// symbolRate = the rate of modulation, or the number of bits per second in this case
 	// sample rate = the audio sample rate
@@ -616,39 +673,60 @@ function PSK(bits, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
 	// convert the bits into symbols
 	// for 2 level systems, the bits are the symbols
 	// for higher order systems each symbol represents multiple bits
-	// the number of bits per symbol is the log2 of ary
 	// for example 8 ary can represent 3 bits per symbol: 000 through 111
-	let bitsPerSymbol = Math.log2(ary)
+	let bitsPerSymbol = Math.log2(constellationPoints.length)
 	symbols = bits2symbols(bits, bitsPerSymbol)
-	console.log(symbols)
+	symbols.push( 0 )
+	symbols.unshift( 0 )
 	
-	// build the phase map
-	// the phase map is an array of phase values
-	// for Phase Modulation (PM) on the carrier
-	let shift = (2*Math.PI) / ary
-	let levels = []
-	for (let i=0; i<ary; i++) {
-		levels.unshift( shift*i )
-	}
-	console.log(levels)
+	let iLevels = []
+	let qLevels = []
+	constellationPoints.forEach( function(p) {
+		iLevels.push(p[0])
+		qLevels.push(p[1])
+	})
 	
-	let phaseMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	console.log(iLevels)
+	console.log(qLevels)
 	
-	// set the angle to zero and init the samples array
+	let iMap = buildModulationMap(symbols, iLevels, symbolRate, sampleRate)
+	let qMap = buildModulationMap(symbols, qLevels, symbolRate, sampleRate)
+
+	samples = new Array()
+
+	// set the angle, amplitude and phase to zero
 	let angle = 0.0
-	let samples = new Array()
+	let amplitude = 0.0
+	let phase = 0.0
 	
 	// calculate the rotational velocity of the carrier frequency
 	let f = frequency2rotationalVelocity(carrierFrequency, sampleRate)
 	
-	phaseMap.forEach( function(phase) {
+	for (let x=0; x<iMap.length; x++) {
 		// change the angle by the rotational velocity
 		angle += f
+		
+		// calculate the amplitude and phase from the IQ points
+		amplitude = Math.sqrt( Math.pow(iMap[x],2) + Math.pow(qMap[x],2) )
+		phase = Math.atan2( qMap[x], iMap[x] )
+		
 		// caculate the amplitude and push it to the samples
-		samples.push( Math.cos(angle+phase) )
-	})
+		samples.push( amplitude * Math.cos(angle+phase) )
+	}
 	
-	return [phaseMap, samples]
+	let scale = 1 / Math.max(...samples)
+	samples = samples.map( function(x) { return x * scale })
+	
+	// update the plot data, visibilities and titles
+	plot2Values = iMap
+	plot3Values = qMap
+	$('plot2Title').innerHTML = 'In-phase modulation: Smoothed wave = less harmonics'
+	$('plot3Title').innerHTML = 'Quadrature modulation: Smoothed wave = less harmonics'
+	$('plot2Title').style.display='block' 
+	$('plot3Title').style.display='block' 
+	$('plot2').style.display='block' 
+	$('plot3').style.display='block' 
+	
 }
 
 </script>
