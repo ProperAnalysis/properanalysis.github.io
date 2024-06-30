@@ -589,6 +589,8 @@ Generate Audio from Current Samples
 <div id='IQ Scatter Menu' class='sideMenuItemHidden'>
 <p>Start Sample: <input type='number' id='IQscatterStartSample' value=0 onchange='updateIQscatter()'></p>
 <p># of Samples: <input type='number' id='IQscatterSamplesLength' value=8000 onchange='updateIQscatter()'></p>
+<p>Point Opacity: <input type='number' id='IQpointOpacity' value=50 onchange='updateIQscatter()'></p>
+<p>Line Opacity: <input type='number' id='IQlineOpacity' value=50 onchange='updateIQscatter()'></p>
 <p>Scale:
 <select id='IQscatterScale' onchange='updateIQscatter()'>
 <option value='true'>Auto</option>
@@ -599,12 +601,6 @@ Generate Audio from Current Samples
 <p>Y Min: <input type='number' id='IQscatterMinY' value=-30 onchange='updateIQscatter()'></p>
 <p>X Max: <input type='number' id='IQscatterMaxX' value=30 onchange='updateIQscatter()'></p>
 <p>X Min: <input type='number' id='IQscatterMinX' value=-30 onchange='updateIQscatter()'></p>
-<p>Lines:
-<select id='IQscatterLines' onchange='updateIQscatter()'>
-<option value='true'>On</option>
-<option value='false'>Off</option>
-</select>
-</p>
 <p>Modulation Sectors:
 <select id='IQmodulationSectors' onchange='updateIQscatter()'>
 <option value='thresholdsNone()'>None</option>
@@ -1349,10 +1345,11 @@ function updateIQscatter() {
 	let samplesLength = parseInt( $('IQscatterSamplesLength').value )
 	let canvas = $('IQscatterCanvas')
 	let ctx = canvas.getContext('2d')
-	let drawLines = eval( $('IQscatterLines').value )
 	let thresholds = eval( $('IQmodulationSectors').value )[0]
 	let demodSectors = buildSectors(thresholds)
 	let autoScale = eval( $('IQscatterScale').value )
+	let pointOpacity = parseFloat($('IQpointOpacity').value) / 100
+	let lineOpacity = parseFloat($('IQlineOpacity').value) / 100
 	
 	
 	canvas.width = canvas.parentElement.clientWidth;
@@ -1375,6 +1372,9 @@ function updateIQscatter() {
 		maxY = math.max(qSamples) + 0.1
 		minY = math.min(qSamples) - 0.1
 		
+		if (maxX > minX*-1) { minX = maxX*-1 } else { maxX = minX*-1 }
+		if (maxY > minY*-1) { minY = maxY*-1 } else { maxY = minY*-1 }
+		
 		if (maxX > maxY) {maxY = maxX} else {maxX = maxY}
 		if (minX < minY) {minY = minX} else {minX = minY}
 		
@@ -1388,39 +1388,47 @@ function updateIQscatter() {
 	
 	let scaleY = canvas.height / rangeY
 	let scaleX = canvas.width / rangeX
-	
-	if (drawLines) {
-		ctx.beginPath()
-		ctx.strokeStyle = "#030303"
-		ctx.moveTo( (iSamples[0]-minX)*scaleX, (qSamples[0]-minY)*scaleY ) 
-	
-		for (let i=startSample; i<samplesLength+startSample; i++) {
-			ctx.lineTo( (iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY ) 
-		}	
-		ctx.stroke()
-		ctx.beginPath()
-		ctx.globalAlpha = 0.05;
-		ctx.strokeStyle = "#00ffff"
-		ctx.moveTo( (iSamples[0]-minX)*scaleX, (qSamples[0]-minY)*scaleY ) 
-	
-		for (let i=startSample; i<samplesLength+startSample; i++) {
-			ctx.lineTo( (iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY ) 
-		}	
-		ctx.stroke()
-		ctx.globalAlpha = 1.0;
-	}
 
 	
-	ctx.globalAlpha = 0.2;
-	ctx.fillStyle = '#ffffff'
+	// draw the lines between points
+	ctx.beginPath()
+	ctx.globalAlpha = lineOpacity;
+	ctx.strokeStyle = "#0ff"
+	ctx.moveTo( (iSamples[startSample]-minX)*scaleX, (qSamples[startSample]-minY)*scaleY ) 
+	
+	for (let i=startSample; i<samplesLength+startSample; i++) {
+		ctx.lineTo( (iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY ) 
+	}	
+	ctx.stroke()
+
+	// draw the points
+	ctx.globalAlpha = pointOpacity;
+	ctx.fillStyle = '#fff'
 	for (let i=startSample; i<samplesLength+startSample; i++) {
 		ctx.fillRect((iSamples[i]-minX)*scaleX, (qSamples[i]-minY)*scaleY, 2, 2)
 	}
-	ctx.globalAlpha = 1.0;
 	
 	
+	// draw the crosshair
+	ctx.globalAlpha = 0.2;
 	ctx.beginPath()
-	ctx.strokeStyle = "#ffffff"
+	ctx.strokeStyle = "#fff"
+	ctx.moveTo( (0-minX)*scaleX, (0-minY)*scaleY ) 
+	console.log( (0-minX)*scaleX, (0-minY)*scaleY )
+	
+	let cross = buildSectors([0,90,180,270])
+	for (let i=0; i<cross.length; i++) {
+		ctx.lineTo( (cross[i][0]-minX)*scaleX, (cross[i][1]-minY)*scaleY )
+		console.log( (cross[i][0]-minX)*scaleX, (cross[i][1]-minY)*scaleY )
+		ctx.moveTo( (0-minX)*scaleX, (0-minY)*scaleY ) 
+	}	
+	
+	ctx.stroke()
+	ctx.globalAlpha = 0.5;
+	
+	// draw the demod sectors
+	ctx.beginPath()
+	ctx.strokeStyle = "#f00"
 	ctx.moveTo( (0-minX)*scaleX, (0-minY)*scaleY ) 
 	console.log( (0-minX)*scaleX, (0-minY)*scaleY )
 	
@@ -1431,8 +1439,7 @@ function updateIQscatter() {
 	}	
 	
 	ctx.stroke()
-	
-
+	ctx.globalAlpha = 1.0;
 	
 }
 
@@ -1564,7 +1571,7 @@ function pskDemodulate() {
     let decimatedSamples = []
     let decimatedIsamples = []
     let decimatedQsamples = []
-    for (let i = startSample; i<samples.length; i+=decimation) {
+    for (let i = startSample; i<iSamples.length; i+=decimation) {
     	decimatedSamples.push(samples[parseInt(i)])
     	decimatedIsamples.push(iSamples[parseInt(i)])
     	decimatedQsamples.push(qSamples[parseInt(i)])
