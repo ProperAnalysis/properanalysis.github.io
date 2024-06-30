@@ -42,60 +42,65 @@ canvas {
     border-radius: 10px;
 }
 
+a {
+	text-decoration:none;
+}
+
 </style>
 
 </head>
 
-<h1>No Filter Modulator</h1>
-<p>
-	This tool attempts to produce decent quality modulated waveforms without the need for filters.
-	This is achieved by gradually accelerating the state of carrier toward the symbol value,
-	rather than instantaneously modulating the carrier to the symbol value. Probably not
-	surprising that the resulting waveform looks like a filtered waveform - So there's no real
-	gain here in terms of the waveform quality, however in does remove the need for filters, and
-	therefore runs much quicker in JavaScript (especially for lower modulation rates, which usually
-	require very sharp filters).
-</p>
-
-<p>&nbsp;</p>
+<h1>No Filter Modulator
+<a href=""
+onclick="alert('This tool attempts to produce decent quality modulated waveforms without the need for filters. This is achieved by gradually accelerating the state of carrier toward the symbol value, rather than instantaneously modulating the carrier to the symbol value. Probably not surprising that the resulting waveform looks like a filtered waveform - So there\'s no real gain here in terms of the waveform quality, however in does remove the need for filters, and therefore runs much quicker in JavaScript (especially for lower modulation rates, which usually require very sharp filters).')"
+>&#9432;</a>
+</h1>
 
 <table>
 
 	<tr>
 		<td>Message:</td>
-		<td><input id='messageInput' value='hello world!'></input></td>
-		<td>// If left blank, data will be random bits (0,1,7) for 10 seconds (5 seconds QPSK, 3.3 seconds 8PSK)</td>
+		<td><input id='messageInput' value='hello world!'></input>
+		<a href="" 
+		onclick="alert(' If left blank, data will be random bits (0,1,7) for 10 seconds (5 seconds QPSK, 3.3 seconds 8PSK)')"
+		>&#9432;</a></td>
 	</tr>
 
 	<tr>
 		<td>Carrier Frequency:</td>
 		<td><input type='number 'id='carrierFreqInput' value=400></input></td>
-		<td></td>
 	</tr>
 
 
 	<tr>
 		<td>Frequency / Amplitude Deviation:</td>
-		<td><input id='deviationInput' value=90></input></td>
-		<td>// For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power</td>
+		<td><input id='deviationInput' value=90></input>
+		<a href=""
+		onclick="alert('For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power ')"
+		>&#9432;</a></td>
 	</tr>
 	
 	<tr>
 		<td>Number of levels</td>
-		<td><input id='levelsInput' value=2></input></td>
-		<td>// Specifies how many amplitude / frequency / phase levels are used</td>
+		<td><input id='levelsInput' value=2></input>
+		<a href=""
+		onclick="alert('Specifies how many amplitude / frequency / phase levels are used')"
+		>&#9432;</a>
+		</td>
 	</tr>
 
 	<tr>
 		<td>Baud Rate:</td>
-		<td><input id='symbolRateInput' value=50></input></td>
-		<td>// Rate of modulation</td>
+		<td><input id='symbolRateInput' value=50></input>
+		<a href=""
+		onclick="alert('Rate of modulation')"
+		>&#9432;</a>
+		</td>
 	</tr>
 
 	<tr>
 		<td>Sample Rate:</td>
 		<td><input id='sampleRateInput' value=8000></input></td>
-		<td></td>
 	</tr>
 	
 	<tr>
@@ -105,9 +110,17 @@ canvas {
 			<option value='ASK'>ASK</option>
 			<option value='PSK'>PSK</option>
 			<option value='FSK'>FSK</option>
+			<option value='QAM16'>16QAM</option>
+			<option value='QAM32'>32QAM</option>
+			<option value='QAM64'>64QAM</option>
 			</select>
 		</td>
-		<td> </td>
+	</tr>
+	
+	<tr>
+		<td>Signal to Noise Ratio:</td>
+		<td><input id='snrInput' value=99></input>
+		<a href="" onclick="alert(' In dB (99 = no noise)')">&#9432;</a></td>
 	</tr>
 
 	<tr></tr>
@@ -115,19 +128,16 @@ canvas {
 	<tr>
 		<td></td>
 		<td><button onclick="generateAndPlay()">Generate and Play</button></td>
-		<td></td>
 	</tr>
 	
 	<tr>
 		<td></td>
 		<td><button onclick="playPause()">Play/Pause</button></td>
-		<td></td>
 	</tr>
 	
 	<tr>
 		<td></td>
 		<td><button onclick="downloadAudio()">Download Audio</button></td>
-		<td></td>
 	</tr>
 
 </table>
@@ -318,12 +328,21 @@ function generateAndPlay() {
 	let ary = parseInt( $("levelsInput").value ) // number of levels (ary)
 	symbolRate = parseFloat( $("symbolRateInput").value ) // Symbols per second (Hz)
 	sampleRate = parseFloat( $("sampleRateInput").value ) // Samples per second (Hz).
+	let snr = parseFloat( $("snrInput").value ) // SNR in dB
 	let modulation = eval($("modulationTypeInput").value) // ASK or FSK
-	
+
 	bits = ascii2bits(text)
 	// if there's no text - just send random bits
-	if (text == '') {bits = randomBinary().split('').map(makeInt).slice(0, parseInt((symbolRate*10)))}
+	if (text == '') {
+		let bitsPerSymbol = Math.log2(ary)
+		let bitCount = parseInt((symbolRate*10*bitsPerSymbol))
+		bits = randomBinary().split('').map(makeInt).slice(0, )
+	}
 	modulation(bits, carrierFrequency, deviation, ary, symbolRate, sampleRate)
+	
+	if (snr != 99) {
+		samples = addNoise(samples, snr)
+	}
 	
 	// the samples are just floats, they will need to be packed into bytes before they
 	// can be played. sample2byte will fit them into a byte usuing 8 bits per sample, offset
@@ -335,6 +354,27 @@ function generateAndPlay() {
 	
 	// play the audio
 	playAudio(samples, sampleRate)
+}
+
+function addNoise(samples, snr) {
+	let signalScale = Math.pow(10, (snr/10))
+	let maxValue = 0
+	let minValue = 0
+	
+	for (let i=0; i<samples.length; i++) {
+		samples[i] = (samples[i] * signalScale) + (Math.random() * randomSign())
+		if (samples[i] > maxValue) { maxValue = samples[i] }
+		else if (samples[i] < minValue) { minValue = samples[i] }
+	}
+	
+	minValue = Math.abs(minValue)
+	
+	if (maxValue < minValue) { maxValue = minValue }
+	scale = 1 / maxValue
+	
+	samples = samples.map( function(s) { return s * scale } )
+	
+	return samples
 }
 
 // plotting functions
@@ -431,7 +471,7 @@ function plotValues(canvas, data, dataRepeatCount, line=true) {
 	let pw = canvas.width / plotSamples
 	let ph = canvas.height / range
 
-	// plot all the data with a bright green sharp line 
+	// plot all the data with a bright aqua sharp line 
 	
 	if (line) {
 	
@@ -445,7 +485,7 @@ function plotValues(canvas, data, dataRepeatCount, line=true) {
 	}
 	
 	ctx.lineWidth = 1.0
-	ctx.strokeStyle = "#0f0"
+	ctx.strokeStyle = "#6ff"
 	// double stroke makes it a nice solid line
 	// due to anti-aliasing, a single stroke is soft and not as bright
 	ctx.stroke()
@@ -453,7 +493,7 @@ function plotValues(canvas, data, dataRepeatCount, line=true) {
 	
 	} else {
 	
-	ctx.fillStyle = "0f0"
+	ctx.fillStyle = "6ff"
 	x = 0
 	for (let s = 0; s < plotSamples; s++) {
 		let y = canvas.height - ((data[s] - yMin) * (ph) )
@@ -654,12 +694,67 @@ function PSK(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sample
 		constellationPoints.push([I,Q])
 	}
 	
-	// BPSK ends up on the quadrature using the above method
+	// BPSK ends up on the Quadrature using the above method
 	// so rather than try and make the above work for this special case
 	// BPSK is just specified here:
-	if (ary == 2) { constellationPoints = [[1,0],[-1,0]] }
+	if (ary == 2) { constellationPoints = [[-1,0],[1,0]] }
 	
 	// Use the Quadtrature Amplitude modulator
+	QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+}
+
+function QAM64(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
+	let constellationPoints = []
+	let I = 0
+	let Q = 0
+	while (Q < 8) { while (I < 8) {
+		constellationPoints.push( [3.5-I, 3.5-Q] )
+		I ++
+		} 
+	Q ++
+	I = 0
+	}
+	
+	console.log(constellationPoints)
+
+	QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+}
+function QAM32(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
+	let constellationPoints = []
+	let I = 0
+	let Q = 0
+	let P = 0
+	
+	let punctureList = [0,5,30,35]
+	
+	while (Q < 6) { while (I < 6) {
+		if (!punctureList.includes(P)) { constellationPoints.push( [2.5-I, 2.5-Q] ) }
+		P ++
+		I ++
+		} 
+	Q ++
+	I = 0
+	}
+	
+	console.log(constellationPoints)
+
+	QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+}
+
+function QAM16(bits, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
+	let constellationPoints = []
+	let I = 0
+	let Q = 0
+	while (Q < 4) { while (I < 4) {
+		constellationPoints.push( [1.5-I, 1.5-Q] )
+		I ++
+		} 
+	Q ++
+	I = 0
+	}
+	
+	console.log(constellationPoints)
+
 	QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate)
 }
 
@@ -701,6 +796,7 @@ function QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate
 	
 	// calculate the rotational velocity of the carrier frequency
 	let f = frequency2rotationalVelocity(carrierFrequency, sampleRate)
+	let maxAmplitude = 0
 	
 	for (let x=0; x<iMap.length; x++) {
 		// change the angle by the rotational velocity
@@ -712,9 +808,13 @@ function QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate
 		
 		// caculate the amplitude and push it to the samples
 		samples.push( amplitude * Math.cos(angle+phase) )
+		
+		if (samples[x] > maxAmplitude) {
+			maxAmplitude = samples[x]
+		}
 	}
 	
-	let scale = 1 / Math.max(...samples)
+	let scale = 1 / maxAmplitude
 	samples = samples.map( function(x) { return x * scale })
 	
 	// update the plot data, visibilities and titles
@@ -729,5 +829,26 @@ function QAM(bits, constellationPoints, carrierFrequency, symbolRate, sampleRate
 	
 }
 
+/* To do list
+// ---------------------------------------------------------------------------------------
+  
+- detect binary input in the message and run in binary mode (don't convert from ASCII)
+  
+- add more QAM constellations and extra PSK modulations like Pi/2 BPSK and Pi/4 QPSK
+
+- come up with a more programatic method for generating large square QAM maps
+  16 is just 4 x 4
+  32 is (6 x 6) - 4 (puncture the corners, 1 from each)
+  64 is just 8 x 8
+  128 is either (12 x 12) - 16 (puncture the corners again, 4 from each)
+  256 is just 16 x 16
+  512 is (24 x 24) - 64 (puncture the corners again, 8 from each)
+
+- add an IQ plot
+
+- add a power spectrum FFT plot
+
+// ---------------------------------------------------------------------------------------
+*/
 </script>
 </html>
