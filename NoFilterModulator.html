@@ -73,8 +73,8 @@
 
   display: grid;
   grid:
-    "menuItems topLeftPlots" calc(40% - 8px)
-    "bottomPlots bottomPlots" calc(60% - 8px)
+    "menuItems topLeftPlots" calc(42% - 8px)
+    "bottomPlots bottomPlots" calc(58% - 8px)
     / calc(30% - 8px) calc(70% - 8px);
   gap: 8px;
 }
@@ -217,15 +217,23 @@ onclick="alert('This tool attempts to produce decent quality modulated waveforms
 		<td style="width: auto;">Message:</td>
 		<td style="width: 13.5em;"><input id='messageInput' value='hello world!'></input>
 		<a href="" 
-		onclick="alert('If left blank, data will be read from binary field. If binary field is blank, data will be random bits (0,1,7) or (0,1,14) depending on the number of modulation levels.')"
+		onclick="alert('Message input, can be ASCII or binary - for binary, make the binary selection from the input data field')"
 		>&#9432;</a></td>
 	</tr>
 	
 	<tr style='background: #0a1818;'>
-		<td>Binary:</td>
-		<td><input id='binaryInput' value=''></input>
+		<td>Input Data:</td>
+		<td><select id='dataCommandInput'>
+			<option value="ascii2bits(text)">Message as ASCII</option>
+			<option value="text.split('').map(makeInt)">Message as Binary</option>
+			<option value="randomBinary( [0,1,7], bitCount )">0,1,7 LFSR</option>
+			<option value="randomBinary( [0,1,15], bitCount )">0,1,15 LFSR</option>
+			<option value="randomBinary( [0], bitCount, text.split('').map(makeInt) )">Binary Message Repeated</option>
+			<option value="randomBinary( [0,1,7], bitCount, text.split('').map(makeInt) )">Binary Message Repeated + 0,1,7</option>
+			<option value="randomBinary( [0,1,15], bitCount, text.split('').map(makeInt) )">Binary Message Repeated + 0,1,15</option>
+			</select>
 		<a href="" 
-		onclick="alert('If left blank, data will be read from message field. If message field is blank, data will be random bits (0,1,7) or (0,1,14) depending on the number of modulation levels.')"
+		onclick="alert('Specifies how the message should be interpreted (Message as ASCII or Message as Binary). Note that for Message as Binary, the message field must only contain 1s and 0s - no other characters. For all other options, the message is disregarded and test data is used.')"
 		>&#9432;</a></td>
 	</tr>
 
@@ -238,7 +246,7 @@ onclick="alert('This tool attempts to produce decent quality modulated waveforms
 		<td>Frequency / Amplitude Deviation:</td>
 		<td><input id='deviationInput' value=90></input>
 		<a href=""
-		onclick="alert('For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power ')"
+		onclick="alert('For FSK this is in Hz (from the carrier), in ASK 100 = 100% = off. 50 = 50% = half-power')"
 		>&#9432;</a></td>
 	</tr>
 	
@@ -296,6 +304,12 @@ onclick="alert('This tool attempts to produce decent quality modulated waveforms
 		<td><input id='snrInput' value=99></input>
 		<a href="" onclick="alert(' In dB (99 = no noise)')">&#9432;</a></td>
 	</tr>
+	
+	<tr style='background: #0a1818;'>
+		<td>Roll-off Factor:</td>
+		<td><input id='rollOffInput' value=1 min=0 max=1></input>
+		<a href="" onclick="alert('Raised cosine roll-off factor, zero would produce a square wave, 1 is the maximum, with the least harmonics.')">&#9432;</a></td>
+	</tr>
 
 	</table>
 
@@ -352,7 +366,7 @@ var plotNotReady = true
 // ----------------------------------------------------------------------------
 
 
-function custom_8RECT(symbols, carrierFrequency, nothing, nothing, symbolRate, sampleRate) {
+function custom_8RECT(symbols, carrierFrequency, nothing, nothing, symbolRate, sampleRate, rollOff) {
 	let constellationPoints = []
 	constellationPoints[0] = [-0.75, +0.50]
 	constellationPoints[1] = [-0.25, +0.50]
@@ -364,10 +378,10 @@ function custom_8RECT(symbols, carrierFrequency, nothing, nothing, symbolRate, s
 	constellationPoints[7] = [+0.75, -0.50]
 	
 	symbols = bits2symbols(bits, 3)
-	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate, rollOff)
 }
 
-function custom_NS8QAM(symbols, carrierFrequency, nothing, nothing, symbolRate, sampleRate) {
+function custom_NS8QAM(symbols, carrierFrequency, nothing, nothing, symbolRate, sampleRate, rollOff) {
 	let constellationPoints = []
 	constellationPoints[0] = [-0.75, +0.75]
 	constellationPoints[1] = [-0.25, +0.25]
@@ -379,7 +393,7 @@ function custom_NS8QAM(symbols, carrierFrequency, nothing, nothing, symbolRate, 
 	constellationPoints[7] = [+0.75, -0.75]
 	
 	symbols = bits2symbols(bits, 3)
-	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate, rollOff)
 }
 
 
@@ -387,7 +401,7 @@ function custom_NS8QAM(symbols, carrierFrequency, nothing, nothing, symbolRate, 
 // modulation functions
 // ----------------------------------------------------------------------------
 
-function buildModulationMap(symbols, levels, symbolRate, sampleRate) {
+function buildModulationMap(symbols, levels, symbolRate, sampleRate, rollOff) {
 	// builds a modulation map to represent the modulating symbols
 	// depending on the number of levels, different length binary words can be 
 	// represented by different levels (with transitions which are as gradual as possible).
@@ -404,7 +418,7 @@ function buildModulationMap(symbols, levels, symbolRate, sampleRate) {
 	for (let x = 0; x < levels.length; x++) {
 		for (let y = 0; y < levels.length; y++) {
 			// build the swatch and store it into the swatches dictionary
-			swatches[[x,y]] = buildTransition(symbolLength, levels[x], levels[y])
+			swatches[[x,y]] = buildTransition(symbolLength, levels[x], levels[y], rollOff)
 		}
 	}
 	
@@ -424,7 +438,7 @@ function buildModulationMap(symbols, levels, symbolRate, sampleRate) {
 	return modulationMap.flat(1)
 }
 
-function buildTransition(symbolLength, startValue, endValue) {
+function buildTransition(symbolLength, startValue, endValue, rollOff) {
 	// produces the modulation map for a transition (start to stop)
 	// symbolLength is the duration of a symbol in samples (int)
 	// startValue is the start value of the modulation (float)
@@ -432,18 +446,32 @@ function buildTransition(symbolLength, startValue, endValue) {
 	let tArray = new Array(symbolLength).fill(startValue)
 	let delta = endValue - startValue
 	
+	let slopeDelay = parseInt( (symbolLength - ( symbolLength * rollOff ) ) / 2 )
+	symbolLength = symbolLength - (slopeDelay * 2)
+	
+	console.log(rollOff, symbolLength, slopeDelay)
+	
 	// produce a cosine half-wave starting at the startValue, ramping up
 	// to the end value. Minimum acceleration is at the first and last
 	// transitions, with maximum acceleration around the middle transitions
 	// the last point in the transition array should be equal to endValue
+	
+	for (let x=0; x<slopeDelay; x++) {
+		tArray[x] = startValue
+	}
+	
 	for (let x=0; x<symbolLength; x++) {
-		tArray[x] += Math.cos((Math.PI * x) / symbolLength) * (delta / -2) + (delta / 2)
+		tArray[x+slopeDelay] += Math.cos((Math.PI * x) / symbolLength) * (delta / -2) + (delta / 2)
+	}
+	
+	for (let x=tArray.length-slopeDelay; x<tArray.length; x++) {
+		tArray[x] = endValue
 	}
 
 	return tArray
 }
 
-function FSK(symbols, lowFrequency, frequencyDeviation, ary, symbolRate, sampleRate) {
+function FSK(symbols, lowFrequency, frequencyDeviation, ary, symbolRate, sampleRate, rollOff) {
 	// produces samples representing an FSK modulated carrier
 	// -----------------------------------------------------------------------------------
 	// symbols = data to be represented, in the format of symbols. For example in a
@@ -467,7 +495,7 @@ function FSK(symbols, lowFrequency, frequencyDeviation, ary, symbolRate, sampleR
 
 	// build the frequency modulating map
 	// the frequency map is an array of rotational velocities
-	let fmMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	let fmMap = buildModulationMap(symbols, levels, symbolRate, sampleRate, rollOff)
 	samples = new Array()
 	IQpoints = new Array()
 	
@@ -495,7 +523,7 @@ function FSK(symbols, lowFrequency, frequencyDeviation, ary, symbolRate, sampleR
 	
 }
 
-function ASK(symbols, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate) {
+function ASK(symbols, carrierFrequency, amplitudeDeviation, ary, symbolRate, sampleRate, rollOff) {
 	// produces samples representing an ASK modulated carrier
 	// carrier frequency at 100% amplitude = a binary one
 	// amplitude reduced by the amplitude deviation = a binary zero
@@ -523,7 +551,7 @@ function ASK(symbols, carrierFrequency, amplitudeDeviation, ary, symbolRate, sam
 		levels.unshift( highAmplitude - (shift*i) )
 	}
 	
-	let amMap = buildModulationMap(symbols, levels, symbolRate, sampleRate)
+	let amMap = buildModulationMap(symbols, levels, symbolRate, sampleRate, rollOff)
 	samples = new Array()
 	IQpoints = new Array()
 	
@@ -558,7 +586,7 @@ function ASK(symbols, carrierFrequency, amplitudeDeviation, ary, symbolRate, sam
 	$('plot3').style.display='none' 
 }
 
-function QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate) {
+function QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate, rollOff) {
 	// produces samples representing an QAM modulated carrier
 	// -----------------------------------------------------------------------------------
 	// symbols = data to be represented, in the format of symbols. For example in a
@@ -579,8 +607,8 @@ function QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleR
 	})
 	
 	// produce separate modulation maps for the I and Q levels
-	let iMap = buildModulationMap(symbols, iLevels, symbolRate, sampleRate)
-	let qMap = buildModulationMap(symbols, qLevels, symbolRate, sampleRate)
+	let iMap = buildModulationMap(symbols, iLevels, symbolRate, sampleRate, rollOff)
+	let qMap = buildModulationMap(symbols, qLevels, symbolRate, sampleRate, rollOff)
 
 	// init an empty samples array
 	samples = new Array()
@@ -631,7 +659,7 @@ function QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleR
 	$('plot3').style.display='block' 	
 }
 
-function PSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
+function PSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate, rollOff) {
 	// produces samples representing an PSK modulated carrier
 	// -----------------------------------------------------------------------------------
 	// symbols = data to be represented, in the format of symbols. For example in a
@@ -662,10 +690,10 @@ function PSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
 	if (ary == 2) { constellationPoints = [[-1,0],[1,0]] }
 	
 	// Use the Quadtrature Amplitude modulator
-	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate, rollOff)
 }
 
-function piAryPSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
+function piAryPSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate, rollOff) {
 	// function to produce Pi/Ary PSK (Pi/2 BPSK, Pi/4 QPSK, etc.)
 
 	// double the ary
@@ -678,10 +706,10 @@ function piAryPSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRat
 	
 	// pass this to the PSK function... which will in turn build a constellation
 	// and pass it to the QAM function
-	PSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate)
+	PSK(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate, rollOff)
 }
 
-function XQAM(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
+function XQAM(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate, rollOff) {
 	// function to generate constellation maps for a given ary-QAM modulation
 	
 	// get the grid size (square) and puncture points which will produce the
@@ -714,7 +742,7 @@ function XQAM(symbols, carrierFrequency, nothing, ary, symbolRate, sampleRate) {
 	}
  
 	// pass it on to the QAM function
-	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate)
+	QAM(symbols, constellationPoints, carrierFrequency, symbolRate, sampleRate, rollOff)
 }
 
 
@@ -764,15 +792,9 @@ function findPunctures(ary) {
 	return [puncture, square]
 }
 
-function randomBinary(length) {
+function randomBinary(taps, length, mask=false) {
 	// generate and return an array of bits, of length
 	// this is done using a linear feedback shift register
-
-	// different taps for diffent lengths
-	let taps = [0,1,7]
-	if (length > 10000) {
-		taps = [0,1,15]
-	}
 
 	let lastTap = taps[taps.length-1]
 	
@@ -791,6 +813,16 @@ function randomBinary(length) {
 		register.unshift(bit);
 		register.pop();
 		bits.push(bit);
+	}
+	
+	if (mask) {
+		let maskBit = 0
+		
+		for (let x = 0; x < bits.length; x++) {
+			bits[x] = ( bits[x] + mask[maskBit] ) % 2
+			maskBit = ( maskBit + 1 ) % mask.length
+		}
+	
 	}
 	
 	return bits
@@ -966,7 +998,7 @@ function generateAndPlay() {
 	// take the UI inputs, generate the samples and play them
 	
 	let text = $("messageInput").value
-	let binary = $("binaryInput").value
+	let dataCommand = $("dataCommandInput").value
 	let carrierFrequency = parseFloat( $("carrierFreqInput").value ) //Hz
 	let deviation = parseFloat( $("deviationInput").value ) // Hz
 	let ary = parseInt( $("levelsInput").value ) // number of levels (ary)
@@ -974,34 +1006,24 @@ function generateAndPlay() {
 	sampleRate = parseFloat( $("sampleRateInput").value ) // Samples per second (Hz).
 	let snr = parseFloat( $("snrInput").value ) // SNR in dB
 	let modulation = eval($("modulationTypeInput").value) // ASK or FSK
+	let rollOff = parseFloat( $("rollOffInput").value ) // 0.0 to 1.0
 
-	bits = []
+	let bitsPerSymbol = Math.log2(ary)
+	let bitCount = parseInt((symbolRate*10*bitsPerSymbol))
 	
-	if (text == '' && binary == '') {
-		// if there's no text or binary - send random bits
-		let bitsPerSymbol = Math.log2(ary)
-		let bitCount = parseInt((symbolRate*10*bitsPerSymbol))
-		bits = randomBinary(bitCount)
-	} else if (binary == '') {
-		// if there's no binary, then read the message text
-		bits = ascii2bits(text)
-	} else {
-		// otherwise, read the binary as bits
-		bits = binary.split('').map(makeInt)
-	}
+	bits = eval(dataCommand)
 	
 	// convert the bits into symbols
 	// for 2 level systems, the bits are the symbols
 	// for higher order systems each symbol represents multiple bits
 	// the number of bits per symbol is the log2 of ary
 	// for example 8 ary can represent 3 bits per symbol: 000 through 111
-	let bitsPerSymbol = Math.log2(ary)
 	symbols = bits2symbols(bits, bitsPerSymbol)
 	symbols.push( 0 )
 	symbols.unshift( 0 )
 	
 	// perform the user specified modulation
-	modulation(symbols, carrierFrequency, deviation, ary, symbolRate, sampleRate)
+	modulation(symbols, carrierFrequency, deviation, ary, symbolRate, sampleRate, rollOff)
 	
 	// if the user wants to add some noise, add the noise at the specified SNR
 	if (snr != 99) {
@@ -1023,6 +1045,14 @@ function generateAndPlay() {
 	buildAndPlayAudio(samples, sampleRate)
 }
 
+function gaussianRandom(mean=0, stdev=1) {
+    const u = 1 - Math.random(); // Converting [0,1) to (0,1]
+    const v = Math.random();
+    const z = Math.sqrt( -2.0 * Math.log( u ) ) * Math.cos( 2.0 * Math.PI * v );
+    // Transform to the desired mean and standard deviation:
+    return z * stdev + mean;
+}
+
 function addNoise(samples, snr) {
 	// figure out the ratio of signal to noise, as specified in SNR (which is in dB)
 	let signalScale = Math.pow(10, (snr/10))
@@ -1033,7 +1063,7 @@ function addNoise(samples, snr) {
 	// then add a random value between -1 and +1
 	// whilst this is happening, find the highest amplitude (positive or negative) in the samples
 	for (let i=0; i<samples.length; i++) {
-		samples[i] = (samples[i] * signalScale) + (Math.random() * randomSign())
+		samples[i] = (samples[i] * signalScale) + gaussianRandom()
 		if (samples[i] > maxValue) { maxValue = samples[i] }
 		else if (samples[i] < minValue) { minValue = samples[i] }
 	}
@@ -1057,8 +1087,13 @@ function addNoiseIQ(iqPoints, snr) {
 	// then add a random value between -1 and +1
 	// whilst this is happening, find the highest amplitude (positive or negative) in the samples
 	for (let i=0; i<iqPoints.length; i++) {
-		iqPoints[i][0] = (iqPoints[i][0] * signalScale) + (Math.random() * randomSign())
-		iqPoints[i][1] = (iqPoints[i][1] * signalScale) + (Math.random() * randomSign())
+		let angle = Math.random() * 2 * Math.PI
+		let amplitude = gaussianRandom()
+		let I = amplitude * Math.cos(angle)
+		let Q = amplitude * Math.sin(angle)
+		
+		iqPoints[i][0] = (iqPoints[i][0] * signalScale) + I
+		iqPoints[i][1] = (iqPoints[i][1] * signalScale) + Q
 	}
 	
 	return iqPoints
@@ -1175,8 +1210,6 @@ function plotPowerSpectrum() {
 	ctx.globalAlpha = 0.5
 	ctx.strokeStyle = "#bafbff"
 	ctx.moveTo(0, ph)
-
-	console.log(psds)
 
 	let x = 0
 	for (let s = 0; s < psds.length; s++) {
