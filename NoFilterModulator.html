@@ -310,6 +310,12 @@ onclick="alert('This tool attempts to produce decent quality modulated waveforms
 		<td><input id='rollOffInput' value=1 min=0 max=1></input>
 		<a href="" onclick="alert('Raised cosine roll-off factor, zero would produce a square wave, 1 is the maximum, with the least harmonics.')">&#9432;</a></td>
 	</tr>
+	
+	<tr>
+		<td>Custom constellation:</td>
+		<td><input id='customConstellationInput'></input>
+		<a href="" onclick="alert('Space and comma separated list of constellation points. For example, a QPSK could be input as: 1,1 -1,1 -1,-1 1,-1')">&#9432;</a></td>
+	</tr> 
 
 	</table>
 
@@ -994,6 +1000,17 @@ function buildAndPlayAudio(bytes, sampleRate) {
 	playing = true
 }
 
+function parseCustomConstellation(text) {
+	let constellation = []
+	text = text.split(' ')
+	text.forEach( function(item) {
+		let I = parseFloat(item.split(',')[0])
+		let Q = parseFloat(item.split(',')[1])
+		constellation.push( [I,Q] )
+	})
+	return constellation
+}
+
 function generateAndPlay() {
 	// take the UI inputs, generate the samples and play them
 	
@@ -1007,6 +1024,13 @@ function generateAndPlay() {
 	let snr = parseFloat( $("snrInput").value ) // SNR in dB
 	let modulation = eval($("modulationTypeInput").value) // ASK or FSK
 	let rollOff = parseFloat( $("rollOffInput").value ) // 0.0 to 1.0
+	let customConstellation = $("customConstellationInput").value
+	
+	let constellation = false
+	if (customConstellation != "") {
+		constellation = parseCustomConstellation(customConstellation)
+		ary = constellation.length
+	}
 
 	let bitsPerSymbol = Math.log2(ary)
 	let bitCount = parseInt((symbolRate*10*bitsPerSymbol))
@@ -1023,7 +1047,11 @@ function generateAndPlay() {
 	symbols.unshift( 0 )
 	
 	// perform the user specified modulation
-	modulation(symbols, carrierFrequency, deviation, ary, symbolRate, sampleRate, rollOff)
+	if (constellation) {
+		QAM(symbols, constellation, carrierFrequency, symbolRate, sampleRate, rollOff)
+	} else {
+		modulation(symbols, carrierFrequency, deviation, ary, symbolRate, sampleRate, rollOff)
+	}
 	
 	// if the user wants to add some noise, add the noise at the specified SNR
 	if (snr != 99) {
@@ -1245,6 +1273,7 @@ function plotIQ() {
 	let xMin = 0
 	
 	for (let i = 0; i < IQpoints.length; i++) {
+	
 		if (IQpoints[i][0] > xMax) { xMax = IQpoints[i][0] }
 		else if (IQpoints[i][0] < xMin) { xMin = IQpoints[i][0] }
 		
@@ -1274,7 +1303,7 @@ function plotIQ() {
 	
 	for (let s = 0; s < IQpoints.length; s++) {
 		let x = xZero + (IQpoints[s][0] * pw)
-		let y = yZero + (IQpoints[s][1] * ph)
+		let y = yZero + (IQpoints[s][1] * ph * -1)
 		ctx.lineTo(x, y)
 	}
 	
@@ -1285,10 +1314,9 @@ function plotIQ() {
 	ctx.fillStyle = "#bafbff"
 	for (let s = 0; s < IQpoints.length; s++) {
 		let x = xZero + (IQpoints[s][0] * pw)
-		let y = yZero + (IQpoints[s][1] * ph)
+		let y = yZero + (IQpoints[s][1] * ph * -1)
 		ctx.fillRect(x-2, y-2, 4, 4)
 	}
-	
 }
 
 function plotValues(canvas, data, dataRepeatCount, line=true) {
