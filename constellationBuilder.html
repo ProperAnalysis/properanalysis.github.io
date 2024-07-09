@@ -1,0 +1,416 @@
+<html>
+<title>Constellation Builder</title>
+<head>
+<style>
+:root {
+    --backgroundLight: #ffffff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #8d8d8d;
+    --buttonbgLight: #e5e5e5;
+    --entrybgLight: #efefef;
+    --backgroundLight: #e2fcff;
+    --midgroundLight: #efefef;
+    --borderColorLight: #2c2c2c;
+    --buttonbgLight: #e2fcff;
+    --entrybgLight: #ffffff;
+    --buttonbgHoverLight: #54fff5;
+    --buttonbgSelectedLight: #54fff5;
+    --buttonfgSelectedLight: #000;
+    --textColorLight: #000;
+    --tableHeadColorLight: #005861;
+    --tableHighlightColorLight: #910000;
+    --tableHighlightColorLight2: #84006c;
+    --cellColorLight: #ffffff;
+    --cellBorderLight: #9e9e9e;
+    --cellBorderStrongLight: #666;
+    --shadowColorLight: #fff;
+    --tableTopLeftLight: #fff;
+    --bitRasterBgLight: #efefef;
+    
+    --backgroundDark: #092a30;
+    --midgroundDark: #000;
+    --borderColorDark: #bafbff;
+    --entrybgDark: #222;
+    --buttonbgDark: #003a2f;
+    --buttonbgHoverDark: #009a85;
+    --buttonbgSelectedDark: #00ffd1;
+    --buttonfgSelectedDark: #000;
+    --textColorDark: #ccfff8;
+    --tableHeadColorDark: #4bffc5;
+    --tableHighlightColorDark: #ff8383;
+    --tableHighlightColorDark2: #e78bff;
+    --cellColorDark: #050505;
+    --cellBorderDark: #606060;
+    --cellBorderStrongDark: #777;
+    --shadowColorDark: #000;
+    --tableTopLeftDark: #484848;
+    --bitRasterBgDark: #222;
+    
+    --background: var(--backgroundDark);
+    --midground: var(--midgroundDark);
+    --borderColor: var(--borderColorDark);
+    --buttonbg: var(--buttonbgDark);
+    --entrybg: var(--entrybgDark);
+    --buttonbgHover: var(--buttonbgHoverDark);
+    --buttonbgSelected: var(--buttonbgSelectedDark);
+    --buttonfgSelected: var(--buttonfgSelectedDark);
+    --textColor: var(--textColorDark);
+    --tableHeadColor: var(--tableHeadColorDark);
+    --tableHighlightColor: var(--tableHighlightColorDark);
+    --tableHighlightColor2: var(--tableHighlightColorDark2);
+    --cellColor: var(--cellColorDark);
+    --cellBorder: var(--cellBorderDark);
+    --cellBorderStrong: var(--cellBorderStrongDark);
+    --shadowColor: var(--shadowColorDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --tableTopLeft: var(--tableTopLeftDark);
+    --bitRasterBg: var(--bitRasterBgDark);
+}
+
+body {
+	width: 100%;
+	height: 100%;
+	padding: 0px;
+	margin; 0px;
+	overflow: hidden;
+	background: var(--midground);
+	color: white;
+    font-family: "Comic Sans MS", "Comic Sans", monospace;
+	font-size: 10pt;
+}
+
+textArea {
+	background: var(--entrybg);
+	border: 1px var(--borderColor) solid;
+    color: var(--textColor);
+	border-radius: 3px;
+    font-family: "Comic Sans MS", "Comic Sans", monospace;
+}
+
+canvas {
+	background: var(--midground);
+	border: 1px var(--borderColor) solid;
+	border-radius: 3px;
+}
+
+button, input::file-selector-button, input, select{
+	background: var(--entrybg);
+	border: 1px var(--borderColor) solid;
+	border-radius: 2px;
+    color: var(--textColor);
+    margin: 0px;
+    font-family: "Comic Sans MS", "Comic Sans", monospace;
+	font-size: 10pt;
+    outline: none;
+    width: calc(790px / 5);
+}
+
+button {
+	background-Color: var(--buttonbg);
+} 
+
+button:hover, input::file-selector-button:hover{
+	background-Color: var(--buttonbgHover);
+}
+
+</style>
+</head>
+<body>
+<canvas id='pickerCanvas' style="width: 400px; height: 400px;"></canvas>
+<textArea id='logOutput' style="width: 400px; height: 400px;"></textArea>
+<div style='width: 100%;'>
+<button onclick='setGridSystem("polar")'>Polar Grids</button>
+<button onclick='setGridSystem("cartesian")'>Cartesian Grids</button>
+<button id='gridSnapButton' onclick='toggleGridSnap()'>Grid Snap [OFF]</button>
+<button onclick='clearCircles()'>Clear All</button>
+<button onclick='loadCircles()'>Load from text</button>
+</body>
+
+<script>
+
+var gridSnap = false
+var gridSize = 20
+var angleGrid = Math.PI/16
+var circles = []
+var circleRadius = 10
+var gridSystem = 'cartesian'
+
+function setGridSystem(system) {
+	gridSystem = system
+	updateCanvas()
+}
+
+function toggleGridSnap() {
+	if (gridSnap) {
+		gridSnap = false
+		$('gridSnapButton').innerHTML = 'Grid Snap [OFF]'
+		snapExistingCircles()
+	} else {
+		gridSnap = true
+		$('gridSnapButton').innerHTML = 'Grid Snap [ON]'
+		snapExistingCircles()
+	}
+}
+
+function log(text) {
+	outputArea = $('logOutput')
+	outputArea.innerHTML += '\n'
+	outputArea.innerHTML += text
+}
+
+function snapToGrid(x,y) {
+	let canvas = $('pickerCanvas')
+	x0 = canvas.width/2
+	y0 = canvas.height/2
+
+	if (gridSystem == 'cartesian') {
+		x = Math.round(x/gridSize) * gridSize
+		y = Math.round(y/gridSize) * gridSize
+	}
+
+	else if (gridSystem == 'polar') {
+		let angle = Math.atan2(x-x0, y0-y)
+		let amplitude = Math.sqrt( Math.pow(x-x0, 2) + Math.pow(y-y0, 2) )
+		angle = Math.round( angle/angleGrid ) * angleGrid
+		 angle -= Math.PI/2
+		amplitude = Math.round( amplitude/gridSize ) * gridSize
+		x = x0 + ( amplitude * Math.cos(angle) )
+		y = y0 + ( amplitude * Math.sin(angle) )
+	}
+
+	return [x,y]
+}
+
+function loadCircles() {
+	let outputArea = $('logOutput')
+	let canvas = $('pickerCanvas')
+	let text = outputArea.value.split(' ')
+	
+	let xScale = 2.5 / ( Math.round(canvas.width/gridSize) * gridSize )
+	let yScale = 2.5 / ( Math.round(canvas.height/gridSize) * gridSize )
+	
+	circles = []
+	text.forEach( function(item) {
+		item = item.split(',')
+		if (item.length == 2) {
+			let x = parseFloat(item[0])
+			let y = parseFloat(item[1])
+			x = (1.25 + x) / xScale
+			y = (1.25 + y) / yScale
+			circles.push([x,y])
+		}
+	})
+	
+	updateCanvas()
+}
+
+function addCircle(x, y) {
+	if (gridSnap) { [x,y] = snapToGrid(x,y) }
+	circles.push([x,y])
+	updateCanvas()
+}
+
+function clearCircles() {
+	circles = []
+	updateCanvas()
+}
+
+function snapExistingCircles() {
+	newCircles = []
+	circles.forEach( function(circle) {
+		newCircles.push( snapToGrid(circle[0], circle[1]) )
+	})
+	circles = newCircles
+	updateCanvas()
+}
+
+function deleteCircle(x, y) {
+	let newCircles = []
+	let radiusSquared = Math.pow(circleRadius, 2)
+	circles.forEach( function(circle) {
+		if ( x - circle[0] > circleRadius ) {
+			newCircles.push( circle )
+		} else if ( y - circle[1] > circleRadius ) {
+			newCircles.push( circle )
+		} else if ( Math.pow(x - circle[0], 2) + Math.pow(y - circle[1], 2) > radiusSquared ) {
+			newCircles.push( circle )
+		}
+	})
+	
+	circles = newCircles
+	updateCanvas()
+}
+
+function drawAllCircles() {
+	let outputArea = $('logOutput')
+	outputArea.value += 'Constellation Points: ' + circles.length + '\n'
+
+	circles.forEach( function(circle) {
+		drawCircle(circle)
+	})
+	
+	outputArea.value = outputArea.value.slice(0, outputArea.value.length-1)
+}
+
+function drawCircle(circle) {
+	let x = circle[0]
+	let y = circle[1]
+	let canvas = $('pickerCanvas')
+	let ctx = canvas.getContext('2d')
+	ctx.beginPath()
+	ctx.arc(x, y, circleRadius, 0, 2 * Math.PI)
+	ctx.strokeStyle = "#fff"
+	ctx.stroke()
+	ctx.globalAlpha = 0.2
+	ctx.fillStyle = "#5ff"
+	ctx.fill()
+	ctx.globalAlpha = 1.0
+	
+	let xScale = 2.5 / ( Math.round(canvas.width/gridSize) * gridSize )
+	let yScale = 2.5 / ( Math.round(canvas.height/gridSize) * gridSize )
+	x = Math.round( ( 1.25 - (x * xScale) ) * -1000 ) / 1000
+	y = Math.round( ( 1.25 - (y * yScale) ) * 1000  ) / 1000
+	let outputArea = $('logOutput')
+	outputArea.value = outputArea.value + x + ',' + y + ' '
+}
+
+function clickCanvas(e) {
+	let canvas = $('pickerCanvas')
+	let x = e.clientX - canvas.offsetTop
+      let y = e.clientY - canvas.offsetLeft
+      if (e.button == 0) {
+    	  // left click
+		addCircle(x, y)
+      } else if (e.button == 2) {
+		// right click
+		deleteCircle(x, y)
+	}
+}
+
+function drawCartesianGrid() {
+	let canvas = $('pickerCanvas')
+	let ctx = canvas.getContext('2d')
+
+	let width = canvas.width
+	let height = canvas.height
+
+	ctx.fillStyle = '#fff'
+	ctx.globalAlpha = 0.05
+
+	for (let x=0; x<width; x+=gridSize) {
+		ctx.fillRect(x,0,1,height)
+	}
+
+	for (let y=0; y<height; y+=gridSize) {
+		ctx.fillRect(0,y,width,1)
+	}
+
+	ctx.globalAlpha = 0.1
+
+	for (let x=0; x<width; x+=gridSize*2) {
+		ctx.fillRect(x,0,1,height)
+	}
+
+	for (let y=0; y<height; y+=gridSize*2) {
+		ctx.fillRect(0,y,width,1)
+	}
+
+	ctx.globalAlpha = 1.0
+}
+
+function drawPolarGrid() {
+	let canvas = $('pickerCanvas')
+	let ctx = canvas.getContext('2d')
+
+	let width = canvas.width
+	let height = canvas.height
+
+	ctx.strokeStyle = '#fff'
+	ctx.globalAlpha = 0.05
+
+	let radius = gridSize
+	let x = parseInt( width/2 )
+	let y = parseInt( height/2 )
+	let step = 0
+	while (radius < height) {
+		ctx.beginPath()
+		ctx.arc(x, y, radius, 0, 2 * Math.PI)
+		ctx.stroke()
+		if (step % 2 == 0) { ctx.stroke(); ctx.stroke() }
+		radius += gridSize
+		step ++
+	}
+
+	let angle = angleGrid * 1
+	let increment = angleGrid * 1
+	step = 0
+	while (angle < Math.PI*2) {
+		let x1 = width * Math.cos(angle)
+		let y1 = height * Math.sin(angle)
+		angle += increment
+		step ++
+		ctx.beginPath()
+		ctx.moveTo(x,y)
+		ctx.lineTo(x+x1,y+y1)
+		ctx.stroke()
+		if (step % 2 == 0) { ctx.stroke(); ctx.stroke() }
+	}
+
+	ctx.globalAlpha = 1.0
+
+}
+
+function updateCanvas() {
+	let outputArea = $('logOutput')
+	outputArea.value = ''
+
+	let canvas = $('pickerCanvas')
+	let ctx = canvas.getContext('2d')
+
+	let width = canvas.width
+	let height = canvas.height
+
+	ctx.clearRect(0, 0, canvas.width, canvas.height)
+	ctx.fillStyle = '#fff'
+	ctx.fillRect(0,parseInt(height/2),width,1)
+	ctx.fillRect(parseInt(width/2),0,1,height)
+
+	if (gridSystem == 'polar') {
+		drawPolarGrid()
+	} else if (gridSystem == 'cartesian') {
+		drawCartesianGrid()
+	}
+
+	drawAllCircles()  
+}
+
+function initCanvas() {
+	let canvas = $('pickerCanvas')
+	let ctx = canvas.getContext('2d')
+	
+	canvas.width = canvas.clientWidth
+	canvas.height = canvas.clientHeight
+
+	let width = canvas.width
+	let height = canvas.height
+
+	canvas.addEventListener('click', (e) => {
+		clickCanvas(e)
+	});
+
+      canvas.addEventListener('contextmenu', (e) => {
+    	  e.preventDefault();
+		clickCanvas(e)
+      });
+
+	updateCanvas()
+}
+
+function $(id) {
+	return document.getElementById(id)
+}
+
+window.onload = function(e){ initCanvas() }
+
+</script>
+</html>
