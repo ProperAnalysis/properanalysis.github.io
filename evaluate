@@ -1,0 +1,45 @@
+<html>
+<head>
+<title>Base64 JavaScript Evaluator</title>
+<style>
+html {
+	background-color: black;
+	color: white;
+}
+</style>
+</head>
+<body>
+</body>
+
+<script>
+	
+    // Function to get the query string parameters	
+    function getQueryParam(name) {
+      const urlParams = new URLSearchParams(window.location.search);
+      return urlParams.get(name);
+    }
+
+    // Function to decode a Base64 string
+    function decodeBase64(base64String) {
+		return decodeURIComponent(escape(decodeUrlSafeBase64(base64String)));
+    }
+	
+	function decodeUrlSafeBase64(base64) {
+		// Replace URL-safe characters with standard Base64 characters
+		base64 = base64.replace(/-/g, '+').replace(/_/g, '/');
+		
+		// Add padding if necessary
+		while (base64.length % 4) {
+			base64 += '=';
+		}
+		
+		// Decode the Base64 string
+		return atob(base64);
+	}
+	 
+    const base64Code = getQueryParam('code');
+    const decodedCode = decodeBase64(base64Code);
+    eval(decodedCode);
+
+</script>
+</html>
